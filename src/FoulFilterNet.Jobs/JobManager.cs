@@ -15,7 +15,7 @@ namespace FoulFilterNet.Jobs;
 /// from two threads outside the lock.
 /// </para>
 /// </summary>
-public sealed class JobManager
+public sealed class JobManager(JobEventFanOut events)
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<string, Entry> _entries = [];
@@ -24,8 +24,30 @@ public sealed class JobManager
     private readonly Channel<string> _channel = Channel.CreateUnbounded<string>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
 
+    public JobManager()
+        : this(new JobEventFanOut())
+    {
+    }
+
     /// <summary>What the worker blocks on. One reader only - jobs are sequential.</summary>
     public ChannelReader<string> Reader => _channel.Reader;
+
+    /// <summary>Where every change to a record is broadcast.</summary>
+    public JobEventFanOut Events => events;
+
+    /// <summary>
+    /// Opens a listener on the jobs. The snapshot is taken under the same lock
+    /// that publishes updates, so a client cannot miss a change that lands
+    /// between connecting and reading - a race the Python's
+    /// snapshot-then-subscribe left open.
+    /// </summary>
+    public JobSubscription Subscribe()
+    {
+        lock (_gate)
+        {
+            return events.Subscribe(_order.ConvertAll(entry => entry.Record));
+        }
+    }
 
     /// <summary>
     /// Accepts a job. The caller supplies the id because the upload paths in
@@ -46,6 +68,7 @@ public sealed class JobManager
             }
 
             _order.Add(entry);
+            events.Publish(entry.Record);
         }
 
         _channel.Writer.TryWrite(id);
@@ -101,6 +124,8 @@ public sealed class JobManager
                     Status = JobStatus.Cancelled,
                     Detail = CancelledDetail,
                 };
+
+                events.Publish(entry.Record);
             }
         }
 
@@ -143,6 +168,7 @@ public sealed class JobManager
                 Detail = "Starting",
             };
 
+            events.Publish(entry.Record);
             record = entry.Record;
             cancellationToken = entry.Cancellation.Token;
             return true;
@@ -191,6 +217,12 @@ public sealed class JobManager
 
     internal const string CancelledDetail = "Cancelled by user";
 
+    /// <summary>
+    /// Every mutation goes through here, and publishes while still holding the
+    /// lock. Publishing is a non-blocking write into each listener's own bounded
+    /// channel, so holding the lock costs nothing and buys subscribers an event
+    /// order that matches the order the records actually changed in.
+    /// </summary>
     private void Update(string id, Func<JobRecord, JobRecord> change)
     {
         lock (_gate)
@@ -198,6 +230,7 @@ public sealed class JobManager
             if (_entries.TryGetValue(id, out var entry))
             {
                 entry.Record = change(entry.Record);
+                events.Publish(entry.Record);
             }
         }
     }

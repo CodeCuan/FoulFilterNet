@@ -13,14 +13,14 @@ internal sealed class JobHarness : IAsyncDisposable
     private readonly JobWorker _worker;
     private readonly string _root;
 
-    public JobHarness()
+    public JobHarness(JobEventFanOut? events = null)
     {
         _root = Path.Combine(Path.GetTempPath(), "ffn-jobs-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(Path.Combine(_root, "uploads"));
         Directory.CreateDirectory(Path.Combine(_root, "outputs"));
         Directory.CreateDirectory(Path.Combine(_root, "scratch"));
 
-        Jobs = new JobManager();
+        Jobs = new JobManager(events ?? new JobEventFanOut());
         Pipeline = new StubMediaPipeline();
         _worker = new JobWorker(Jobs, Pipeline, NullLogger<JobWorker>.Instance);
     }
