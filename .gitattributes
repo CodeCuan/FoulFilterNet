@@ -1,0 +1,32 @@
+# Normalise to LF in the repository; check out native on Windows.
+* text=auto
+
+*.cs        text diff=csharp
+*.csproj    text
+*.props     text
+*.targets   text
+*.slnx      text
+*.json      text
+*.md        text
+*.yml       text
+*.html      text
+*.css       text
+*.js        text
+*.py        text
+
+# Scripts that must keep their platform's endings
+*.ps1       text eol=crlf
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+
+# Test fixtures and other binaries must never be touched
+*.mp3       binary
+*.mp4       binary
+*.m4a       binary
+*.m4b       binary
+*.wav       binary
+*.flac      binary
+*.png       binary
+*.jpg       binary
+*.bin       binary
+*.gguf      binary

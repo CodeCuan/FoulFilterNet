@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
+    <ProjectReference Include="../FoulFilterNet.Media/FoulFilterNet.Media.csproj" />
+    <ProjectReference Include="../FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
+    <ProjectReference Include="../FoulFilterNet.SmartCut/FoulFilterNet.SmartCut.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FoulFilterNet.Cli/FoulFilterNet.Cli.csproj" />
+    <Project Path="src/FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
+    <Project Path="src/FoulFilterNet.Jobs/FoulFilterNet.Jobs.csproj" />
+    <Project Path="src/FoulFilterNet.Media/FoulFilterNet.Media.csproj" />
+    <Project Path="src/FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />
+    <Project Path="src/FoulFilterNet.SmartCut/FoulFilterNet.SmartCut.csproj" />
+    <Project Path="src/FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
+    <Project Path="src/FoulFilterNet.Web/FoulFilterNet.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FoulFilterNet.Cli.Tests/FoulFilterNet.Cli.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Domain.Tests/FoulFilterNet.Domain.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Jobs.Tests/FoulFilterNet.Jobs.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Media.Tests/FoulFilterNet.Media.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Pipeline.Tests/FoulFilterNet.Pipeline.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.SmartCut.Tests/FoulFilterNet.SmartCut.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Transcription.Tests/FoulFilterNet.Transcription.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Web.Tests/FoulFilterNet.Web.Tests.csproj" />
+  </Folder>
+</Solution>

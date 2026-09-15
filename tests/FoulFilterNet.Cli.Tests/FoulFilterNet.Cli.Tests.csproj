@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/FoulFilterNet.Cli/FoulFilterNet.Cli.csproj" />
+  </ItemGroup>
+
+</Project>

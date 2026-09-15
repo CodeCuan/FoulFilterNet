@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "task/**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # The Media tests shell out to ffmpeg/ffprobe for probing and rendering.
+      # Whisper is never loaded in CI - the pipeline is tested through stubs.
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Restore
+        run: dotnet restore FoulFilterNet.slnx
+
+      - name: Build
+        run: dotnet build FoulFilterNet.slnx --no-restore --configuration Release
+
+      # Note: no --nologo. Under Microsoft.Testing.Platform, dotnet test forwards
+      # unrecognised arguments to the test executable, which rejects them and
+      # reports "Zero tests ran" instead of failing loudly.
+      - name: Test
+        run: dotnet test FoulFilterNet.slnx --no-build --configuration Release

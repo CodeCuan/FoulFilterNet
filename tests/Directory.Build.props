@@ -1,0 +1,27 @@
+<Project>
+
+  <!-- Inherit the root settings, then layer on test-project defaults so that
+       each *.Tests.csproj needs nothing but its ProjectReference. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- xUnit v3 test projects are executables. -->
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft.Testing.Platform is the runner (opted into via global.json);
+         neither Microsoft.NET.Test.Sdk nor xunit.runner.visualstudio is needed. -->
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

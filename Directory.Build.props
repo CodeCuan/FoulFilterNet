@@ -1,0 +1,35 @@
+<Project>
+
+  <!--
+    Shared settings for every project in the solution. Individual csproj files
+    stay near-empty so that concurrent work on different projects does not
+    collide here. See docs/STATUS.md - this file is owned by T01.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- The port renders FFmpeg filtergraphs as strings and compares them
+         byte-for-byte against the Python. A stray culture or an unhandled null
+         is a silent behaviour change, so both are build failures. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors></WarningsNotAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>FoulFilterNet</Authors>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1848;CA2007</NoWarn>
+  </PropertyGroup>
+
+</Project>
