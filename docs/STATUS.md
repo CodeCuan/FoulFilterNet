@@ -52,8 +52,8 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T07 | Filtergraph builders | ✅ | `task/T07-filtergraphs` | `136165d` | `FilterGraph`; float formatting verified against the Python strings |
 | T08 | FFmpeg process adapter | ✅ | `task/T08-ffmpeg-runner` | `d29fa68` | `FFmpegRunner`, `FFmpegProcess` |
 | T09 | Media probing (FFprobe) | ✅ | `task/T09-media-probing` | `d72fa0e` | `FFprobeMediaProber` |
-| T10 | Audio preparation | — | | | Stream B; T13 depends on this |
-| T11 | Media editor | — | | | Stream B |
+| T10 | Audio preparation | ✅ | `task/T10-audio-prep` | `fe52974` | `FFmpegAudioPreparer`; T13 depends on this |
+| T11 | Media editor | ✅ | `task/T11-media-editor` | pending | `MediaEditor`; branched from T10 |
 | T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
 | T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk; see notes below |
 | T14 | Aligner seam | ✅ | `task/T14-aligner-seam` | `ffe8d32` | `PassThroughAligner`; branched from T12 |
@@ -121,8 +121,6 @@ than salvaged**: a TDD agent killed mid-cycle leaves state whose test-first
 ordering cannot be verified after the fact, and re-running the task is cheaper
 than auditing it. Specifically discarded, and safe to start clean:
 
-- **T10** — a branch existed at T09's commit with uncommitted
-  `FFmpegAudioPreparer.cs` and its test file.
 - **T23** — a branch at `3e17d99` with seven uncommitted files in
   `FoulFilterNet.Jobs`.
 - **T15-T18** — Stream D produced nothing at all.
