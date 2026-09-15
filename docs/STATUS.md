@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 276 passing, 5 skipped placeholders |
+| Tests | 340 passing, 5 skipped placeholders |
 
 ## Conventions for agents
 
@@ -53,7 +53,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T08 | FFmpeg process adapter | ✅ | `task/T08-ffmpeg-runner` | `d29fa68` | `FFmpegRunner`, `FFmpegProcess` |
 | T09 | Media probing (FFprobe) | ✅ | `task/T09-media-probing` | `d72fa0e` | `FFprobeMediaProber` |
 | T10 | Audio preparation | ✅ | `task/T10-audio-prep` | `fe52974` | `FFmpegAudioPreparer`; T13 depends on this |
-| T11 | Media editor | ✅ | `task/T11-media-editor` | pending | `MediaEditor`; branched from T10 |
+| T11 | Media editor | ✅ | `task/T11-media-editor` | `c8abea0` | `MediaEditor`; branched from T10 |
 | T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
 | T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk; see notes below |
 | T14 | Aligner seam | ✅ | `task/T14-aligner-seam` | `ffe8d32` | `PassThroughAligner`; branched from T12 |
