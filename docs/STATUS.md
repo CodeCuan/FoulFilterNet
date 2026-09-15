@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 340 passing, 5 skipped placeholders |
+| Tests | 463 passing, 8 skipped (4 project placeholders + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -77,7 +77,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T15 | Smart Cut prompt | ✅ | `task/T15-smartcut-prompt` | `b9ef3fa` | `SmartCutPrompt`; template ported verbatim |
 | T16 | Smart Cut response parsing | ✅ | `task/T16-response-parsing` | `779024c` | `SmartCutResponseParser`, `SmartCutResponses` |
 | T17 | LLM transports | ✅ | `task/T17-llm-transports` | `2f28211` | `ISmartCutTransport`, `GeminiTransport`, `OpenAiCompatibleTransport` |
-| T18 | Smart Cut advisor (flag, default off) | ✅ | `task/T18-smartcut-advisor` | pending | `LlmSmartCutAdvisor`, `NoOpSmartCutAdvisor`, `AddSmartCut`; see notes below |
+| T18 | Smart Cut advisor (flag, default off) | ✅ | `task/T18-smartcut-advisor` | `f052d4f` | `LlmSmartCutAdvisor`, `NoOpSmartCutAdvisor`, `AddSmartCut`; see notes below |
 | T19 | Transcript store | — | | | Stream F |
 | T20 | Candidate/Hit reconciliation | — | | | Stream A→F; fixes finding 2 |
 | T21 | Pipeline orchestrator | — | | | Stream F; convergence point |
