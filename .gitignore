@@ -112,3 +112,6 @@ $RECYCLE.BIN/
 *.bak
 *.swp
 *~
+
+# Agent worktrees are transient and must never be committed.
+.claude/worktrees/

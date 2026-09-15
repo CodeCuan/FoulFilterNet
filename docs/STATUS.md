@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 189 passing, 5 skipped placeholders |
+| Tests | 276 passing, 5 skipped placeholders |
 
 ## Conventions for agents
 
@@ -49,9 +49,9 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T04 | Phrase matching | ✅ | `task/T04-phrase-matching` | `eedacee` | `PhraseMatcher` |
 | T05 | Hit padding + merging | ✅ | `task/T05-hit-merging` | `5c3f4fc` | `HitMerger`, `HitPadding` |
 | T06 | Smart Cut index mapping | ✅ | `task/T06-smartcut-mapping` | `6299a12` | `SmartCutMapper`; T16 depends on this |
-| T07 | Filtergraph builders | — | | | Stream B; watch float formatting |
-| T08 | FFmpeg process adapter | — | | | Stream B |
-| T09 | Media probing (FFprobe) | — | | | Stream B |
+| T07 | Filtergraph builders | ✅ | `task/T07-filtergraphs` | `136165d` | `FilterGraph`; float formatting verified against the Python strings |
+| T08 | FFmpeg process adapter | ✅ | `task/T08-ffmpeg-runner` | `d29fa68` | `FFmpegRunner`, `FFmpegProcess` |
+| T09 | Media probing (FFprobe) | ✅ | `task/T09-media-probing` | `d72fa0e` | `FFprobeMediaProber` |
 | T10 | Audio preparation | — | | | Stream B; T13 depends on this |
 | T11 | Media editor | — | | | Stream B |
 | T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
@@ -112,6 +112,20 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
   `xunit.v3` metapackage resolves but none of its assemblies reach the output.
 - **The MTP opt-in is in `global.json`** (`"test": {"runner": ...}`), not
   `dotnet.config` and not an MSBuild property.
+
+## Interrupted work (session usage limit, 2026-09-16)
+
+Three agents were killed mid-task by a usage limit. Stream B's T07-T09 were
+complete and committed, and are merged. Everything else was **discarded rather
+than salvaged**: a TDD agent killed mid-cycle leaves state whose test-first
+ordering cannot be verified after the fact, and re-running the task is cheaper
+than auditing it. Specifically discarded, and safe to start clean:
+
+- **T10** — a branch existed at T09's commit with uncommitted
+  `FFmpegAudioPreparer.cs` and its test file.
+- **T23** — a branch at `3e17d99` with seven uncommitted files in
+  `FoulFilterNet.Jobs`.
+- **T15-T18** — Stream D produced nothing at all.
 
 ## Notes for T13 (left by Stream C)
 
