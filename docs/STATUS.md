@@ -57,10 +57,10 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
 | T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk; see notes below |
 | T14 | Aligner seam | ✅ | `task/T14-aligner-seam` | `ffe8d32` | `PassThroughAligner`; branched from T12 |
-| T15 | Smart Cut prompt | — | | | Stream D |
-| T16 | Smart Cut response parsing | — | | | Stream D |
-| T17 | LLM transports | — | | | Stream D |
-| T18 | Smart Cut advisor (flag, default off) | — | | | Stream D |
+| T15 | Smart Cut prompt | ✅ | `task/T15-smartcut-prompt` | `b9ef3fa` | `SmartCutPrompt`; template ported verbatim |
+| T16 | Smart Cut response parsing | ✅ | `task/T16-response-parsing` | `779024c` | `SmartCutResponseParser`, `SmartCutResponses` |
+| T17 | LLM transports | ✅ | `task/T17-llm-transports` | `2f28211` | `ISmartCutTransport`, `GeminiTransport`, `OpenAiCompatibleTransport` |
+| T18 | Smart Cut advisor (flag, default off) | ✅ | `task/T18-smartcut-advisor` | pending | `LlmSmartCutAdvisor`, `NoOpSmartCutAdvisor`, `AddSmartCut`; see notes below |
 | T19 | Transcript store | — | | | Stream F |
 | T20 | Candidate/Hit reconciliation | — | | | Stream A→F; fixes finding 2 |
 | T21 | Pipeline orchestrator | — | | | Stream F; convergence point |
@@ -125,7 +125,6 @@ than auditing it. Specifically discarded, and safe to start clean:
   `FFmpegAudioPreparer.cs` and its test file.
 - **T23** — a branch at `3e17d99` with seven uncommitted files in
   `FoulFilterNet.Jobs`.
-- **T15-T18** — Stream D produced nothing at all.
 
 ## Notes for T13 (left by Stream C)
 
@@ -220,6 +219,39 @@ Two deliberate departures from the Python, both noted in the commits:
 `merge_hits` was ported faithfully, finding 2 included: T20 still owns
 reconciling Candidates to Hits by time proximity. Nothing in `HitMerger` blocks
 that — it takes and returns plain `Hit` lists.
+
+## Stream D output (T15–T18) — what T21 and T29 need to know
+
+`FoulFilterNet.SmartCut` is complete and wired for DI. No frozen contract was
+touched; `ISmartCutAdvisor` was sufficient exactly as written.
+
+- **Register with `services.AddSmartCut(configuration)`** (T29/T32). It binds the
+  `SmartCut` section, registers a named `HttpClient` with a 240 s timeout, and
+  resolves **one** `ISmartCutAdvisor`. T21 injects that and calls it for every
+  hit; **there is no flag to check in the pipeline.**
+- **Disabled, or enabled-but-unusable, resolves `NoOpSmartCutAdvisor`** —
+  `IsEnabled` false, every hit answered `KeepOriginal`, never `Reject`. "Unusable"
+  means Google mode with no API key or no model, or Local mode with an
+  unparseable URL; each logs one warning at startup rather than failing.
+  A local server that simply is not listening cannot be detected at startup, so
+  that degrades per hit instead: the transport reports it unavailable and the hit
+  keeps its original timestamps.
+- **`GET /config` should report `ISmartCutAdvisor.IsEnabled`**, not the raw flag —
+  that is what makes the UI badge honest when the key is missing (finding 1).
+- **The Google API key never comes from appsettings.** `AddSmartCut` resolves a
+  `GoogleApiKeySource` delegate that reads `GOOGLE_API_KEY` from configuration
+  (so environment variables and user-secrets work) and falls back to the
+  environment. Tests substitute the delegate; nothing logs the key.
+- **`RefineAsync` never throws**, including for an empty context window, which it
+  short-circuits before `SmartCutMapper.Map` can reject it — no LLM call is spent
+  on one either.
+- **T21 owns building the context window**: `SmartCutOptions.ContextRadius`
+  (default 11) words either side, and the `centerIndex` of the target within it.
+  `allowWidening` is true only for `remove` on audio (ADR-0004).
+- Live-LLM scenarios ported from `Legacy/src/test_ai_filter.py` live in
+  `LiveLlmSmartCutTests` and are skipped unless `RUN_LIVE_LLM_TESTS` is set, the
+  same gate the Python used. CI has no LLM and no network; every other transport
+  test drives a fake `HttpMessageHandler`.
 
 ## Open questions
 
