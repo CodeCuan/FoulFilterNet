@@ -37,6 +37,23 @@ Last updated: 2026-09-15
 - **Never push to `upstream`** (its push URL is deliberately disabled). Push to
   `origin`.
 
+## Execution policy: sequential from here
+
+**One task at a time.** Concurrent agents exhausted the session token budget
+once already (2026-09-16), killing three mid-task and costing a stream's worth
+of uncommitted work. The parallelisation analysis in
+[03-parallelisation-review.md](03-parallelisation-review.md) remains correct
+about what *could* run concurrently, but throughput is limited by tokens, not
+by the dependency graph - so the graph's value now is ordering freedom, not
+fan-out.
+
+Consequences for whoever picks this up:
+
+- Run one task, verify it green, commit, merge, then start the next.
+- Keep committing per task. That discipline is what made the last interruption
+  cost one task instead of seven.
+- The dependency graph still decides *order*; it no longer decides *batching*.
+
 ## Task ledger
 
 Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠️` blocked
