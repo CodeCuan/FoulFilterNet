@@ -3,6 +3,11 @@
 Derived from [01-python-analysis.md](01-python-analysis.md). Every task is one
 commit, TDD, tests green before it lands.
 
+> **Amended by [03-parallelisation-review.md](03-parallelisation-review.md).**
+> That review recommends two changes to T01 and T02 — scaffold all sixteen
+> projects up front, and hoist the interface set into T02 — which take T21 off
+> the Smart Cut critical path. Read it before starting T01.
+
 ---
 
 ## Solution layout
