@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 26 passing, 7 skipped placeholders |
+| Tests | 26 passing, 7 skipped placeholders (Stream A adds 105 on its four branches) |
 
 ## Conventions for agents
 
@@ -45,10 +45,10 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 |---|---|---|---|---|---|
 | T01 | Solution skeleton + all 16 projects | ✅ | `main` | `a03fdd8` | Owns shared files; scaffolds everything |
 | T02 | Domain artifacts **+ hoisted contracts** | ✅ | `main` | pending | Interfaces FROZEN - see Contracts below |
-| T03 | Tokenizer + Bad Words List | — | | | Stream A |
-| T04 | Phrase matching | — | | | Stream A |
-| T05 | Hit padding + merging | — | | | Stream A |
-| T06 | Smart Cut index mapping | — | | | Stream A; T16 depends on this |
+| T03 | Tokenizer + Bad Words List | ✅ | `task/T03-tokenizer` | `42a51b8` | `Tokenizer`, `BadWordsList` |
+| T04 | Phrase matching | ✅ | `task/T04-phrase-matching` | `eedacee` | `PhraseMatcher` |
+| T05 | Hit padding + merging | ✅ | `task/T05-hit-merging` | `5c3f4fc` | `HitMerger`, `HitPadding` |
+| T06 | Smart Cut index mapping | ✅ | `task/T06-smartcut-mapping` | tip of branch | `SmartCutMapper`; T16 depends on this |
 | T07 | Filtergraph builders | — | | | Stream B; watch float formatting |
 | T08 | FFmpeg process adapter | — | | | Stream B |
 | T09 | Media probing (FFprobe) | — | | | Stream B |
@@ -132,6 +132,43 @@ In `FoulFilterNet.Domain.Abstractions`: `ITranscriber`, `IAligner`,
 
 If one of these is wrong, **report it — do not change it**. Six streams write
 test doubles against these.
+
+## Stream A output (T03–T06) — what the rest of the port can use
+
+New public types in `FoulFilterNet.Domain`, all pure and static-or-trivial to
+construct. No frozen contract was touched.
+
+- `Tokenizer.Tokenize(text)` — the `[a-z0-9']+` token list over lowercased text.
+  `Tokenizer.Normalize(text)` is those tokens space-joined: the one spelling
+  everything else compares against.
+- `BadWordsList.FromLines(lines)` — normalization plus the empty-list check.
+  `Contains(phrase)` expects an already-normalized phrase.
+- `PhraseMatcher.FindCandidates(segments, badWords)` and
+  `PhraseMatcher.FindHits(words, badWords)`.
+- `HitMerger` / `HitPadding` — `new HitMerger().Merge(hits)` uses the 0.15/0.25
+  defaults. Padding is injectable so T21 does not have to hard-code it.
+- `SmartCutMapper.Map(startIndex, endIndex, contextWindow, centerIndex, allowWidening)`
+  returns a `SmartCutDecision`. **T16**: parse the response to two ints and call
+  this; `SmartCutMapper.RejectIndex` is the `-1` sentinel. It throws
+  `ArgumentException` on an empty window (Python raised `IndexError` there and
+  the caller swallowed it), so T18 must map any throw to
+  `SmartCutDecision.KeepOriginal`.
+
+Two deliberate departures from the Python, both noted in the commits:
+
+1. **`FindHits` normalizes each word before matching.** The Python compares the
+   aligned word verbatim, relying on `aligner.py` having lowercased and stripped
+   it; a word still carrying punctuation ("Hell,") silently fails to match.
+   Whisper.net emits exactly that, so T13/T14 do not have to sanitize word text
+   for matching to work.
+2. **`BadWordsList` throws only when no line is usable** (all blank or all
+   comments), exactly as `load_bad_words` does. A list whose every entry is
+   longer than three tokens is *not* an error — it simply matches nothing, which
+   is the Python's behaviour. Worth a second look if that ever bites.
+
+`merge_hits` was ported faithfully, finding 2 included: T20 still owns
+reconciling Candidates to Hits by time proximity. Nothing in `HitMerger` blocks
+that — it takes and returns plain `Hit` lists.
 
 ## Open questions
 
