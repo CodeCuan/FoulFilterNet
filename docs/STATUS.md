@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 26 passing, 7 skipped placeholders |
+| Tests | 84 passing, 6 skipped placeholders |
 
 ## Conventions for agents
 
@@ -54,9 +54,9 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T09 | Media probing (FFprobe) | — | | | Stream B |
 | T10 | Audio preparation | — | | | Stream B; T13 depends on this |
 | T11 | Media editor | — | | | Stream B |
-| T12 | ASR contracts + rescan shifting | — | | | Stream C |
-| T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk |
-| T14 | Aligner seam | — | | | Stream C |
+| T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
+| T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk; see notes below |
+| T14 | Aligner seam | ✅ | `task/T14-aligner-seam` | pending | `PassThroughAligner`; branched from T12 |
 | T15 | Smart Cut prompt | — | | | Stream D |
 | T16 | Smart Cut response parsing | — | | | Stream D |
 | T17 | LLM transports | — | | | Stream D |
@@ -113,6 +113,43 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 - **The MTP opt-in is in `global.json`** (`"test": {"runner": ...}`), not
   `dotnet.config` and not an MSBuild property.
 
+## Notes for T13 (left by Stream C)
+
+`FoulFilterNet.Transcription` now contains everything T13 needs that is not the
+engine itself. Nothing in it loads a model, touches a GPU, or downloads
+weights, and it must stay that way — CI is CPU-only.
+
+- **`ModelNames.Normalize`** returns Hugging Face-style ids (`base` becomes
+  `openai/whisper-base`) because that is what existing configuration and the
+  Python carried. whisper.cpp wants a **GGML weights file**, so T13 owns the
+  mapping from a repository id to `ggml-base.bin` and the decision about where
+  it is cached. Keep the configuration spelling; map at the edge.
+- **`RescanPass`** owns all the Rescan arithmetic. `TranscribeShiftedAsync`
+  should pad the audio (T10's job), transcribe the padded file, and hand the
+  raw result to `RescanPass.Shift(TranscriptionResult, offsetSeconds)` — which
+  rebases segments *and* words in one call. Do not re-derive the arithmetic.
+  `RescanPass.Union` is the pipeline's (T21) merge, not the transcriber's.
+- **`TranscriptionOptions.UnloadAfterJob`** is the flag; honouring it is T13's
+  `ReleaseAsync` and T22's policy.
+- **`TranscriptionDevice.Auto`** means "CUDA if it is usable, else CPU". The
+  runtime packages are already declared centrally (`Whisper.net`,
+  `Whisper.net.Runtime`, `Whisper.net.Runtime.Cuda`, all 1.9.1); referencing
+  them needs no version attribute.
+- Word timestamps are expected to arrive as **token**-level timestamps on each
+  segment (enabled on `WhisperProcessorBuilder`; confirm the exact member
+  against the installed 1.9.1 package before building on it) rather than from a
+  ready-made word API. Whisper.cpp emits sub-word tokens, with a word's first
+  token carrying the leading space, so **tokens must be joined into words
+  before they become `Word` records** — one `Word` per whitespace-delimited
+  word, taking the first token's start and the last token's end. Getting this
+  wrong shows up as plausible-looking but systematically early word boundaries.
+  `Word.Text` is matched against the Bad Words List downstream, so lowercase
+  and strip punctuation the way `Legacy/src/aligner.py` did
+  (`w["word"].lower().strip()`).
+- The tolerance question ("is DTW precise enough?") is still open — see below.
+  If the answer is no, `PassThroughAligner` is the seam a real aligner replaces
+  and no pipeline code changes.
+
 ## Contracts (frozen at T02)
 
 In `FoulFilterNet.Domain`:
@@ -137,4 +174,5 @@ test doubles against these.
 
 - Whisper.net DTW boundary error vs the wav2vec2 forced aligner it replaces.
   Measured in T13 against the manifest; if it exceeds the 0.15/0.25 s padding,
-  T14's seam gets a real implementation. **Not yet answered.**
+  T14's seam gets a real implementation in place of `PassThroughAligner`.
+  **Not yet answered.**
