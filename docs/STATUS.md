@@ -12,10 +12,10 @@ Last updated: 2026-09-15
 
 | | |
 |---|---|
-| Phase | **Wave 0** — foundation |
+| Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
-| Solution | not yet created (T01) |
-| Tests | none yet |
+| Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
+| Tests | 26 passing, 7 skipped placeholders |
 
 ## Conventions for agents
 
@@ -43,8 +43,8 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 
 | Task | Description | Status | Branch | Commit | Notes |
 |---|---|---|---|---|---|
-| T01 | Solution skeleton + all 16 projects | — | | | Owns shared files; scaffolds everything |
-| T02 | Domain artifacts **+ hoisted contracts** | — | | | Freezes interfaces for all streams |
+| T01 | Solution skeleton + all 16 projects | ✅ | `main` | `a03fdd8` | Owns shared files; scaffolds everything |
+| T02 | Domain artifacts **+ hoisted contracts** | ✅ | `main` | pending | Interfaces FROZEN - see Contracts below |
 | T03 | Tokenizer + Bad Words List | — | | | Stream A |
 | T04 | Phrase matching | — | | | Stream A |
 | T05 | Hit padding + merging | — | | | Stream A |
@@ -83,8 +83,8 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | What | Commit | Notes |
 |---|---|---|
 | Docs: plan, analysis, breakdown, parallelisation review | `cdcd2f8`…`3fc3e06` | |
-| Media fixtures + generator | pending | 7 fixtures, exact ground truth in `manifest.json` |
-| Root `.gitignore` | pending | |
+| Media fixtures + generator | `6bdeda6` | 7 fixtures, exact ground truth in `manifest.json` |
+| Root `.gitignore` + `.gitattributes` | `6bdeda6`, `a03fdd8` | |
 
 ## Decisions already made
 
@@ -99,6 +99,39 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 4. **FFprobe replaces libmagic** for media type detection.
 5. **Fixtures are generated, not downloaded**, so every profanity's span is
    exact by construction.
+
+## Toolchain gotchas (learned the hard way in T01)
+
+- **Never pass `--nologo` to `dotnet test`.** Under Microsoft.Testing.Platform,
+  unrecognised arguments are forwarded to the test executable, which rejects
+  them and reports "Zero tests ran" with exit code 5 rather than failing
+  loudly. This looks exactly like a broken test discovery setup.
+- **Run `dotnet test` from the repository root.** A relative project path
+  resolved from elsewhere silently runs a stale assembly.
+- **Transitive pinning is off** in `Directory.Packages.props`. With it on, the
+  `xunit.v3` metapackage resolves but none of its assemblies reach the output.
+- **The MTP opt-in is in `global.json`** (`"test": {"runner": ...}`), not
+  `dotnet.config` and not an MSBuild property.
+
+## Contracts (frozen at T02)
+
+In `FoulFilterNet.Domain`:
+
+- Artifacts: `Segment`, `Word`, `Candidate`, `Hit`, `Transcript`,
+  `TranscriptionResult`, `MediaInfo`
+- Enums: `CensorMethod`, `MediaKind`, `SmartCutOutcome`, `SmartCutMode`
+- `Times` — rounding plus the two filtergraph formatters. **Use these, never
+  `ToString()`**; `Times.ToRepr(1.0)` is `"1.0"` where C# would give `"1"`.
+- Jobs: `JobProgress`, `JobRequest`, `JobSummary`, `JobCancelledException`
+- Smart Cut: `SmartCutDecision` (three-valued: KeepOriginal / Reject / Adjust),
+  `SmartCutOptions`
+
+In `FoulFilterNet.Domain.Abstractions`: `ITranscriber`, `IAligner`,
+`ISmartCutAdvisor`, `IMediaProber`, `IAudioPreparer`, `IMediaEditor`,
+`ITranscriptStore`, `IMediaPipeline`.
+
+If one of these is wrong, **report it — do not change it**. Six streams write
+test doubles against these.
 
 ## Open questions
 
