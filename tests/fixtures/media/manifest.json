@@ -1,0 +1,113 @@
+﻿{
+    "generatedBy":  "tests/fixtures/generate-fixtures.ps1",
+    "voice":  "Microsoft Zira Desktop",
+    "gapSeconds":  0.4,
+    "note":  "Each profanity was synthesised as its own concatenated part, so start/end are exact by construction - the running sum of preceding part durations. Use them to score both detection recall and boundary error.",
+    "fixtures":  [
+                     {
+                         "file":  "clean_speech.mp3",
+                         "kind":  "audio",
+                         "duration":  6.732,
+                         "hits":  [
+
+                                  ]
+                     },
+                     {
+                         "file":  "single_hit.mp3",
+                         "kind":  "audio",
+                         "duration":  8.388,
+                         "hits":  [
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  3.41,
+                                          "end":  3.897
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "phrase_hit.mp3",
+                         "kind":  "audio",
+                         "duration":  7.812,
+                         "hits":  [
+                                      {
+                                          "phrase":  "go to hell",
+                                          "start":  3.505,
+                                          "end":  4.227
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "repeated_hits.mp3",
+                         "kind":  "audio",
+                         "duration":  11.016,
+                         "hits":  [
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  0,
+                                          "end":  0.487
+                                      },
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  2.202,
+                                          "end":  2.689
+                                      },
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  4.651,
+                                          "end":  5.138
+                                      },
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  6.79,
+                                          "end":  7.277
+                                      },
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  8.925,
+                                          "end":  9.412
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "false_positive.mp3",
+                         "kind":  "audio",
+                         "duration":  4.608,
+                         "hits":  [
+                                      {
+                                          "phrase":  "hoe",
+                                          "start":  2.634,
+                                          "end":  3.082
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "sample_video.mp4",
+                         "kind":  "video",
+                         "duration":  5.649,
+                         "hits":  [
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  2.941,
+                                          "end":  3.428
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "audiobook.m4b",
+                         "kind":  "audio",
+                         "duration":  13.03,
+                         "hits":  [
+                                      {
+                                          "phrase":  "damn",
+                                          "start":  5.58,
+                                          "end":  6.067
+                                      },
+                                      {
+                                          "phrase":  "go to hell",
+                                          "start":  11.252,
+                                          "end":  11.974
+                                      }
+                                  ]
+                     }
+                 ]
+}

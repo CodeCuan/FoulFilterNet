@@ -1,0 +1,114 @@
+# ---------------------------------------------------------------------------
+# FoulFilterNet — root ignore rules
+#
+# The Python-era rules live in Legacy/.gitignore and still apply to that tree.
+# ---------------------------------------------------------------------------
+
+# --- .NET build output ---
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+*.binlog
+
+# --- Visual Studio / Rider / VS Code ---
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.DotSettings.user
+
+# --- Test output ---
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+.coverlet/
+BenchmarkDotNet.Artifacts/
+
+# --- NuGet ---
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+
+# --- Publish / deploy ---
+publish/
+*.[Pp]ublish.xml
+*.pubxml
+*.pubxml.user
+PublishScripts/
+
+# --- Secrets and local configuration ---
+# appsettings.json IS committed; the local and secret overlays are not.
+appsettings.*.local.json
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.env
+.env
+.env.*
+!.env.example
+*.pfx
+*.key
+
+# --- Runtime data (ADR-0002: jobs are ephemeral, transcripts are cached) ---
+/data/
+**/data/uploads/
+**/data/outputs/
+**/data/scratch/
+**/data/transcripts/
+**/data/hf-cache/
+**/data/triton-cache/
+**/data/miopen/
+
+# --- ASR model weights: large, downloaded on demand, never committed ---
+*.bin
+*.gguf
+*.ggml
+models/
+!tests/**/models/.gitkeep
+
+# --- Media ---
+# Generated test fixtures ARE committed: they are small, deterministic, and
+# tests assert against their manifest. Ad-hoc media dropped in for manual
+# testing is not.
+/samples/
+/scratch/
+*.wav
+*.flac
+*.opus
+*.wma
+*.avi
+*.mkv
+*.webm
+!tests/fixtures/media/**
+
+# --- OS noise ---
+[Dd]esktop.ini
+Thumbs.db
+ehthumbs.db
+$RECYCLE.BIN/
+.DS_Store
+._*
+
+# --- Misc ---
+*.tmp
+*.bak
+*.swp
+*~

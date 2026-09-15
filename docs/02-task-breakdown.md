@@ -163,12 +163,15 @@ dropping duplicate overlapping text.
 **Depends on:** T02
 
 ### T13 · Whisper.net transcriber
-The concrete engine: model acquisition, device selection, word-level
-timestamps, and the `UNLOAD_MODELS_AFTER_JOB` lifetime. Write the new ADR
-recording the departure from ADR-0001 here.
+The concrete engine: model acquisition, **CUDA** runtime selection for the
+RTX 3080 Ti with CPU fallback, word-level timestamps, and the
+`UNLOAD_MODELS_AFTER_JOB` lifetime. Write the new ADR recording the departure
+from ADR-0001 here.
 **Tests:** device/option selection is unit-tested; an opt-in integration test
-(skipped by default, mirroring `RUN_LIVE_LLM_TESTS`) transcribes a short
-generated clip.
+(skipped by default, mirroring `RUN_LIVE_LLM_TESTS`) transcribes
+`single_hit.mp3` and asserts the word "damn" lands within tolerance of the
+manifest's 3.410–3.897 s ground truth. That tolerance *is* the answer to
+"is DTW precise enough?" — record the measured error in the ADR.
 **Depends on:** T12, T10
 
 ### T14 · Aligner seam
@@ -209,10 +212,17 @@ sequence, the model-discovery retry, and that transport failure returns
 **Depends on:** T16
 
 ### T18 · Smart Cut advisor
-Compose prompt, transport and mapping behind `ISmartCutAdvisor`; select
-transport from `AI_MODE`; return disabled when `AI_ENHANCE` is off or the key
-is missing.
-**Tests:** mode selection; disabled paths; an advisor exception never escapes.
+Compose prompt, transport and mapping behind `ISmartCutAdvisor`.
+**Feature-flagged via `SmartCut:Enabled` in `appsettings.json`, default
+`false`** — see the flag block in
+[00-porting-plan.md](00-porting-plan.md#feature-flags). When disabled, DI
+resolves a no-op advisor so the pipeline needs no conditional; transport is
+chosen from `SmartCut:Mode`. Enabled-but-unconfigured (no key, no local server)
+degrades to the no-op with a warning rather than failing a job. The Google API
+key comes from environment or user-secrets, never from committed config.
+**Tests:** default configuration yields the no-op advisor; the flag on with each
+mode yields the right transport; enabled-without-credentials degrades rather
+than throws; an advisor exception never escapes into the pipeline.
 **Depends on:** T15, T17
 
 ---
@@ -302,9 +312,12 @@ keepalive the client expects.
 ### T29 · Front end
 Copy `index.html`, `app.css`, `app.js` to `wwwroot` unchanged; serve `/` and
 static files; wire `/config`. **Smart Cut is actually connected in this task**
-(finding 1) so the badge tells the truth.
-**Tests:** integration — the page is served; `/config` reflects options; an
-end-to-end run with Smart Cut enabled reaches the advisor.
+(finding 1), and `/config` reports `SmartCut:Enabled` so the "Smart Cut active"
+badge reflects reality — with the flag defaulting off, the badge is hidden out
+of the box.
+**Tests:** integration — the page is served; `/config` shows the flag off by
+default and on when configured; an end-to-end run with the flag enabled reaches
+the advisor, and with it disabled does not.
 **Depends on:** T18, T26
 
 ### T30 · Startup housekeeping
@@ -326,9 +339,14 @@ reports without writing.
 **Depends on:** T21
 
 ### T32 · Container and configuration
-`aspnet:10.0` base plus FFmpeg and the whisper.cpp runtime; compose file; the
-`.env` variable names bound through `IOptions`.
-**Done when:** the image builds and the container serves the UI.
+`aspnet:10.0` base plus FFmpeg and the whisper.cpp **CUDA** runtime; compose
+file using the NVIDIA device reservation rather than the ROCm `/dev/kfd`
+mapping; `appsettings.json` as the primary configuration source with
+environment overrides retaining the legacy variable names.
+**Done when:** the app runs natively on Windows *and* the image builds and
+serves the UI. Native-first: containerised GPU access on Windows needs WSL2 and
+the NVIDIA container toolkit, and that should be a deployment choice, not a
+prerequisite for running the thing.
 **Depends on:** T29, T31
 
 ### T33 · Documentation
@@ -337,9 +355,11 @@ the .NET solution.
 **Depends on:** T13, T32
 
 ### T34 · Evaluation harness *(stretch)*
-Port `eval_misses.py` — splice known clips into clean audio, score recall,
-precision and boundary error. This is what turns "is Whisper.net's DTW precise
-enough?" from an opinion into a number.
+Port `eval_misses.py` — score recall, precision and boundary error against
+`tests/fixtures/media/manifest.json`, whose spans are exact by construction.
+This is what turns "is Whisper.net's DTW precise enough?" from an opinion into
+a number. Most of the splicing work the Python script did is already done by
+the fixture generator; this task is the scoring half.
 **Depends on:** T21
 
 ---

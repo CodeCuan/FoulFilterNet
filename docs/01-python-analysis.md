@@ -244,10 +244,25 @@ no usable ROCm build. It is a workaround for a platform problem, not a
 preference.
 
 **Recommendation: `Whisper.net`** (whisper.cpp bindings). It is a maintained
-NuGet package, it emits **word-level timestamps directly**, and it ships CPU,
-CUDA, Vulkan and CoreML runtimes — Vulkan covers AMD without ROCm at all.
-That collapses transcription and alignment into a single stage and deletes the
-entire reason ADR-0001 exists.
+NuGet package, it emits **word-level timestamps directly**, and it ships a
+first-class CUDA runtime. That collapses transcription and alignment into a
+single stage and deletes the entire reason ADR-0001 exists.
+
+The target machine is an **RTX 3080 Ti (12 GB, Ampere)**, which makes this
+easier than the analysis above assumed. Every constraint that shaped the Python
+design was an AMD/ROCm constraint:
+
+| Legacy workaround | Why it existed | On the 3080 Ti |
+|---|---|---|
+| Hybrid HF Whisper + WhisperX aligner (ADR-0001) | CTranslate2 has no RDNA2 ROCm build | Moot — CUDA is the best-supported path everywhere |
+| `HSA_OVERRIDE_GFX_VERSION=10.3.0` | RDNA2 needs to masquerade as gfx1030 | Delete |
+| `TORCH_INDEX_URL` vendor switching (ADR-0005) | Pick the ROCm vs CUDA wheel set | Delete — no PyTorch at all |
+| `WHISPER_MULTI_GPU`, `WHISPER_ATTN=eager` | RDNA2 sharding faults, Triton SDPA bugs | Delete — single card, no Triton |
+| `ALIGN_DEVICE=cpu` escape hatch | Aligner OOM while an LLM held VRAM | Keep the *idea* — 12 GB is shared with Smart Cut's local LLM if one is used |
+
+12 GB comfortably holds `large-v3-turbo`, so model size is a free choice rather
+than a compromise, and `UNLOAD_MODELS_AFTER_JOB` survives for VRAM sharing on a
+desktop rather than for ROCm fragility.
 
 Consequences to accept and record as a new ADR:
 
@@ -271,7 +286,12 @@ deliberately removed, and leaves the hardest dependency in place).
 ### 9.2 Deployment note
 
 The current image is ~10 GB, almost entirely PyTorch wheels. An
-`aspnet:10.0` base plus FFmpeg plus a whisper.cpp native runtime is a few
-hundred MB, with GGUF model weights fetched at runtime into the existing
-`/data` volume. The port is also not Linux-bound, which matters here: the
-development machine is Windows.
+`aspnet:10.0` base plus FFmpeg plus a whisper.cpp CUDA runtime is a few hundred
+MB, with model weights fetched at runtime into the existing `/data` volume.
+
+The port is also not Linux-bound, which matters here: the development machine
+is Windows 11. The .NET app runs natively on the host with direct CUDA access,
+so **Docker stops being a prerequisite for development** — it becomes a
+deployment option rather than the only way to run the thing. Containerised GPU
+access on Windows means WSL2 plus the NVIDIA container toolkit, which works on
+this hardware but is no longer something to fight with just to see the app run.

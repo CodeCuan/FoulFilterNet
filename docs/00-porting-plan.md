@@ -11,6 +11,26 @@ behaviour: the same detection semantics, the same FFmpeg edits, the same HTTP
 surface, and the same domain vocabulary. The Python tree under `/Legacy` is the
 reference implementation and is not modified.
 
+## Target environment
+
+| | |
+|---|---|
+| **GPU** | NVIDIA GeForce RTX 3080 Ti — 12 GB GDDR6X, Ampere (SM 8.6), driver 595.79 |
+| **Platform** | Windows 11; Docker Desktop 27.4.0 with Compose v2.31.0 |
+| **SDK** | .NET 10.0.400 |
+| **FFmpeg** | 7.1.1 (full build) on `PATH` |
+
+This settles several open questions in one go. The legacy stack's whole
+awkward shape — the hybrid ASR of ADR-0001, `HSA_OVERRIDE_GFX_VERSION`, the
+ROCm wheel index, the `WHISPER_MULTI_GPU` sharding flag — exists to work around
+**AMD RDNA2 on ROCm**. None of it applies here: CUDA is the best-supported
+backend in every ASR runtime worth considering.
+
+12 GB of VRAM comfortably holds `large-v3-turbo` (~1.6 GB in FP16) with room to
+spare, so model size is not a constraint. `UNLOAD_MODELS_AFTER_JOB` keeps its
+value for a different reason than the original — sharing the card with a local
+LLM for Smart Cut, or with anything else on a desktop machine.
+
 ## Ground rules
 
 1. **TDD.** Every behavioural task starts with a failing test. Production code
@@ -108,6 +128,32 @@ Web ─┘        └────> Media (FFmpeg)      └─ SmartCut (LLM)
 - **Web** — ASP.NET Core minimal API, job queue, SSE, static UI.
 - **Cli** — the `find_and_remove.py` equivalent.
 
+## Feature flags
+
+Optional behaviour is configured in `appsettings.json`, bound through
+`IOptions<T>`, and **off by default**:
+
+```jsonc
+{
+  "SmartCut": {
+    "Enabled": false,          // master switch — off unless explicitly turned on
+    "Mode": "Local",           // Local | Google
+    "LocalUrl": "http://localhost:8080/v1/chat/completions",
+    "LocalModel": "",
+    "GoogleModel": "gemini-2.5-flash-lite"
+  }
+}
+```
+
+Smart Cut stays off unless someone opts in, for three reasons: it costs an LLM
+round trip per Hit, it is the only stage that can *change* what gets cut rather
+than just where, and it needs an API key or a local server that may not be
+running. A disabled advisor is a no-op in the pipeline — not a failure — and
+`GET /config` must report the flag honestly so the UI badge means something
+(see finding 1 in the analysis, where the Python advertises a feature it never
+runs). The Google API key is *not* read from `appsettings.json`; it comes from
+the environment or user-secrets, and `appsettings.*.local.json` is gitignored.
+
 ## Known open decision
 
 The Python stack (HF Transformers Whisper + WhisperX wav2vec2 forced aligner)
@@ -115,6 +161,20 @@ has no direct .NET equivalent. This is the one place the port cannot be a
 transliteration, and it is resolved in the analysis document. The pipeline is
 designed against `ITranscriber`/`IAligner` so the engine choice stays swappable
 whatever is picked.
+
+## Test media
+
+[`tests/fixtures/media`](../tests/fixtures/media) holds seven generated
+fixtures (~1 MB) covering clean audio, a single hit, a multi-word phrase, five
+repeats of one word, a false positive, a video, and an `.m4b` audiobook.
+
+They are synthesised by
+[`generate-fixtures.ps1`](../tests/fixtures/generate-fixtures.ps1) rather than
+downloaded, which buys something no real-world sample can: **each profanity is
+its own concatenated part, so its start and end are exact by construction**.
+`manifest.json` carries that ground truth, making both detection recall and
+boundary error measurable rather than eyeballed — the same trick the legacy
+`eval_misses.py` used by splicing clips at known offsets.
 
 ## Definition of done (per task)
 
