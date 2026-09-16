@@ -22,6 +22,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 builder.Services.AddSingleton<JobEventFanOut>();
 builder.Services.AddSingleton<JobManager>();
+
+// Registered before the worker: hosted services start in registration order, so
+// the directories exist and last run's orphans are gone before a job can run.
+builder.Services.AddHostedService<StorageHousekeeping>();
 builder.Services.AddHostedService<JobWorker>();
 
 // T21 replaces this registration with the real orchestrator.

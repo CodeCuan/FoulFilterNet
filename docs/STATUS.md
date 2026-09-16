@@ -4,7 +4,7 @@
 as part of the task it completes, in the same commit as the work. If you are
 resuming this project cold, read this file first and trust it over memory.
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 ---
 
@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 621 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
+| Tests | 638 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -95,7 +95,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T27 | Server-sent events | ✅ | `task/T27-sse` | `b44b777` | `EventEndpoints`; snapshot on connect, unnamed events, ends on shutdown |
 | T28 | Zip download | ✅ | `task/T28-zip-download` | `6e6985c` | Streamed, not temp-filed; entry names fix finding 3 |
 | T29 | Front end + Smart Cut wiring | — | | | Fixes finding 1 |
-| T30 | Startup housekeeping | — | | | Stream E |
+| T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | — | | | |
 | T32 | Container + configuration | — | | | |
 | T33 | Documentation + ASR ADR | — | | | |

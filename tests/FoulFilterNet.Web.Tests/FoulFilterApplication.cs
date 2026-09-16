@@ -28,11 +28,6 @@ internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096) : Web
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // T30 makes the host do this at startup; until then the fixture does it.
-        Directory.CreateDirectory(Path.Combine(_data.Path, "uploads"));
-        Directory.CreateDirectory(Path.Combine(_data.Path, "outputs"));
-        Directory.CreateDirectory(Path.Combine(_data.Path, "scratch"));
-
         builder.UseSetting("Storage:DataDirectory", _data.Path);
         builder.UseSetting("Storage:BadWordsPath", Path.Combine(_data.Path, "bad_words.txt"));
         builder.UseSetting(
