@@ -94,8 +94,8 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T26 | HTTP endpoints | ✅ | `task/T26-endpoints` | `2f6e641` | Uses `PendingMediaPipeline` until T21 replaces the registration |
 | T27 | Server-sent events | ✅ | `task/T27-sse` | `b44b777` | `EventEndpoints`; snapshot on connect, unnamed events, ends on shutdown |
 | T28 | Zip download | ✅ | `task/T28-zip-download` | `6e6985c` | Streamed, not temp-filed; entry names fix finding 3 |
-| T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | | UI ported unchanged; **advisor wiring still open** - see below |
-| T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
+| T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | `74044d5` | UI ported unchanged; **advisor wiring still open** - see below |
+| T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | — | | | |
 | T32 | Container + configuration | — | | | |
 | T33 | Documentation + ASR ADR | — | | | |
