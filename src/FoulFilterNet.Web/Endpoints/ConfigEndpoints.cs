@@ -1,4 +1,4 @@
-using FoulFilterNet.Domain;
+using FoulFilterNet.Domain.Abstractions;
 using FoulFilterNet.Transcription;
 using FoulFilterNet.Web.Contracts;
 using Microsoft.Extensions.Options;
@@ -13,7 +13,7 @@ public static class ConfigEndpoints
         ArgumentNullException.ThrowIfNull(app);
 
         app.MapGet("/config", (
-            IOptions<SmartCutOptions> smartCut,
+            ISmartCutAdvisor smartCut,
             IOptions<TranscriptionOptions> transcription,
             IOptions<StorageOptions> storage) =>
             Results.Ok(new ConfigView(
@@ -22,9 +22,10 @@ public static class ConfigEndpoints
                 // Finding 1: the Python reported this true whenever the
                 // environment looked configured, and then never called Smart
                 // Cut, so the UI's "Smart Cut active" badge was a lie. This is
-                // the flag the pipeline actually resolves its advisor from, and
-                // it is off unless someone turns it on.
-                smartCut.Value.Enabled,
+                // the advisor the pipeline will actually use - not the raw flag,
+                // which still answers true when the feature is enabled without
+                // an API key and the no-op advisor is what got resolved.
+                smartCut.IsEnabled,
                 transcription.Value.Model,
                 storage.Value.MaxUploadMegabytes)));
     }
