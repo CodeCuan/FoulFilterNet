@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 463 passing, 8 skipped (4 project placeholders + 4 opt-in live-LLM) |
+| Tests | 602 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -82,10 +82,10 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T20 | Candidate/Hit reconciliation | — | | | Stream A→F; fixes finding 2 |
 | T21 | Pipeline orchestrator | — | | | Stream F; convergence point |
 | T22 | Model release policy | — | | | Stream F |
-| T23 | Job queue + worker | — | | | Stream E |
-| T24 | Job event fan-out | — | | | Stream E |
-| T25 | Upload handling | — | | | Stream E |
-| T26 | HTTP endpoints | — | | | Stream E |
+| T23 | Job queue + worker | ✅ | `task/T23-job-queue` | `85e4dbb` | `JobManager`, `JobWorker`; channel + per-job CTS |
+| T24 | Job event fan-out | ✅ | `task/T24-job-events` | `06261d5` | Slow subscriber cannot stall the worker |
+| T25 | Upload handling | ✅ | `task/T25-uploads` | `753bd51` | `UploadFileName`, `UploadStorage`, `UploadRequestReader` |
+| T26 | HTTP endpoints | ✅ | `task/T26-endpoints` | `2f6e641` | Uses `PendingMediaPipeline` until T21 replaces the registration |
 | T27 | Server-sent events | — | | | Stream E |
 | T28 | Zip download | — | | | Stream E; fixes finding 3 |
 | T29 | Front end + Smart Cut wiring | — | | | Fixes finding 1 |
@@ -129,6 +129,19 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
   `xunit.v3` metapackage resolves but none of its assemblies reach the output.
 - **The MTP opt-in is in `global.json`** (`"test": {"runner": ...}`), not
   `dotnet.config` and not an MSBuild property.
+
+## Interrupted work, second occurrence (2026-09-16)
+
+A second usage limit killed Stream E mid-T27 and T13 before it wrote anything.
+Per-task committing worked exactly as intended: **T23-T26 were committed and
+are merged**; only the in-progress task was lost. Discarded uncommitted work,
+safe to start clean:
+
+- **T27** - `Endpoints/EventEndpoints.cs` and its test file, uncommitted.
+- **T13** - nothing but a csproj edit.
+
+This is the second interruption, and the reason the execution policy above is
+now sequential.
 
 ## Interrupted work (session usage limit, 2026-09-16)
 
