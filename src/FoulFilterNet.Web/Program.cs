@@ -43,16 +43,34 @@ builder.Services.AddSingleton<IMediaProber, FFprobeMediaProber>();
 builder.Services.AddSingleton<IAudioPreparer, FFmpegAudioPreparer>();
 builder.Services.AddSingleton<IMediaEditor, MediaEditor>();
 
-// T13 is the one engine still missing; until it lands a job that actually needs
-// transcribing fails with an explanation, and a cached transcript still runs.
-builder.Services.AddSingleton<PendingTranscriber>();
+// Speech to text is whisper.cpp through Whisper.net, on CUDA where there is a
+// card and on the CPU where there is not (ADR-0006). The engine loads its model
+// on the first transcription rather than here, so building the container touches
+// no GPU, no native library and no weights file - and a job that resumed a
+// cached transcript releases a model it never loaded without complaint.
+builder.Services.AddSingleton<IWhisperEngine>(provider => new WhisperNetEngine(
+    provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
+    new WhisperModelSource(
+        provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value.ModelDirectory,
+        WhisperModelSource.Download),
+    provider.GetRequiredService<ILogger<WhisperNetEngine>>()));
+
+// Conversion, padding, rescan rebasing and temporary-file cleanup sit around the
+// engine rather than inside it, which is what keeps them testable without a GPU.
+builder.Services.AddSingleton<WhisperTranscriber>(provider => new WhisperTranscriber(
+    provider.GetRequiredService<IWhisperEngine>(),
+    provider.GetRequiredService<IAudioPreparer>()));
+
+// Alignment is a no-op seam now that the transcriber returns words itself; it
+// stays so that a forced aligner can be reintroduced without touching the
+// pipeline (ADR-0006).
 builder.Services.AddSingleton<IAligner, PassThroughAligner>();
 
 // UNLOAD_MODELS_AFTER_JOB resolves to an implementation rather than a branch in
 // the pipeline, which releases the transcriber after every job regardless. With
 // the flag off the wrapper is the no-op that keeps the model resident.
 builder.Services.AddSingleton<ITranscriber>(provider => new ReleasePolicyTranscriber(
-    provider.GetRequiredService<PendingTranscriber>(),
+    provider.GetRequiredService<WhisperTranscriber>(),
     provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value));
 
 // The transcript cache belongs to the job's own transcript directory.

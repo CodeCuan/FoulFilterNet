@@ -96,6 +96,20 @@ public sealed class WhenTheHostComposesTheOrchestrator : IDisposable
         _services.GetRequiredService<ITranscriber>()
             .ShouldBeOfType<Transcription.ReleasePolicyTranscriber>();
 
+    /// <summary>
+    /// T13 put the real engine inside that policy in place of the placeholder
+    /// that threw. Resolving it here also proves the engine is inert until it is
+    /// used: this host has no GPU test, no weights and no native library loaded.
+    /// </summary>
+    [Fact]
+    public void ResolvesTheWhisperEngineTheTranscriberDrives() =>
+        _services.GetRequiredService<Transcription.IWhisperEngine>()
+            .ShouldBeOfType<Transcription.WhisperNetEngine>();
+
+    [Fact]
+    public void ResolvesTheTranscriberThatConvertsAudioForTheEngine() =>
+        _services.GetRequiredService<Transcription.WhisperTranscriber>().ShouldNotBeNull();
+
     [Fact]
     public void BuildsATranscriptStoreOverWhicheverDirectoryAJobNames() =>
         _services.GetRequiredService<TranscriptStoreFactory>()(Path.GetTempPath())

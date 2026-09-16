@@ -15,7 +15,7 @@ Last updated: 2026-09-16
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 859 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
+| Tests | 975 passing, 14 skipped (1 project placeholder + 4 opt-in live-LLM + 9 opt-in GPU) |
 
 ## Conventions for agents
 
@@ -78,7 +78,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T10 | Audio preparation | ✅ | `task/T10-audio-prep` | `fe52974` | `FFmpegAudioPreparer`; T13 depends on this |
 | T11 | Media editor | ✅ | `task/T11-media-editor` | `c8abea0` | `MediaEditor`; branched from T10 |
 | T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
-| T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk; Web runs on `PendingTranscriber` until it lands; see notes below |
+| T13 | Whisper.net transcriber (CUDA) | ✅ | `task/T13-whisper-transcriber` | | `WhisperTranscriber`, `WhisperNetEngine`, `WhisperWords`; DTW boundaries measured (ADR-0006); `PendingTranscriber` deleted; see output below |
 | T14 | Aligner seam | ✅ | `task/T14-aligner-seam` | `ffe8d32` | `PassThroughAligner`; branched from T12 |
 | T15 | Smart Cut prompt | ✅ | `task/T15-smartcut-prompt` | `b9ef3fa` | `SmartCutPrompt`; template ported verbatim |
 | T16 | Smart Cut response parsing | ✅ | `task/T16-response-parsing` | `779024c` | `SmartCutResponseParser`, `SmartCutResponses` |
@@ -196,9 +196,79 @@ weights, and it must stay that way — CI is CPU-only.
   `Word.Text` is matched against the Bad Words List downstream, so lowercase
   and strip punctuation the way `Legacy/src/aligner.py` did
   (`w["word"].lower().strip()`).
-- The tolerance question ("is DTW precise enough?") is still open — see below.
-  If the answer is no, `PassThroughAligner` is the seam a real aligner replaces
-  and no pipeline code changes.
+- The tolerance question ("is DTW precise enough?") is **answered** — yes, with
+  the DTW pass rather than the token-timestamp heuristic. `PassThroughAligner`
+  stays as the seam. See ADR-0006 and the T13 output section.
+
+## T13 output — what T31, T32, T33 and T34 need to know
+
+Transcription is real, and `PendingTranscriber` is gone. `WhisperTranscriber`
+owns everything around inference (conversion, Rescan padding, rebasing,
+temporary-file cleanup) and `WhisperNetEngine` owns inference itself (model
+lifetime, device selection, token joining). `Program.cs` puts the engine inside
+`ReleasePolicyTranscriber`, exactly where the placeholder used to sit, so the
+`UNLOAD_MODELS_AFTER_JOB` flag still decides whether a release reaches the model.
+
+- **The Whisper.net 1.9.1 API, verified against the installed package** rather
+  than against any documentation:
+  - Word timestamps come from `WhisperProcessorBuilder.WithTokenTimestamps()`
+    (no argument). There is **no word-level API**: `SegmentData.Tokens` is a
+    `WhisperToken[]`, and `WhisperToken` is a class of public **fields** whose
+    `Start`, `End` and `DtwTimestamp` are raw whisper.cpp **centiseconds** —
+    unlike `SegmentData.Start`/`End`, which are `TimeSpan`. Reading the token
+    fields as milliseconds would place every word a hundred times too early.
+  - **DTW word timestamps are a factory option, not a processor one.**
+    `WhisperFactoryOptions` is a struct (start from `.Default`) carrying
+    `UseGpu`, `UseDtwTimeStamps` and `HeadsPreset`, and DTW produces nothing
+    without a `WhisperAlignmentHeadsPreset` that matches the model — hence
+    `WhisperModelFiles.AlignmentHeadsFor`.
+  - **Device selection is an order of native runtimes**, process-global and read
+    only while the first factory loads: `RuntimeOptions.RuntimeLibraryOrder`, a
+    `List<RuntimeLibrary>` on a static class, over `Cpu, Cuda, Cuda12, Vulkan,
+    CoreML, OpenVino, CpuNoAvx`. "CUDA if usable, else CPU" *is* that order, and
+    forcing CUDA is the same order with no CPU entry left — so an unusable card
+    fails to load a model instead of quietly transcribing at CPU speed.
+    `RuntimeOptions.LoadedLibrary` afterwards says which one won, and it is
+    logged at Information.
+  - `WhisperFactory` is `IDisposable` and holds the model; a `WhisperProcessor`
+    is built per transcription. `ProcessAsync(Stream, ct)` yields
+    `IAsyncEnumerable<SegmentData>` and wants 16 kHz mono PCM WAV.
+- **Token joining needed two things these notes did not predict.** First token's
+  start to last token's end is the right shape, but on `t0`/`t1` it is not
+  accurate enough — 0.31 s mean and 0.90 s worst-case error, which escapes the
+  hit padding and would have left profanity audible. The DTW instants are about
+  three times better *and* mark where a token **ended**, so a word starts at the
+  instant of the token *before* it (reading them as starts puts every word ~0.3 s
+  late). Second, whisper.cpp reports `t0 == t1` for whole words often enough to
+  matter — 9 of the fixtures' words, including "Long" and "horse" — and
+  `aligner.py`'s rule of dropping those costs **detection**, so they are kept
+  with a minimal span instead and the padding covers the difference.
+- **`IAudioPreparer.PadStartAsync(path, 0)` is the conversion path.** The frozen
+  contract has no "render this as an analysis WAV" member, and padding by zero is
+  exactly that (`adelay=0|0` plus the mono 16 kHz render), which makes the first
+  pass and the Rescan Pass one code path with a different offset. Nothing was
+  changed for T13; if that contract is ever revisited, the honest signature is
+  `ToAnalysisWavAsync(path, offsetSeconds)`.
+- **Weights.** `Transcription:ModelDirectory` (default `models`) says where GGML
+  weights live, and `WhisperModelSource` resolves `ggml-<size>.bin` there. It
+  downloads only when it is constructed **with** an acquisition delegate, into a
+  `.downloading` temporary that is then moved into place, so an interrupted fetch
+  cannot leave a truncated model that loads and mis-transcribes. Web wires the
+  real downloader, so **a first job on a fresh machine fetches the model** (1.6 GB
+  for `large-v3-turbo`). Weights are gitignored and must never be committed.
+- **Still open: CUDA has not run here.** This host has an RTX 3080 Ti and a CUDA
+  13.2 driver, but no CUDA toolkit runtime (no `cudart`/`cublas`), so the loader
+  fell through its order to `Cpu` — about 28 s per 8 s fixture, and every number
+  in ADR-0006 was measured there. Closing it needs the CUDA 13 runtime installed
+  on the host and, for a machine on 12.x drivers, **`Whisper.net.Runtime.Cuda12`
+  declared in `Directory.Packages.props`**, which is not there today — T13 did
+  not add it, per the shared-files rule. The CUDA natives themselves do reach the
+  Web output transitively, so no csproj needs changing for them.
+- **Opt-in GPU tests.** `RUN_GPU_TESTS=1 dotnet test FoulFilterNet.slnx` with
+  weights in `models/`; `FOULFILTER_MODEL_DIR` and `FOULFILTER_TEST_MODEL`
+  override where and which. Nine facts, all passing against `large-v3-turbo`, and
+  they are wired with **no** download delegate so they can never fetch anything.
+  CI is unaffected — skipped by default, like the live-LLM four.
 
 ## Contracts (frozen at T02)
 
@@ -428,7 +498,16 @@ hits = new HitMerger().Merge(hits);
 
 ## Open questions
 
-- Whisper.net DTW boundary error vs the wav2vec2 forced aligner it replaces.
-  Measured in T13 against the manifest; if it exceeds the 0.15/0.25 s padding,
-  T14's seam gets a real implementation in place of `PassThroughAligner`.
-  **Not yet answered.**
+- ~~Whisper.net DTW boundary error vs the wav2vec2 forced aligner it replaces.~~
+  **Answered in T13 — see [ADR-0006](adr/0006-whisper-net-collapses-transcription-and-alignment.md).**
+  Measured against the manifest: 0.107 s mean / 0.242 s worst start error and
+  0.069 s / 0.207 s at the end, with every one of the 11 planted hits inside the
+  0.15/0.25 s padding (worst late start 0.070 s, worst early end 0.207 s). So
+  `PassThroughAligner` stays and T14's seam needs no real implementation. The
+  answer holds **only** for the DTW pass with its instants read as token ends:
+  whisper.cpp's older `t0`/`t1` heuristic errs by 0.90 s at worst, which the
+  padding does not absorb.
+- **CUDA has never actually run on this host.** Every measurement above was
+  taken on the CPU, because the machine has no CUDA toolkit runtime installed -
+  see the T13 output section. Timestamps are backend-independent, so the numbers
+  stand; throughput is what is unverified.

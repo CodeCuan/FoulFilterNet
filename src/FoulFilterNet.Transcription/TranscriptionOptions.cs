@@ -25,6 +25,7 @@ public sealed record TranscriptionOptions
 {
     private readonly string _model = ModelNames.Default;
     private readonly string? _language;
+    private readonly string _modelDirectory = WhisperModelSource.DefaultDirectory;
 
     /// <summary>The model id, always fully qualified.</summary>
     public string Model
@@ -45,6 +46,20 @@ public sealed record TranscriptionOptions
 
     /// <summary>Device preference; the engine may still fall back to the CPU.</summary>
     public TranscriptionDevice Device { get; init; } = TranscriptionDevice.Auto;
+
+    /// <summary>
+    /// Where GGML weights are kept. A relative path is resolved against the
+    /// process directory. Weights are a gigabyte and more, gitignored and never
+    /// committed, so this is the one piece of configuration a fresh machine
+    /// usually has to be told about; a blank value falls back to the default.
+    /// </summary>
+    public string ModelDirectory
+    {
+        get => _modelDirectory;
+        init => _modelDirectory = string.IsNullOrWhiteSpace(value)
+            ? WhisperModelSource.DefaultDirectory
+            : value.Trim();
+    }
 
     /// <summary>
     /// Release the model after every job rather than keeping it resident

@@ -1,6 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- whisper.cpp bindings plus both native runtimes: the CUDA one is the
+         target (RTX 3080 Ti) and the plain one is the CPU fallback that CI and
+         a machine without a card resolve to. Versions come from
+         Directory.Packages.props. -->
+    <PackageReference Include="Whisper.net" />
+    <PackageReference Include="Whisper.net.Runtime" />
+    <PackageReference Include="Whisper.net.Runtime.Cuda" />
+
+    <!-- Which native runtime actually loaded, and which model, are the two
+         facts worth reading in a log when transcription is unexpectedly slow.
+         Abstractions only: nothing here picks a sink. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
   </ItemGroup>
 

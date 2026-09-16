@@ -2,6 +2,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
+    <!-- The opt-in GPU test transcribes a real fixture, which means converting
+         an mp3 with the real FFmpeg first. Nothing else here needs Media. -->
+    <ProjectReference Include="../../src/FoulFilterNet.Media/FoulFilterNet.Media.csproj" />
   </ItemGroup>
 
 </Project>
