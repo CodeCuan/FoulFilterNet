@@ -15,7 +15,7 @@ Last updated: 2026-09-15
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 610 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
+| Tests | 621 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -87,7 +87,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T25 | Upload handling | ✅ | `task/T25-uploads` | `753bd51` | `UploadFileName`, `UploadStorage`, `UploadRequestReader` |
 | T26 | HTTP endpoints | ✅ | `task/T26-endpoints` | `2f6e641` | Uses `PendingMediaPipeline` until T21 replaces the registration |
 | T27 | Server-sent events | ✅ | `task/T27-sse` | `b44b777` | `EventEndpoints`; snapshot on connect, unnamed events, ends on shutdown |
-| T28 | Zip download | — | | | Stream E; fixes finding 3 |
+| T28 | Zip download | ✅ | `task/T28-zip-download` | `6e6985c` | Streamed, not temp-filed; entry names fix finding 3 |
 | T29 | Front end + Smart Cut wiring | — | | | Fixes finding 1 |
 | T30 | Startup housekeeping | — | | | Stream E |
 | T31 | CLI | — | | | |
