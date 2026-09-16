@@ -84,8 +84,8 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T16 | Smart Cut response parsing | ✅ | `task/T16-response-parsing` | `779024c` | `SmartCutResponseParser`, `SmartCutResponses` |
 | T17 | LLM transports | ✅ | `task/T17-llm-transports` | `2f28211` | `ISmartCutTransport`, `GeminiTransport`, `OpenAiCompatibleTransport` |
 | T18 | Smart Cut advisor (flag, default off) | ✅ | `task/T18-smartcut-advisor` | `f052d4f` | `LlmSmartCutAdvisor`, `NoOpSmartCutAdvisor`, `AddSmartCut`; see notes below |
-| T19 | Transcript store | ✅ | `task/T19-transcript-store` | | `TranscriptStore`; a version mismatch is a miss (finding 4) |
-| T20 | Candidate/Hit reconciliation | ✅ | `task/T20-hit-reconciliation` | | `HitReconciler`; by time proximity, fixes finding 2; branched from T19 |
+| T19 | Transcript store | ✅ | `task/T19-transcript-store` | `050a56e` | `TranscriptStore`; a version mismatch is a miss (finding 4) |
+| T20 | Candidate/Hit reconciliation | ✅ | `task/T20-hit-reconciliation` | `ba9a797` | `HitReconciler`; by time proximity, fixes finding 2; branched from T19 |
 | T21 | Pipeline orchestrator | — | | | Stream F; convergence point |
 | T22 | Model release policy | — | | | Stream F |
 | T23 | Job queue + worker | ✅ | `task/T23-job-queue` | `85e4dbb` | `JobManager`, `JobWorker`; channel + per-job CTS |
