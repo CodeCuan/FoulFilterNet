@@ -87,7 +87,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T19 | Transcript store | ✅ | `task/T19-transcript-store` | `050a56e` | `TranscriptStore`; a version mismatch is a miss (finding 4) |
 | T20 | Candidate/Hit reconciliation | ✅ | `task/T20-hit-reconciliation` | `ba9a797` | `HitReconciler`; by time proximity, fixes finding 2; branched from T19 |
 | T21 | Pipeline orchestrator | ✅ | `task/T21-pipeline-orchestrator` | `71e4ce5` | `MediaPipeline`; real `IMediaPipeline` registered, closes finding 1; see notes below |
-| T22 | Model release policy | ✅ | `task/T22-model-release` | | `ReleasePolicyTranscriber`; the pipeline releases in a `finally`, the flag is honoured by the decorator; see notes below |
+| T22 | Model release policy | ✅ | `task/T22-model-release` | `ac0e442` | `ReleasePolicyTranscriber`; the pipeline releases in a `finally`, the flag is honoured by the decorator; see notes below |
 | T23 | Job queue + worker | ✅ | `task/T23-job-queue` | `85e4dbb` | `JobManager`, `JobWorker`; channel + per-job CTS |
 | T24 | Job event fan-out | ✅ | `task/T24-job-events` | `06261d5` | Slow subscriber cannot stall the worker |
 | T25 | Upload handling | ✅ | `task/T25-uploads` | `753bd51` | `UploadFileName`, `UploadStorage`, `UploadRequestReader` |
