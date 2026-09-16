@@ -78,7 +78,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T10 | Audio preparation | ✅ | `task/T10-audio-prep` | `fe52974` | `FFmpegAudioPreparer`; T13 depends on this |
 | T11 | Media editor | ✅ | `task/T11-media-editor` | `c8abea0` | `MediaEditor`; branched from T10 |
 | T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
-| T13 | Whisper.net transcriber (CUDA) | ✅ | `task/T13-whisper-transcriber` | | `WhisperTranscriber`, `WhisperNetEngine`, `WhisperWords`; DTW boundaries measured (ADR-0006); `PendingTranscriber` deleted; see output below |
+| T13 | Whisper.net transcriber (CUDA) | ✅ | `task/T13-whisper-transcriber` | `47230c2` | `WhisperTranscriber`, `WhisperNetEngine`, `WhisperWords`; DTW boundaries measured (ADR-0006); `PendingTranscriber` deleted; see output below |
 | T14 | Aligner seam | ✅ | `task/T14-aligner-seam` | `ffe8d32` | `PassThroughAligner`; branched from T12 |
 | T15 | Smart Cut prompt | ✅ | `task/T15-smartcut-prompt` | `b9ef3fa` | `SmartCutPrompt`; template ported verbatim |
 | T16 | Smart Cut response parsing | ✅ | `task/T16-response-parsing` | `779024c` | `SmartCutResponseParser`, `SmartCutResponses` |
