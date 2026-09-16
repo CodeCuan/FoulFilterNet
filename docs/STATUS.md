@@ -15,7 +15,7 @@ Last updated: 2026-09-16
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 638 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
+| Tests | 653 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -94,7 +94,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T26 | HTTP endpoints | ✅ | `task/T26-endpoints` | `2f6e641` | Uses `PendingMediaPipeline` until T21 replaces the registration |
 | T27 | Server-sent events | ✅ | `task/T27-sse` | `b44b777` | `EventEndpoints`; snapshot on connect, unnamed events, ends on shutdown |
 | T28 | Zip download | ✅ | `task/T28-zip-download` | `6e6985c` | Streamed, not temp-filed; entry names fix finding 3 |
-| T29 | Front end + Smart Cut wiring | — | | | Fixes finding 1 |
+| T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | | UI ported unchanged; **advisor wiring still open** - see below |
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | — | | | |
 | T32 | Container + configuration | — | | | |
@@ -285,6 +285,32 @@ touched; `ISmartCutAdvisor` was sufficient exactly as written.
   `LiveLlmSmartCutTests` and are skipped unless `RUN_LIVE_LLM_TESTS` is set, the
   same gate the Python used. CI has no LLM and no network; every other transport
   test drives a fake `HttpMessageHandler`.
+
+## What T29 left for T21 (and why)
+
+The front end ported across untouched, as predicted: `index.html`, `app.css` and
+`app.js` are byte-identical to `Legacy/src/static`, served at `/` with the assets
+mounted at `/static`. **No API change was needed** - every field and spelling the
+UI reads (`job_ids`, `detail`, `filename`, `ai_enhance`, `max_upload_mb`, the
+unnamed SSE events) is already what the endpoints produce.
+
+The **other half of T29's ledger row is not done**: Smart Cut is not yet wired
+into the composition root, because there is nothing to wire it into until T21.
+Two specific things are still owed, and both belong with the orchestrator:
+
+1. `Program.cs` does not call `services.AddSmartCut(configuration)`, so no
+   `ISmartCutAdvisor` is resolvable. Nothing structural is in the way - Web
+   reaches `FoulFilterNet.SmartCut` transitively through `FoulFilterNet.Pipeline`,
+   so this is one line and no new project reference. Whoever registers the real
+   `IMediaPipeline` in place of `PendingMediaPipeline` should add it in the same
+   commit, since that is the first moment anything would call the advisor.
+2. `GET /config` reports `IOptions<SmartCutOptions>.Enabled`, the raw flag,
+   rather than `ISmartCutAdvisor.IsEnabled` as the Stream D note above asks.
+   With the flag off - the default, and what the badge test pins - these agree.
+   They diverge when someone turns the flag on without a key: `AddSmartCut`
+   resolves the no-op advisor while `/config` still answers `true`, and the
+   badge is dishonest again in exactly the way finding 1 describes. Fixing it
+   needs the advisor registered first, hence (1).
 
 ## Open questions
 

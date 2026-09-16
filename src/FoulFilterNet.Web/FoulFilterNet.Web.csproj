@@ -6,4 +6,10 @@
     <ProjectReference Include="../FoulFilterNet.Jobs/FoulFilterNet.Jobs.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The Web SDK publishes wwwroot but does not put it next to the assembly
+         on build, so a plain `dotnet build` output has no UI to serve. -->
+    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -6,7 +6,7 @@ using FoulFilterNet.Transcription;
 using FoulFilterNet.Web;
 using FoulFilterNet.Web.Endpoints;
 
-// Composition root. Static UI in T29.
+// Composition root.
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<StorageOptions>(
@@ -34,6 +34,7 @@ builder.Services.AddSingleton<IMediaPipeline, PendingMediaPipeline>();
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapUserInterface();
 app.MapJobEndpoints();
 app.MapConfigEndpoint();
 app.MapEventEndpoint();
