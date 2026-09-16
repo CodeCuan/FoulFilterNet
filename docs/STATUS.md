@@ -37,22 +37,28 @@ Last updated: 2026-09-15
 - **Never push to `upstream`** (its push URL is deliberately disabled). Push to
   `origin`.
 
-## Execution policy: sequential from here
+## Execution policy: one subagent at a time
 
-**One task at a time.** Concurrent agents exhausted the session token budget
-once already (2026-09-16), killing three mid-task and costing a stream's worth
-of uncommitted work. The parallelisation analysis in
-[03-parallelisation-review.md](03-parallelisation-review.md) remains correct
-about what *could* run concurrently, but throughput is limited by tokens, not
-by the dependency graph - so the graph's value now is ordering freedom, not
-fan-out.
+**Each remaining task goes to its own subagent, and only one runs at a time.**
+
+The two constraints behind this pull in different directions and this is what
+satisfies both. Concurrent agents exhausted the session token budget twice
+(2026-09-16), so fanning out is off. But driving every task from the main
+session burns its context on build output and test logs, which is both
+expensive and self-limiting. A subagent per task keeps that noise out of the
+integrator's context while still only ever running one at a time.
+
+The integrator's job is therefore: brief one agent, verify what it returns,
+merge, update this ledger, brief the next.
 
 Consequences for whoever picks this up:
 
-- Run one task, verify it green, commit, merge, then start the next.
-- Keep committing per task. That discipline is what made the last interruption
-  cost one task instead of seven.
-- The dependency graph still decides *order*; it no longer decides *batching*.
+- One task, one agent, one commit, one merge - then the next.
+- Keep committing per task. That discipline is what made the interruptions cost
+  one task instead of seven.
+- The dependency graph in
+  [03-parallelisation-review.md](03-parallelisation-review.md) still decides
+  *order*; it no longer decides *batching*.
 
 ## Task ledger
 
