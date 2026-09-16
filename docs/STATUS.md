@@ -15,7 +15,7 @@ Last updated: 2026-09-16
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 689 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
+| Tests | 721 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -85,7 +85,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T17 | LLM transports | ✅ | `task/T17-llm-transports` | `2f28211` | `ISmartCutTransport`, `GeminiTransport`, `OpenAiCompatibleTransport` |
 | T18 | Smart Cut advisor (flag, default off) | ✅ | `task/T18-smartcut-advisor` | `f052d4f` | `LlmSmartCutAdvisor`, `NoOpSmartCutAdvisor`, `AddSmartCut`; see notes below |
 | T19 | Transcript store | ✅ | `task/T19-transcript-store` | | `TranscriptStore`; a version mismatch is a miss (finding 4) |
-| T20 | Candidate/Hit reconciliation | — | | | Stream A→F; fixes finding 2 |
+| T20 | Candidate/Hit reconciliation | ✅ | `task/T20-hit-reconciliation` | | `HitReconciler`; by time proximity, fixes finding 2; branched from T19 |
 | T21 | Pipeline orchestrator | — | | | Stream F; convergence point |
 | T22 | Model release policy | — | | | Stream F |
 | T23 | Job queue + worker | ✅ | `task/T23-job-queue` | `85e4dbb` | `JobManager`, `JobWorker`; channel + per-job CTS |
@@ -335,6 +335,34 @@ Two specific things are still owed, and both belong with the orchestrator:
 - The store takes no logger - the Pipeline project has no logging dependency.
   The Python logged "Reusing persisted transcript" at the call site, and that is
   where it still belongs, in T21.
+
+## T20 output — what T21 needs to know
+
+`HitReconciler` in `FoulFilterNet.Pipeline` replaces the hit-confirmation block
+in `pipeline._run_job_impl`. One call does the whole stage:
+
+```csharp
+var hits = new HitReconciler().Reconcile(candidates, words, badWords);
+hits = new HitMerger().Merge(hits);
+```
+
+- **It calls `PhraseMatcher.FindHits` itself**, so T21 hands it the aligned words
+  rather than pre-computed hits. It pads and merges nothing - that stays
+  `HitMerger`'s job, run afterwards, exactly as the Python ordered it.
+- **The proximity tolerance is 0.40 s**, the pre-padding plus the post-padding,
+  which is the gap at which `HitMerger` fuses two windows. Inside that distance
+  the two possible decisions produce the same final cut, so the tolerance sits
+  exactly where the choice starts to matter. A reconciler built with a custom
+  `HitPadding` derives its tolerance from that padding - if T21 ever passes
+  custom padding to the merger, pass the same padding here.
+- **A fallback hit has a null `WordIndex`**; an aligned one carries the index of
+  the word it came from. Smart Cut's context window is built from word indices,
+  so for a fallback there is no exact index to trust - the Python's
+  `_context_window` picked the word whose start was nearest the hit, and that
+  approach still works for these.
+- Coverage requires the same phrase *and* proximity. Position alone would let one
+  word's aligned Hit suppress a different word's Candidate at the same moment,
+  which is the same class of bug as finding 2 in the other direction.
 
 ## Open questions
 
