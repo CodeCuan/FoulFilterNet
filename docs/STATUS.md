@@ -15,7 +15,7 @@ Last updated: 2026-09-16
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 721 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
+| Tests | 827 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -78,7 +78,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T10 | Audio preparation | ✅ | `task/T10-audio-prep` | `fe52974` | `FFmpegAudioPreparer`; T13 depends on this |
 | T11 | Media editor | ✅ | `task/T11-media-editor` | `c8abea0` | `MediaEditor`; branched from T10 |
 | T12 | ASR contracts + rescan shifting | ✅ | `task/T12-transcription-contracts` | `a089442` | `ModelNames`, `TranscriptionOptions`, `RescanPass` |
-| T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk; see notes below |
+| T13 | Whisper.net transcriber (CUDA) | — | | | Stream C; only real technical risk; Web runs on `PendingTranscriber` until it lands; see notes below |
 | T14 | Aligner seam | ✅ | `task/T14-aligner-seam` | `ffe8d32` | `PassThroughAligner`; branched from T12 |
 | T15 | Smart Cut prompt | ✅ | `task/T15-smartcut-prompt` | `b9ef3fa` | `SmartCutPrompt`; template ported verbatim |
 | T16 | Smart Cut response parsing | ✅ | `task/T16-response-parsing` | `779024c` | `SmartCutResponseParser`, `SmartCutResponses` |
@@ -86,15 +86,15 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T18 | Smart Cut advisor (flag, default off) | ✅ | `task/T18-smartcut-advisor` | `f052d4f` | `LlmSmartCutAdvisor`, `NoOpSmartCutAdvisor`, `AddSmartCut`; see notes below |
 | T19 | Transcript store | ✅ | `task/T19-transcript-store` | `050a56e` | `TranscriptStore`; a version mismatch is a miss (finding 4) |
 | T20 | Candidate/Hit reconciliation | ✅ | `task/T20-hit-reconciliation` | `ba9a797` | `HitReconciler`; by time proximity, fixes finding 2; branched from T19 |
-| T21 | Pipeline orchestrator | — | | | Stream F; convergence point |
-| T22 | Model release policy | — | | | Stream F |
+| T21 | Pipeline orchestrator | ✅ | `task/T21-pipeline-orchestrator` | `71e4ce5` | `MediaPipeline`; real `IMediaPipeline` registered, closes finding 1; see notes below |
+| T22 | Model release policy | — | | | Stream F; **next up**; T21 never calls `ITranscriber.ReleaseAsync` |
 | T23 | Job queue + worker | ✅ | `task/T23-job-queue` | `85e4dbb` | `JobManager`, `JobWorker`; channel + per-job CTS |
 | T24 | Job event fan-out | ✅ | `task/T24-job-events` | `06261d5` | Slow subscriber cannot stall the worker |
 | T25 | Upload handling | ✅ | `task/T25-uploads` | `753bd51` | `UploadFileName`, `UploadStorage`, `UploadRequestReader` |
-| T26 | HTTP endpoints | ✅ | `task/T26-endpoints` | `2f6e641` | Uses `PendingMediaPipeline` until T21 replaces the registration |
+| T26 | HTTP endpoints | ✅ | `task/T26-endpoints` | `2f6e641` | `PendingMediaPipeline` is gone; T21 registers the real pipeline |
 | T27 | Server-sent events | ✅ | `task/T27-sse` | `b44b777` | `EventEndpoints`; snapshot on connect, unnamed events, ends on shutdown |
 | T28 | Zip download | ✅ | `task/T28-zip-download` | `6e6985c` | Streamed, not temp-filed; entry names fix finding 3 |
-| T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | `74044d5` | UI ported unchanged; **advisor wiring still open** - see below |
+| T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | `74044d5` | UI ported unchanged; advisor wiring closed by T21 |
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | — | | | |
 | T32 | Container + configuration | — | | | |
@@ -286,7 +286,7 @@ touched; `ISmartCutAdvisor` was sufficient exactly as written.
   same gate the Python used. CI has no LLM and no network; every other transport
   test drives a fake `HttpMessageHandler`.
 
-## What T29 left for T21 (and why)
+## T29's front end (and the wiring T21 has now closed)
 
 The front end ported across untouched, as predicted: `index.html`, `app.css` and
 `app.js` are byte-identical to `Legacy/src/static`, served at `/` with the assets
@@ -294,23 +294,44 @@ mounted at `/static`. **No API change was needed** - every field and spelling th
 UI reads (`job_ids`, `detail`, `filename`, `ai_enhance`, `max_upload_mb`, the
 unnamed SSE events) is already what the endpoints produce.
 
-The **other half of T29's ledger row is not done**: Smart Cut is not yet wired
-into the composition root, because there is nothing to wire it into until T21.
-Two specific things are still owed, and both belong with the orchestrator:
+Both debts T29 left with the orchestrator are **closed by T21** (`71e4ce5`):
+`Program.cs` calls `services.AddSmartCut(configuration)`, and `GET /config`
+reports `ISmartCutAdvisor.IsEnabled` rather than the raw flag - so turning the
+flag on without a key no longer produces a dishonest badge. That was the last
+live half of finding 1.
 
-1. `Program.cs` does not call `services.AddSmartCut(configuration)`, so no
-   `ISmartCutAdvisor` is resolvable. Nothing structural is in the way - Web
-   reaches `FoulFilterNet.SmartCut` transitively through `FoulFilterNet.Pipeline`,
-   so this is one line and no new project reference. Whoever registers the real
-   `IMediaPipeline` in place of `PendingMediaPipeline` should add it in the same
-   commit, since that is the first moment anything would call the advisor.
-2. `GET /config` reports `IOptions<SmartCutOptions>.Enabled`, the raw flag,
-   rather than `ISmartCutAdvisor.IsEnabled` as the Stream D note above asks.
-   With the flag off - the default, and what the badge test pins - these agree.
-   They diverge when someone turns the flag on without a key: `AddSmartCut`
-   resolves the no-op advisor while `/config` still answers `true`, and the
-   badge is dishonest again in exactly the way finding 1 describes. Fixing it
-   needs the advisor registered first, hence (1).
+## T21 output — what T22, T13 and T31 need to know
+
+`MediaPipeline` in `FoulFilterNet.Pipeline` is the whole spine: probe, extract
+audio, resume-or-transcribe, optional rescan, match, align, reconcile, merge,
+refine, render. It reports the Python's exact stage names and percentages and
+re-checks cancellation at every checkpoint, not merely between stages.
+
+- **It takes a `TranscriptStoreFactory` delegate**, not an `ITranscriptStore`,
+  because the store is scoped to the request's transcript directory and the
+  pipeline is a singleton. Tests assert which directories it asked for.
+- **Alignment is all-or-nothing (ADR-0001)**; a candidate the aligner never
+  placed is logged and dropped rather than censored at a guessed timestamp.
+  Widening is allowed only for `remove` on audio (ADR-0004).
+- **It never calls `ITranscriber.ReleaseAsync`** - that is T22's entire job, and
+  it must hold on the failure and cancellation paths too, not just the happy one.
+- **Transcription is the only engine still stubbed.** `PendingTranscriber` in Web
+  throws `NotSupportedException` with a message the UI shows; its `ReleaseAsync`
+  is a deliberate no-op because it holds no VRAM. T13 replaces the registration
+  in `Program.cs` and nothing else. A file whose transcript is already cached
+  runs end to end today (ADR-0002), which is how the resume path is exercised.
+- **Logging is `[LoggerMessage]`-generated** throughout; the Pipeline project
+  takes `Microsoft.Extensions.Logging.Abstractions` only.
+
+### Why this one was salvaged rather than discarded
+
+The third usage limit killed T21 mid-verification, and the standing policy is to
+discard ambiguous uncommitted work. This was the documented exception: the tests
+were demonstrably written first (the agent recorded them red against
+`NotImplementedException`), the implementation was complete rather than a
+skeleton, and the build failed on **analyzer rules only** - five CA1873 and one
+CA1068, both mechanical. Fixing those took the suite from 721 to 827 passing
+with nothing else changed, which is the evidence that the salvage was sound.
 
 ## T19 output — what T21 needs to know
 
