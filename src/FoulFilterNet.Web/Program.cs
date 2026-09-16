@@ -45,8 +45,15 @@ builder.Services.AddSingleton<IMediaEditor, MediaEditor>();
 
 // T13 is the one engine still missing; until it lands a job that actually needs
 // transcribing fails with an explanation, and a cached transcript still runs.
-builder.Services.AddSingleton<ITranscriber, PendingTranscriber>();
+builder.Services.AddSingleton<PendingTranscriber>();
 builder.Services.AddSingleton<IAligner, PassThroughAligner>();
+
+// UNLOAD_MODELS_AFTER_JOB resolves to an implementation rather than a branch in
+// the pipeline, which releases the transcriber after every job regardless. With
+// the flag off the wrapper is the no-op that keeps the model resident.
+builder.Services.AddSingleton<ITranscriber>(provider => new ReleasePolicyTranscriber(
+    provider.GetRequiredService<PendingTranscriber>(),
+    provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value));
 
 // The transcript cache belongs to the job's own transcript directory.
 builder.Services.AddSingleton<TranscriptStoreFactory>(

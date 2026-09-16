@@ -86,6 +86,16 @@ public sealed class WhenTheHostComposesTheOrchestrator : IDisposable
     public void ResolvesATranscriberSoTheHostStartsWithoutOne() =>
         _services.GetRequiredService<ITranscriber>().ShouldNotBeNull();
 
+    /// <summary>
+    /// The pipeline releases the transcriber after every job without asking
+    /// whether the flag is on, so the flag has to be honoured by whatever the
+    /// host hands it - see <c>ReleasePolicyTranscriber</c>.
+    /// </summary>
+    [Fact]
+    public void WrapsTheTranscriberInTheModelReleasePolicy() =>
+        _services.GetRequiredService<ITranscriber>()
+            .ShouldBeOfType<Transcription.ReleasePolicyTranscriber>();
+
     [Fact]
     public void BuildsATranscriptStoreOverWhicheverDirectoryAJobNames() =>
         _services.GetRequiredService<TranscriptStoreFactory>()(Path.GetTempPath())

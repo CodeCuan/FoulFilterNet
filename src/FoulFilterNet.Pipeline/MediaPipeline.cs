@@ -117,6 +117,43 @@ public sealed partial class MediaPipeline : IMediaPipeline
             // as a checkpoint that observed it: the user asked for this.
             throw new JobCancelledException("Job cancelled.", cancelled);
         }
+        finally
+        {
+            // UNLOAD_MODELS_AFTER_JOB. Unconditional, like the Smart Cut stage:
+            // what releasing means belongs to the engine's policy, not to a
+            // branch in here. In a finally because an abandoned job holds the
+            // same VRAM a finished one does, and after the render because the
+            // engines must still be usable while the file is being written.
+            await ReleaseEnginesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Hand back whatever the engines are holding, per <c>UNLOAD_MODELS_AFTER_JOB</c>.
+    /// </summary>
+    /// <remarks>
+    /// Housekeeping rather than part of the job, as it was in the Python: a
+    /// driver that refuses to unload must neither turn a finished job into a
+    /// failed one nor replace the failure a failed job needs to report. Each
+    /// engine is released independently for the same reason - the first one
+    /// throwing must not strand the second's memory.
+    /// </remarks>
+    private async ValueTask ReleaseEnginesAsync()
+    {
+        await ReleaseAsync(_transcriber.ReleaseAsync, nameof(ITranscriber));
+        await ReleaseAsync(_aligner.ReleaseAsync, nameof(IAligner));
+    }
+
+    private async ValueTask ReleaseAsync(Func<ValueTask> release, string engine)
+    {
+        try
+        {
+            await release();
+        }
+        catch (Exception exception)
+        {
+            LogReleaseFailed(exception, engine);
+        }
     }
 
     private async Task<JobSummary> RunCoreAsync(
@@ -523,4 +560,9 @@ public sealed partial class MediaPipeline : IMediaPipeline
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Smart Cut rejected {Count} hit(s)")]
     private partial void LogSmartCutRejections(int count);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Releasing the {Engine} model failed; the job's own outcome stands")]
+    private partial void LogReleaseFailed(Exception exception, string engine);
 }

@@ -16,10 +16,20 @@ namespace FoulFilterNet.Pipeline.Tests;
 /// </remarks>
 internal sealed class PipelineHarness : IDisposable
 {
+    /// <summary>The engine calls the release policy is ordered against.</summary>
+    public const string TranscribeCall = "transcribe";
+
+    public const string RenderCall = "render";
+
+    public const string ReleaseTranscriberCall = "release-transcriber";
+
+    public const string ReleaseAlignerCall = "release-aligner";
+
     private readonly TempDirectory _root = new();
     private readonly CancellationTokenSource _cancellation = new();
     private readonly List<JobProgress> _checkpoints = [];
     private readonly List<string> _storeDirectories = [];
+    private readonly List<string> _engineCalls = [];
 
     public PipelineHarness(MediaKind kind = MediaKind.Audio, string inputName = "book.mp3")
     {
@@ -51,7 +61,27 @@ internal sealed class PipelineHarness : IDisposable
             });
 
         Transcriber.TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ => Task.FromResult(new TranscriptionResult(Segments, TranscribedWords)));
+            .Returns(_ =>
+            {
+                _engineCalls.Add(TranscribeCall);
+                return Task.FromResult(new TranscriptionResult(Segments, TranscribedWords));
+            });
+
+        // CA2012: the ValueTask inside a When() is the call being described, not
+        // work to be awaited - NSubstitute records the invocation and discards it.
+#pragma warning disable CA2012
+        Transcriber.When(transcriber => transcriber.ReleaseAsync()).Do(_ =>
+        {
+            _engineCalls.Add(ReleaseTranscriberCall);
+
+            if (ReleaseThrows)
+            {
+                throw new NotSupportedException("The driver refused to unload the model.");
+            }
+        });
+
+        Aligner.When(aligner => aligner.ReleaseAsync()).Do(_ => _engineCalls.Add(ReleaseAlignerCall));
+#pragma warning restore CA2012
 
         Transcriber.TranscribeShiftedAsync(
                 Arg.Any<string>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
@@ -158,6 +188,15 @@ internal sealed class PipelineHarness : IDisposable
     /// <summary>False makes the editor claim success without writing anything.</summary>
     public bool EditorRenders { get; set; } = true;
 
+    /// <summary>True makes releasing the model fail, the way a wedged driver would.</summary>
+    public bool ReleaseThrows { get; set; }
+
+    /// <summary>
+    /// The engine calls the release policy is defined in terms of, in the order
+    /// the pipeline made them.
+    /// </summary>
+    public IReadOnlyList<string> EngineCalls => _engineCalls;
+
     /// <summary>Every progress checkpoint the pipeline reported, in order.</summary>
     public IReadOnlyList<JobProgress> Checkpoints => _checkpoints;
 
@@ -250,6 +289,8 @@ internal sealed class PipelineHarness : IDisposable
 
     private Task WriteRendered(string outputPath)
     {
+        _engineCalls.Add(RenderCall);
+
         if (EditorRenders)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);

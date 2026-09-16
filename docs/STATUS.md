@@ -15,7 +15,7 @@ Last updated: 2026-09-16
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 827 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
+| Tests | 859 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -87,7 +87,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T19 | Transcript store | ✅ | `task/T19-transcript-store` | `050a56e` | `TranscriptStore`; a version mismatch is a miss (finding 4) |
 | T20 | Candidate/Hit reconciliation | ✅ | `task/T20-hit-reconciliation` | `ba9a797` | `HitReconciler`; by time proximity, fixes finding 2; branched from T19 |
 | T21 | Pipeline orchestrator | ✅ | `task/T21-pipeline-orchestrator` | `71e4ce5` | `MediaPipeline`; real `IMediaPipeline` registered, closes finding 1; see notes below |
-| T22 | Model release policy | — | | | Stream F; **next up**; T21 never calls `ITranscriber.ReleaseAsync` |
+| T22 | Model release policy | ✅ | `task/T22-model-release` | | `ReleasePolicyTranscriber`; the pipeline releases in a `finally`, the flag is honoured by the decorator; see notes below |
 | T23 | Job queue + worker | ✅ | `task/T23-job-queue` | `85e4dbb` | `JobManager`, `JobWorker`; channel + per-job CTS |
 | T24 | Job event fan-out | ✅ | `task/T24-job-events` | `06261d5` | Slow subscriber cannot stall the worker |
 | T25 | Upload handling | ✅ | `task/T25-uploads` | `753bd51` | `UploadFileName`, `UploadStorage`, `UploadRequestReader` |
@@ -175,8 +175,11 @@ weights, and it must stay that way — CI is CPU-only.
   raw result to `RescanPass.Shift(TranscriptionResult, offsetSeconds)` — which
   rebases segments *and* words in one call. Do not re-derive the arithmetic.
   `RescanPass.Union` is the pipeline's (T21) merge, not the transcriber's.
-- **`TranscriptionOptions.UnloadAfterJob`** is the flag; honouring it is T13's
-  `ReleaseAsync` and T22's policy.
+- **`TranscriptionOptions.UnloadAfterJob`** is the flag, and T22 has already
+  wired it: the pipeline calls `ReleaseAsync` after every job and
+  `ReleasePolicyTranscriber` decides whether that reaches the engine. T13 writes
+  the release itself and nothing else - see the T22 output section below for the
+  three properties it has to have.
 - **`TranscriptionDevice.Auto`** means "CUDA if it is usable, else CPU". The
   runtime packages are already declared centrally (`Whisper.net`,
   `Whisper.net.Runtime`, `Whisper.net.Runtime.Cuda`, all 1.9.1); referencing
@@ -300,6 +303,43 @@ reports `ISmartCutAdvisor.IsEnabled` rather than the raw flag - so turning the
 flag on without a key no longer produces a dishonest badge. That was the last
 live half of finding 1.
 
+## T22 output — what T13, T14 and T32 need to know
+
+`UNLOAD_MODELS_AFTER_JOB` is honoured after every job. The policy is split the
+way Stream D split the Smart Cut flag, and for the same reason: **there is no
+flag to check in the pipeline.**
+
+- **`MediaPipeline.RunAsync` releases unconditionally, in a `finally`**, so a
+  job that threw or was cancelled hands its VRAM back exactly as a finished one
+  does - including a job cancelled before it loaded anything. The release runs
+  *after* the render, because the engines have to stay usable while the file is
+  still being written.
+- **`ReleasePolicyTranscriber` (in `FoulFilterNet.Transcription`) owns the
+  flag.** It wraps `ITranscriber`, delegates `ReleaseAsync` only when
+  `TranscriptionOptions.UnloadAfterJob` is true, and passes both transcribe
+  calls straight through. `Program.cs` registers it around the transcriber, so
+  **T13 replaces `PendingTranscriber` inside that registration and leaves the
+  wrapper where it is** - registering a bare `ITranscriber` would silently drop
+  the flag.
+- **Three properties T13's `ReleaseAsync` must have**: idempotent (it is called
+  after every job, and the tests call it twice), safe when no model was ever
+  loaded (a job that resumed a cached transcript never transcribed, and must not
+  fail on the way out), and cheap enough to sit on the critical path of every
+  job, because that is where it now sits.
+- **A failed release never changes a job's outcome.** Each engine is released
+  independently and any throw is logged at Warning and swallowed, exactly as
+  `_release_models_if_configured` did: a wedged driver must not turn a finished
+  job into a failed one, nor replace the failure a failed job needs to report.
+- **The aligner is released too**, because the Python released both models and
+  `IAligner` carries the same `ReleaseAsync`. `PassThroughAligner` holds nothing,
+  so this is free today - but **if T14 ever puts a real model behind that seam it
+  needs its own flag-honouring wrapper**, or it will unload regardless of the
+  flag. That wrapper is the one piece of this policy deliberately left unwritten:
+  there is no implementation yet that would exercise it.
+- **The harness carries the seam for this**: `PipelineHarness.EngineCalls` is the
+  ordered list of transcribe / render / release calls a test asserts against, and
+  `ReleaseThrows` makes releasing fail the way a wedged driver would.
+
 ## T21 output — what T22, T13 and T31 need to know
 
 `MediaPipeline` in `FoulFilterNet.Pipeline` is the whole spine: probe, extract
@@ -313,8 +353,8 @@ re-checks cancellation at every checkpoint, not merely between stages.
 - **Alignment is all-or-nothing (ADR-0001)**; a candidate the aligner never
   placed is logged and dropped rather than censored at a guessed timestamp.
   Widening is allowed only for `remove` on audio (ADR-0004).
-- **It never calls `ITranscriber.ReleaseAsync`** - that is T22's entire job, and
-  it must hold on the failure and cancellation paths too, not just the happy one.
+- **It releases the engines in a `finally`** - closed by T22, which also covers
+  the failure and cancellation paths rather than only the happy one.
 - **Transcription is the only engine still stubbed.** `PendingTranscriber` in Web
   throws `NotSupportedException` with a message the UI shows; its `ReleaseAsync`
   is a deliberate no-op because it holds no VRAM. T13 replaces the registration
