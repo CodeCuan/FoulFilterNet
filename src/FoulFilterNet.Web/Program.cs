@@ -1,9 +1,37 @@
-// Composition root. Endpoints arrive in T26; static UI in T29.
+using System.Text.Json;
+using FoulFilterNet.Domain;
+using FoulFilterNet.Domain.Abstractions;
+using FoulFilterNet.Jobs;
+using FoulFilterNet.Transcription;
+using FoulFilterNet.Web;
+using FoulFilterNet.Web.Endpoints;
+
+// Composition root. Static UI in T29.
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<StorageOptions>(
+    builder.Configuration.GetSection(StorageOptions.SectionName));
+builder.Services.Configure<SmartCutOptions>(
+    builder.Configuration.GetSection(SmartCutOptions.SectionName));
+builder.Services.Configure<TranscriptionOptions>(
+    builder.Configuration.GetSection("Transcription"));
+
+// The front end and the Python it was written against both speak snake_case.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+
+builder.Services.AddSingleton<JobEventFanOut>();
+builder.Services.AddSingleton<JobManager>();
+builder.Services.AddHostedService<JobWorker>();
+
+// T21 replaces this registration with the real orchestrator.
+builder.Services.AddSingleton<IMediaPipeline, PendingMediaPipeline>();
 
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapJobEndpoints();
+app.MapConfigEndpoint();
 
 app.Run();
 
