@@ -32,6 +32,7 @@ var app = builder.Build();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapJobEndpoints();
 app.MapConfigEndpoint();
+app.MapEventEndpoint();
 
 app.Run();
 
