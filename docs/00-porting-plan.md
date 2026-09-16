@@ -130,8 +130,9 @@ Web ─┘        └────> Media (FFmpeg)      └─ SmartCut (LLM)
 
 ## Feature flags
 
-Optional behaviour is configured in `appsettings.json`, bound through
-`IOptions<T>`, and **off by default**:
+Optional behaviour is configured in
+[`src/FoulFilterNet.Web/appsettings.json`](../src/FoulFilterNet.Web/appsettings.json),
+bound through `IOptions<T>`, and **off by default**:
 
 ```jsonc
 {
@@ -139,11 +140,25 @@ Optional behaviour is configured in `appsettings.json`, bound through
     "Enabled": false,          // master switch — off unless explicitly turned on
     "Mode": "Local",           // Local | Google
     "LocalUrl": "http://localhost:8080/v1/chat/completions",
-    "LocalModel": "",
-    "GoogleModel": "gemini-2.5-flash-lite"
+    "LocalModel": "",          // empty asks the server what it is running
+    "GoogleModel": "gemini-2.5-flash-lite",
+    "ContextRadius": 11        // words either side of the target word
+  },
+  "Transcription": {
+    "Model": "base",           // a bare size expands to openai/whisper-base
+    "Language": "",            // empty means detect
+    "Device": "Auto",          // Auto | Cuda | Cpu
+    "UnloadAfterJob": false    // UNLOAD_MODELS_AFTER_JOB
   }
 }
 ```
+
+Every value above is the code default, written out so the flags are
+*discoverable* rather than only inferable from source. The `Storage` section is
+deliberately **not** in the committed file: its defaults are the Python's
+container paths (`/data`), the target machine runs the app natively on Windows,
+and making configuration the primary source for deployment paths is T32's job —
+a committed path would state something false about where this app writes.
 
 Smart Cut stays off unless someone opts in, for three reasons: it costs an LLM
 round trip per Hit, it is the only stage that can *change* what gets cut rather
