@@ -107,6 +107,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 |---|---|---|
 | Docs: plan, analysis, breakdown, parallelisation review | `cdcd2f8`…`3fc3e06` | |
 | Media fixtures + generator | `6bdeda6` | 7 fixtures, exact ground truth in `manifest.json` |
+| `appsettings.json` with the feature flags | `eaf26ee` | The docs and `.gitignore` both described a file that did not exist; `Storage` deliberately excluded, see the flag block |
 | Root `.gitignore` + `.gitattributes` | `6bdeda6`, `a03fdd8` | |
 
 ## Decisions already made
