@@ -15,7 +15,7 @@ Last updated: 2026-09-16
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 653 passing, 6 skipped (2 project placeholders + 4 opt-in live-LLM) |
+| Tests | 689 passing, 5 skipped (1 project placeholder + 4 opt-in live-LLM) |
 
 ## Conventions for agents
 
@@ -84,7 +84,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T16 | Smart Cut response parsing | ✅ | `task/T16-response-parsing` | `779024c` | `SmartCutResponseParser`, `SmartCutResponses` |
 | T17 | LLM transports | ✅ | `task/T17-llm-transports` | `2f28211` | `ISmartCutTransport`, `GeminiTransport`, `OpenAiCompatibleTransport` |
 | T18 | Smart Cut advisor (flag, default off) | ✅ | `task/T18-smartcut-advisor` | `f052d4f` | `LlmSmartCutAdvisor`, `NoOpSmartCutAdvisor`, `AddSmartCut`; see notes below |
-| T19 | Transcript store | — | | | Stream F |
+| T19 | Transcript store | ✅ | `task/T19-transcript-store` | | `TranscriptStore`; a version mismatch is a miss (finding 4) |
 | T20 | Candidate/Hit reconciliation | — | | | Stream A→F; fixes finding 2 |
 | T21 | Pipeline orchestrator | — | | | Stream F; convergence point |
 | T22 | Model release policy | — | | | Stream F |
@@ -311,6 +311,30 @@ Two specific things are still owed, and both belong with the orchestrator:
    resolves the no-op advisor while `/config` still answers `true`, and the
    badge is dishonest again in exactly the way finding 1 describes. Fixing it
    needs the advisor registered first, hence (1).
+
+## T19 output — what T21 needs to know
+
+`TranscriptStore` in `FoulFilterNet.Pipeline` implements the frozen
+`ITranscriptStore` against a directory handed to its constructor
+(`new TranscriptStore(request.TranscriptDirectory)`).
+
+- **`SaveAsync` keys the file off `transcript.FileHash`, not off a separate
+  argument.** T21 must build the `Transcript` with the digest that
+  `ComputeHashAsync` returned; the `baseName` argument only supplies the
+  human-readable half of the file name and is truncated to 80 characters and
+  scrubbed to `[A-Za-z0-9-_.]` exactly as the Python did.
+- **Nothing a cache entry can contain will fail a job.** Unreadable, unparseable,
+  wrong schema version, or an inner `file_hash` that disagrees with the lookup
+  key are all misses; the worst case is a re-transcription. Cancellation is the
+  one thing that propagates, so a cancelled job stops instead of falling through
+  to the GPU.
+- **One digest keeps one file.** Saving again (T21 saves after alignment)
+  replaces the earlier entry rather than leaving a word-less transcript beside
+  the refined one. Writes go to a `.writing` temporary and are then moved into
+  place, so an interrupted save cannot poison the cache.
+- The store takes no logger - the Pipeline project has no logging dependency.
+  The Python logged "Reusing persisted transcript" at the call site, and that is
+  where it still belongs, in T21.
 
 ## Open questions
 
