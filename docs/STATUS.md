@@ -98,7 +98,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | ✅ | `task/T31-cli` | `4203dc7` | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
 | T32 | Container + configuration | ✅ | `task/T32-container-config` | `7f04e44` | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified, **image build not yet verified**; see output below |
-| T33 | Documentation + ASR ADR | ✅ | `task/T33-documentation` | | Root `README.md` and `CONTEXT.md`, docs index; the ADR was T13's (ADR-0006); doc/code discrepancies fixed in docs, see output below |
+| T33 | Documentation + ASR ADR | ✅ | `task/T33-documentation` | `59aabe2` | Root `README.md` and `CONTEXT.md`, docs index; the ADR was T13's (ADR-0006); doc/code discrepancies fixed in docs, see output below |
 | T34 | Evaluation harness | — | | | Stretch |
 
 ## Completed outside the ledger
