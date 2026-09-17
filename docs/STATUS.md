@@ -15,7 +15,7 @@ Last updated: 2026-09-16
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 975 passing, 14 skipped (1 project placeholder + 4 opt-in live-LLM + 9 opt-in GPU) |
+| Tests | 1031 passing, 13 skipped (4 opt-in live-LLM + 9 opt-in GPU) |
 
 ## Conventions for agents
 
@@ -96,7 +96,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T28 | Zip download | ✅ | `task/T28-zip-download` | `6e6985c` | Streamed, not temp-filed; entry names fix finding 3 |
 | T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | `74044d5` | UI ported unchanged; advisor wiring closed by T21 |
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
-| T31 | CLI | — | | | |
+| T31 | CLI | ✅ | `task/T31-cli` | | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
 | T32 | Container + configuration | — | | | |
 | T33 | Documentation + ASR ADR | — | | | |
 | T34 | Evaluation harness | — | | | Stretch |
@@ -199,6 +199,46 @@ weights, and it must stay that way — CI is CPU-only.
 - The tolerance question ("is DTW precise enough?") is **answered** — yes, with
   the DTW pass rather than the token-timestamp heuristic. `PassThroughAligner`
   stays as the seam. See ADR-0006 and the T13 output section.
+
+## T31 output — what T32 and T33 need to know
+
+`foulfilter` (`src/FoulFilterNet.Cli`) is `find_and_remove.py` argument for
+argument, composing the same engines Web does. Verified end to end on this host:
+`single_hit.mp3` with `large-v3-turbo` found `damn` at 3.33-4.19 s padded, on
+the **Cuda** runtime, in 16 s wall clock including the cold model load.
+
+- **`System.CommandLine` 2.0.12 is the post-GA API.** `RootCommand.Add` for
+  arguments and options, options configured through object initialisers
+  (`Description`, `HelpName`), `AcceptOnlyFromAmong`, `Command.SetAction((parseResult,
+  ct) => ...)`, `Command.Parse(args).InvokeAsync(new InvocationConfiguration { ... })`,
+  and `ParseResult.GetValue` / `GetRequiredValue`. `SetHandler` and the beta
+  shapes do not exist.
+- **Parsing and mapping never run anything.** `FoulFilterCommandLine.ToRequest`
+  turns a `ParseResult` plus an environment lookup into a `JobRequest`, which is
+  how the precedence matrix is tested as a unit. `--no_edit` is `Render = false`.
+- **Precedence is the Python's whole chain**: `--censor_method`, then `--bleep`,
+  then `--delete`, then `CENSOR_METHOD`, then silence. An unrecognised variable
+  falls back to silence rather than failing the run.
+- **One deliberate departure**: `--censor_method delete` is accepted. The
+  Python's `choices` rejected it while its environment variable accepted it, so
+  the flag and the variable disagreed about a word in every legacy `.env`.
+- **The CLI never downloads a model.** It wires `WhisperModelSource` without an
+  acquisition delegate, so missing weights fail with the path it wanted. Web
+  downloads on first use; a terminal run should not pull 1.6 GB silently.
+- **Configuration**: `Host.CreateApplicationBuilder` reads `appsettings.json`
+  from the working directory and the environment, so `Transcription__Model`,
+  `Transcription__ModelDirectory`, `CENSOR_METHOD` and `TRANSCRIPT_DIR` all work.
+  The CLI ships no `appsettings.json` of its own — T32 should decide whether it
+  shares Web's. `TRANSCRIPT_DIR` defaults to the Python's `/data/transcripts`,
+  which on native Windows means the root of the current drive; T32 owns that
+  default too.
+- **Failures are one line and an exit code**: 1 for an unreadable or
+  unrecognised file or a failed job, 130 for a cancelled one. The probe sits
+  inside the handled region, so a missing file is not a stack trace.
+- **The scratch directory is left behind** (`.<name>_scratch` beside the
+  output), exactly as the Python left it: `--debug` writes `transcript.txt`
+  there, and that is where a user looks for it. Web's scratch is wiped at startup
+  by T30; nothing wipes the CLI's.
 
 ## T13 output — what T31, T32, T33 and T34 need to know
 

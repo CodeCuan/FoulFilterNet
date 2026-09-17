@@ -1,0 +1,181 @@
+using FoulFilterNet.Cli;
+using FoulFilterNet.Domain;
+
+namespace FoulFilterNet.Cli.Tests;
+
+/// <summary>
+/// Everything the Python derived between <c>parse_args</c> and <c>run_job</c>:
+/// the output path, the scratch directory beside it, and the transcript cache.
+/// </summary>
+public sealed class WhenMappingAMinimalCommandLineToAJobRequest
+{
+    private readonly JobRequest _request;
+
+    public WhenMappingAMinimalCommandLineToAJobRequest()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        var parsed = commandLine.Parse(Path.Combine("media", "clip.mp3"), "words.txt");
+
+        parsed.Errors.ShouldBeEmpty();
+
+        _request = commandLine.ToRequest(parsed, _ => null);
+    }
+
+    [Fact]
+    public void KeepsTheInputPath() => _request.InputPath.ShouldBe(Path.Combine("media", "clip.mp3"));
+
+    [Fact]
+    public void KeepsTheBadWordsPath() => _request.BadWordsPath.ShouldBe("words.txt");
+
+    [Fact]
+    public void NamesTheOutputAfterTheInput() =>
+        _request.OutputPath.ShouldBe(Path.Combine("media", "censored_clip.mp3"));
+
+    [Fact]
+    public void PutsScratchBesideTheOutput() =>
+        _request.ScratchDirectory.ShouldBe(Path.Combine("media", ".clip_scratch"));
+
+    [Fact]
+    public void FallsBackToTheLegacyTranscriptDirectory() =>
+        _request.TranscriptDirectory.ShouldBe(FoulFilterCommandLine.DefaultTranscriptDirectory);
+
+    [Fact]
+    public void SilencesByDefault() => _request.CensorMethod.ShouldBe(CensorMethod.Silence);
+
+    [Fact]
+    public void DoesNotExportTheTranscript() => _request.Debug.ShouldBeFalse();
+
+    [Fact]
+    public void DoesNotRescan() => _request.Rescan.ShouldBeFalse();
+
+    [Fact]
+    public void Renders() => _request.Render.ShouldBeTrue();
+}
+
+/// <summary>A file in the working directory has no directory part to join onto.</summary>
+public sealed class WhenTheInputHasNoDirectory
+{
+    private readonly JobRequest _request;
+
+    public WhenTheInputHasNoDirectory()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        _request = commandLine.ToRequest(commandLine.Parse("clip.wav", "words.txt"), _ => null);
+    }
+
+    [Fact]
+    public void WritesTheOutputIntoTheCurrentDirectory() =>
+        _request.OutputPath.ShouldBe(Path.Combine(".", "censored_clip.wav"));
+
+    [Fact]
+    public void ScratchesInTheCurrentDirectory() =>
+        _request.ScratchDirectory.ShouldBe(Path.Combine(".", ".clip_scratch"));
+}
+
+/// <summary>
+/// An explicit <c>--output</c> moves the scratch directory with it, but the
+/// scratch name still comes from the input's base name - exactly as the Python
+/// composed it.
+/// </summary>
+public sealed class WhenAnExplicitOutputIsGiven
+{
+    private readonly JobRequest _request;
+
+    public WhenAnExplicitOutputIsGiven()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        _request = commandLine.ToRequest(
+            commandLine.Parse(
+                Path.Combine("media", "clip.mp3"),
+                "words.txt",
+                "--output",
+                Path.Combine("elsewhere", "clean.mp3")),
+            _ => null);
+    }
+
+    [Fact]
+    public void UsesIt() => _request.OutputPath.ShouldBe(Path.Combine("elsewhere", "clean.mp3"));
+
+    [Fact]
+    public void MovesScratchBesideIt() =>
+        _request.ScratchDirectory.ShouldBe(Path.Combine("elsewhere", ".clip_scratch"));
+}
+
+/// <summary>The legacy variable still names the transcript cache.</summary>
+public sealed class WhenTheTranscriptDirectoryIsConfigured
+{
+    private readonly JobRequest _request;
+
+    public WhenTheTranscriptDirectoryIsConfigured()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        _request = commandLine.ToRequest(
+            commandLine.Parse("clip.mp3", "words.txt"),
+            key => key == "TRANSCRIPT_DIR" ? "cache" : null);
+    }
+
+    [Fact]
+    public void UsesIt() => _request.TranscriptDirectory.ShouldBe("cache");
+}
+
+/// <summary>The three analysis flags, and the one that suppresses the edit.</summary>
+public sealed class WhenEveryAnalysisFlagIsGiven
+{
+    private readonly JobRequest _request;
+
+    public WhenEveryAnalysisFlagIsGiven()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        var parsed = commandLine.Parse("clip.mp3", "words.txt", "--debug", "--rescan", "--no_edit", "--bleep");
+
+        parsed.Errors.ShouldBeEmpty();
+
+        _request = commandLine.ToRequest(parsed, _ => null);
+    }
+
+    [Fact]
+    public void ExportsTheTranscript() => _request.Debug.ShouldBeTrue();
+
+    [Fact]
+    public void RescansWithShiftedBoundaries() => _request.Rescan.ShouldBeTrue();
+
+    [Fact]
+    public void SuppressesTheRenderRatherThanAddingAParallelFlag() => _request.Render.ShouldBeFalse();
+
+    [Fact]
+    public void StillResolvesTheCensorMethod() => _request.CensorMethod.ShouldBe(CensorMethod.Bleep);
+}
+
+/// <summary>The parser rejects what the Python's <c>choices</c> rejected.</summary>
+public sealed class WhenCensorMethodIsNotAMethod
+{
+    private readonly IReadOnlyList<string> _errors;
+
+    public WhenCensorMethodIsNotAMethod()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        _errors = [.. commandLine.Parse("clip.mp3", "words.txt", "--censor_method", "obliterate")
+            .Errors.Select(error => error.Message)];
+    }
+
+    [Fact]
+    public void FailsToParse() => _errors.ShouldNotBeEmpty();
+
+    [Fact]
+    public void SaysWhichValueWasWrong() => _errors.ShouldContain(message => message.Contains("obliterate", StringComparison.Ordinal));
+}
+
+/// <summary>Both positional arguments are required, as argparse made them.</summary>
+public sealed class WhenTheBadWordsListIsMissing
+{
+    private readonly IReadOnlyList<string> _errors;
+
+    public WhenTheBadWordsListIsMissing()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        _errors = [.. commandLine.Parse("clip.mp3").Errors.Select(error => error.Message)];
+    }
+
+    [Fact]
+    public void FailsToParse() => _errors.ShouldNotBeEmpty();
+}
