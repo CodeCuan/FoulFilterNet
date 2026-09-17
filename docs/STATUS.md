@@ -12,7 +12,7 @@ Last updated: 2026-09-17
 
 | | |
 |---|---|
-| Phase | **Wave 1** — streams unblocked |
+| Phase | **All 34 tasks merged** — container image build still unverified |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 9 production + 9 test projects, builds clean |
 | Tests | 1175 passing, 23 skipped (4 opt-in live-LLM + 19 opt-in GPU) |
@@ -99,7 +99,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T31 | CLI | ✅ | `task/T31-cli` | `4203dc7` | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
 | T32 | Container + configuration | ✅ | `task/T32-container-config` | `7f04e44` | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified, **image build not yet verified**; see output below |
 | T33 | Documentation + ASR ADR | ✅ | `task/T33-documentation` | `59aabe2` | Root `README.md` and `CONTEXT.md`, docs index; the ADR was T13's (ADR-0006); doc/code discrepancies fixed in docs, see output below |
-| T34 | Evaluation harness | ✅ | `task/T34-evaluation-harness` | | `foulfilter-eval` (`FoulFilterNet.Evaluation`): `BoundaryScorer`, `ScoreCard`, `FixtureEvaluator`; reproduces ADR-0006 exactly on the CPU, one word 20 ms apart on CUDA; see output below |
+| T34 | Evaluation harness | ✅ | `task/T34-evaluation-harness` | `1b12965` | `foulfilter-eval` (`FoulFilterNet.Evaluation`): `BoundaryScorer`, `ScoreCard`, `FixtureEvaluator`; reproduces ADR-0006 exactly on the CPU, one word 20 ms apart on CUDA; see output below |
 
 ## Completed outside the ledger
 
