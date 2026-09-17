@@ -15,7 +15,7 @@ Last updated: 2026-09-17
 | Phase | **All 34 tasks merged** — runs natively; the container was dropped |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 9 production + 9 test projects, builds clean |
-| Tests | 1175 passing, 23 skipped (4 opt-in live-LLM + 19 opt-in GPU) |
+| Tests | 1201 passing, 24 skipped (4 opt-in live-LLM + 20 opt-in GPU) |
 
 ## Conventions for agents
 
@@ -100,6 +100,32 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T32 | Container + configuration | ✅ | `task/T32-container-config` | `7f04e44` | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified; container files later dropped; see output below |
 | T33 | Documentation + ASR ADR | ✅ | `task/T33-documentation` | `59aabe2` | Root `README.md` and `CONTEXT.md`, docs index; the ADR was T13's (ADR-0006); doc/code discrepancies fixed in docs, see output below |
 | T34 | Evaluation harness | ✅ | `task/T34-evaluation-harness` | `1b12965` | `foulfilter-eval` (`FoulFilterNet.Evaluation`): `BoundaryScorer`, `ScoreCard`, `FixtureEvaluator`; reproduces ADR-0006 exactly on the CPU, one word 20 ms apart on CUDA; see output below |
+
+## Web video tasks (docs/04-web-video-plan.md)
+
+Same status key and conventions as the port ledger; branches are `task/W<nn>-<slug>`.
+
+| Task | Description | Status | Branch | Commit | Notes |
+|---|---|---|---|---|---|
+| W00 | Land windowed transcription | ✅ | `task/W00-windowed-transcription` | `ae10529` | `TranscriptionWindows` (28 s windows, 6 s overlap, each word/segment kept by the one window whose share holds its midpoint); `WhisperNetEngine` reads the WAV per window because DTW silently stopped at 30 s. Edge-case `Plan`/`Stitch` tests (empty, exact multiple, just over one window, share-boundary word, every instant owned once) added in the W00 ledger commit. `RUN_GPU_TESTS=1`: all 10 `LiveWhisperTranscriberTests` pass on an RTX 3080 Ti, including `HearsTheProfanityPastTheFirstThirtySeconds` |
+| W01 | Spike: prove the two load-bearing assumptions *(throwaway)* | — | | | |
+| W02 | ADR-0007, vocabulary and scaffolding | — | | | |
+| W03 | VideoRef | — | | | |
+| W04 | Coverage | — | | | |
+| W05 | Window scheduler | — | | | |
+| W06 | Partial Hit snapshot | — | | | |
+| W07 | Windowed engine contract and priority lane | — | | | |
+| W08 | yt-dlp audio source | — | | | |
+| W09 | Watch Session and manager | — | | | |
+| W10 | Watch endpoints and host hardening | — | | | |
+| W11 | Extension skeleton | — | | | |
+| W12 | Page watcher | — | | | |
+| W13 | Playback Gate | — | | | |
+| W14 | Live Censoring | — | | | |
+| W15 | Wiring and failure policy | — | | | |
+| W16 | End-to-end harness and checklist | — | | | |
+| W17 | Time-to-first-play *(conditional on W01 numbers)* | — | | | |
+| W18 | Documentation | — | | | |
 
 ## Completed outside the ledger
 
