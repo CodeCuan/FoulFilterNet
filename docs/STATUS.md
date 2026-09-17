@@ -108,7 +108,7 @@ Same status key and conventions as the port ledger; branches are `task/W<nn>-<sl
 | Task | Description | Status | Branch | Commit | Notes |
 |---|---|---|---|---|---|
 | W00 | Land windowed transcription | ✅ | `task/W00-windowed-transcription` | `ae10529` | `TranscriptionWindows` (28 s windows, 6 s overlap, each word/segment kept by the one window whose share holds its midpoint); `WhisperNetEngine` reads the WAV per window because DTW silently stopped at 30 s. Edge-case `Plan`/`Stitch` tests (empty, exact multiple, just over one window, share-boundary word, every instant owned once) added in the W00 ledger commit. `RUN_GPU_TESTS=1`: all 10 `LiveWhisperTranscriberTests` pass on an RTX 3080 Ti, including `HearsTheProfanityPastTheFirstThirtySeconds` |
-| W01 | Spike: prove the two load-bearing assumptions *(throwaway)* | — | | | |
+| W01 | Spike: prove the two load-bearing assumptions *(throwaway)* | ✅ | `task/W01-spike` | `efc395a`, `eaa000c` | ADR-0007 accepted. Web Audio on YouTube works (±5 ms); ~0.7 s/window; first play 11–24 s as planned → W17 required, no `--download-sections`. Autoplay, background tab and ads untested → W16 in stock Chrome |
 | W02 | ADR-0007, vocabulary and scaffolding | — | | | |
 | W03 | VideoRef | — | | | |
 | W04 | Coverage | — | | | |
@@ -124,7 +124,7 @@ Same status key and conventions as the port ledger; branches are `task/W<nn>-<sl
 | W14 | Live Censoring | — | | | |
 | W15 | Wiring and failure policy | — | | | |
 | W16 | End-to-end harness and checklist | — | | | |
-| W17 | Time-to-first-play *(conditional on W01 numbers)* | — | | | |
+| W17 | Time-to-first-play | — | | | |
 | W18 | Documentation | — | | | |
 
 ## Completed outside the ledger

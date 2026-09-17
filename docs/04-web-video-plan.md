@@ -178,13 +178,16 @@ public interface IWebAudioSource
   URL or an option.
 - Audio-only is about 1 MB per minute, and yt-dlp usually fetches it much faster
   than real time. V1 downloads the whole track, then converts it with the
-  existing `IAudioPreparer` into the 16 kHz WAV. If W01's measurements show the
-  download dominates time-to-first-play, W17 fetches the first minutes on their
-  own (`--download-sections`).
+  existing `IAudioPreparer` into the 16 kHz WAV.
+- **One yt-dlp call** prints the metadata and downloads, with
+  `--match-filter "!is_live"`. W01 measured about 4 s lost to reading the page
+  twice. `--download-sections` is **not** used: YouTube paced it to 63 s for
+  2 minutes of a 60-minute video, against 8 s for the whole track (ADR-0007).
 - Livestreams (`is_live`) are refused as **Unsupported**. Private, age-gated and
   removed videos are **Failed** with yt-dlp's reason.
 - **Prerequisites:** `yt-dlp` on `PATH`, and a JavaScript runtime it can use
-  (current yt-dlp needs Deno or similar for YouTube). `GET /config` reports
+  (current yt-dlp needs Deno for YouTube). Without it yt-dlp only warns and
+  formats may be missing, so availability checks for Deno explicitly. `GET /config` reports
   whether web video is available, like it does for Smart Cut.
 
 ### Watch Session (W09)
@@ -308,7 +311,7 @@ warning.
 |---|---|
 | `createMediaElementSource` on YouTube's MSE-backed `<video>` gives silence, or YouTube fights it | **W01 spike, before anything else.** It is the load-bearing assumption. |
 | yt-dlp breaks when YouTube changes (signatures, PO tokens, JS runtime) | Kept behind `IWebAudioSource`. Failures are shown to the user, not swallowed. Keeping yt-dlp up to date is the user's job, and the README says so. |
-| Time-to-first-play is much more than "a few seconds" | W01 measures it on the 3080 Ti with `large-v3-turbo`. W17 is conditional on those numbers. Keeping the model warm (`UnloadAfterJob=false`) matters most. |
+| Time-to-first-play is much more than "a few seconds" | W01 measures it on the 3080 Ti with `large-v3-turbo`. Measured in W01 (ADR-0007): 11–24 s as planned, so W17 is required. Keeping the model warm (`UnloadAfterJob=false`) matters most. |
 | A batch Job starves the viewer | Priority lane per window (W07) |
 | Timer throttling in background tabs | Automation on the audio clock with a 2 s horizon. Tabs playing audio are not subject to Chrome's intensive throttling. |
 | YouTube Terms of Service | Downloading with yt-dlp is against YouTube's terms. This is a personal, local tool and the audio never leaves the machine, but the README should say it plainly. |
@@ -402,8 +405,11 @@ waiting low-priority ones; cancellation while waiting.
 Argument construction (pure) and outcome mapping: missing yt-dlp, unavailable,
 live, and age-restricted. Uses a recording process runner like the Media tests
 do.
+One yt-dlp call for metadata and download (`--print`/`--print-to-file` plus
+`--match-filter "!is_live"`); an availability probe for yt-dlp and Deno.
 **Tests:** the exact argument lists; the canonical URL is always the last
-argument; JSON metadata parsing from captured output; each failure mapped. One
+argument; metadata parsing from captured output; each failure mapped; Deno
+missing reported as unavailable. One
 opt-in live test downloads a known short video.
 **Depends on:** W03
 
@@ -438,8 +444,12 @@ as values), options page, and "load unpacked" instructions.
 #### W12 · Page watcher
 `video-id.js` (pure) and `page.js`: the current video ID, the `<video>` element,
 ad state and navigation events, emitted as one stream of page state changes.
+Per ADR-0007: `location` shows the new `v=` before the old video stops, so on
+`yt-navigate-start` emit "leaving" (filter mutes, snapshot dropped) and only
+start the new Watch Session on `yt-navigate-finish`. Never poll `location`.
 **Tests:** URL parsing (watch, extra parameters, `&t=`, non-watch pages give
-null). The DOM adapter is verified by hand against the W01 checklist.
+null); the navigation state machine (start → muted, finish → new id). The DOM
+adapter is verified by hand against the W01 checklist.
 **Depends on:** W11
 
 #### W13 · Playback Gate
@@ -450,7 +460,11 @@ stands aside during an ad; the thresholds scale with the playback rate.
 **Depends on:** W12
 
 #### W14 · Live Censoring
-`schedule.js` (pure) and `audio-graph.js`, for silence and bleep.
+`schedule.js` (pure) and `audio-graph.js`, for silence and bleep. Per ADR-0007:
+schedule only while really playing (`!paused && readyState >= 3`); cancel on
+`waiting`, `emptied`, seek and pause, re-plan on `playing` (after a seek
+`currentTime` freezes about 1.5 s while the audio clock runs); one
+`AudioContext` for the page's life; guard against double injection.
 **Tests:** only Hits within the horizon are scheduled; times scale by rate; a
 playhead inside a Hit closes now; nothing is scheduled while paused; a bleep
 opens the tone exactly as the programme closes; overlapping ticks produce no
@@ -460,7 +474,9 @@ duplicate events.
 #### W15 · Wiring and failure policy
 The heartbeat loop (1 s while the tab is on a watch page, stopped otherwise),
 snapshot to gate and scheduler, the Watch unfiltered button, a toolbar badge,
-and the chosen fail policy.
+and the fail-closed policy. `createMediaElementSource` can only ever succeed
+once per element (ADR-0007), so an `InvalidStateError` (extension reloaded, or
+another extension got there first) is a fail-closed reason: "reload the page".
 **Tests:** a pure reducer from (snapshot or error, page state, options) to UI
 state and gate inputs.
 **Depends on:** W10, W13, W14
@@ -472,18 +488,21 @@ A development-only `file` provider (behind configuration, off by default) that
 serves a fixture video, plus a local test page. That exercises the whole path
 without YouTube. Add a written manual checklist for real YouTube: first view,
 second view (cached), seek ahead, 2× speed, ad break, SPA navigation, server
-stopped halfway, and a batch Job running alongside.
+stopped halfway, and a batch Job running alongside. In **stock Chrome**, also
+the three things the W01 browser could not show: a fresh tab autoplaying with
+no click (suspended `AudioContext`), timing in a background tab, and an ad.
 **Done when:** the harness plays `tests/fixtures/media` video with every
 manifest span inaudible, and the checklist has been run once and its results
 recorded in STATUS.
 **Depends on:** W15
 
-#### W17 · Time-to-first-play *(conditional on W01 numbers)*
-Pick from: warm the model at startup when web video is enabled, fetch the first
-N minutes with `--download-sections` while the full download continues, and
-decode the WAV progressively.
-**Done when:** a first view of the 60-minute video starts within the target
-agreed after W01.
+#### W17 · Time-to-first-play
+W01 measured 11–24 s as planned (growing with length), and about 7–9 s with the
+steps reordered. Do: load the model while the download runs, and convert the
+first stretch (about 2 minutes, 0.3 s) before the rest of the file, so the first
+windows do not wait for a full-file conversion (8.6 s for 60 minutes).
+**Done when:** a first view of the 60-minute video reaches 30 s of Coverage
+in under 10 s with a cold model.
 **Depends on:** W16
 
 #### W18 · Documentation
