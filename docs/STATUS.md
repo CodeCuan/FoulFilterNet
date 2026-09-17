@@ -96,7 +96,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T28 | Zip download | ✅ | `task/T28-zip-download` | `6e6985c` | Streamed, not temp-filed; entry names fix finding 3 |
 | T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | `74044d5` | UI ported unchanged; advisor wiring closed by T21 |
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
-| T31 | CLI | ✅ | `task/T31-cli` | | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
+| T31 | CLI | ✅ | `task/T31-cli` | `4203dc7` | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
 | T32 | Container + configuration | — | | | |
 | T33 | Documentation + ASR ADR | — | | | |
 | T34 | Evaluation harness | — | | | Stretch |
@@ -296,14 +296,15 @@ lifetime, device selection, token joining). `Program.cs` puts the engine inside
   cannot leave a truncated model that loads and mis-transcribes. Web wires the
   real downloader, so **a first job on a fresh machine fetches the model** (1.6 GB
   for `large-v3-turbo`). Weights are gitignored and must never be committed.
-- **Still open: CUDA has not run here.** This host has an RTX 3080 Ti and a CUDA
-  13.2 driver, but no CUDA toolkit runtime (no `cudart`/`cublas`), so the loader
-  fell through its order to `Cpu` — about 28 s per 8 s fixture, and every number
-  in ADR-0006 was measured there. Closing it needs the CUDA 13 runtime installed
-  on the host and, for a machine on 12.x drivers, **`Whisper.net.Runtime.Cuda12`
-  declared in `Directory.Packages.props`**, which is not there today — T13 did
-  not add it, per the shared-files rule. The CUDA natives themselves do reach the
-  Web output transitively, so no csproj needs changing for them.
+- **CUDA verified (2026-09-17).** T13 measured on the CPU because the host had no
+  CUDA toolkit runtime; with it installed, Whisper.net's loader picks the `Cuda`
+  runtime unprompted. `RUN_GPU_TESTS=1` over the Transcription tests passes all
+  192 with none skipped in 5.6 s - model load plus all seven fixtures - where
+  the CPU needed about 28 s for one 8 s fixture. The CLI's end-to-end run on
+  `single_hit.mp3` reproduced ADR-0006's boundaries to the millisecond, so the
+  timestamps really are backend-independent. **`Whisper.net.Runtime.Cuda12` is
+  still undeclared** in `Directory.Packages.props`; it only matters on a host
+  with 12.x drivers, and T32 owns that decision.
 - **Opt-in GPU tests.** `RUN_GPU_TESTS=1 dotnet test FoulFilterNet.slnx` with
   weights in `models/`; `FOULFILTER_MODEL_DIR` and `FOULFILTER_TEST_MODEL`
   override where and which. Nine facts, all passing against `large-v3-turbo`, and

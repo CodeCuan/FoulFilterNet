@@ -79,6 +79,11 @@ timestamps on either backend, so the boundary results stand; the CUDA path's
 *speed* is what remains unverified here, and it needs the CUDA 13 runtime
 installed on the host.
 
+*Addendum, 2026-09-17:* with the CUDA runtime installed the loader selects
+`Cuda` on its own. The opt-in GPU tests then transcribe all seven fixtures,
+model load included, in about 5.6 s, and the CLI's run on `single_hit.mp3`
+reports the same boundaries as the CPU measurement to the millisecond.
+
 ## Considered Options
 
 - **Keep the Python hybrid as an ASR sidecar**: rejected — preserves exact
