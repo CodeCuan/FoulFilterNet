@@ -147,3 +147,13 @@ comes from reconciliation rather than from DTW's accuracy.
   That is enough to reject the `t0`/`t1` rule outright, and not enough to put a
   confidence interval around 0.107 s. A longer real recording is the next
   measurement worth making (T34).
+- **DTW truncates long input (found 2026-09-17).** With DTW on, Whisper.net 1.9.1
+  returns only the first 30-second window of whatever it is given, silently: a
+  52-minute video came back with 29 s of transcript. Every fixture is shorter
+  than that, so neither this measurement nor T34 could see it. Turning DTW off
+  transcribes the whole file but reproduced the first row of the table (5 of 11
+  spans left partly audible after padding), so the engine keeps DTW and feeds
+  whisper.cpp 28 s windows overlapping by 6 s (`TranscriptionWindows`), keeping
+  each word from the window whose share its midpoint falls in. The fixture
+  evaluation is unchanged by this, and the opt-in
+  `HearsTheProfanityPastTheFirstThirtySeconds` test covers audio past 30 s.

@@ -2,6 +2,7 @@ using FoulFilterNet.Domain;
 using Microsoft.Extensions.Logging;
 using Whisper.net;
 using Whisper.net.LibraryLoader;
+using Whisper.net.Wave;
 
 namespace FoulFilterNet.Transcription;
 
@@ -67,38 +68,47 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         await using var processor = BuildProcessor(factory);
         await using var audio = File.OpenRead(wavPath);
 
-        var segments = new List<Segment>();
-        var tokens = new List<WhisperToken>();
-
-        await foreach (
-            var heard in processor.ProcessAsync(audio, cancellationToken).ConfigureAwait(false)
-        )
+        var wave = new WaveParser(audio);
+        await wave.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        if (wave.BitsPerSample != 16)
         {
-            var text = (heard.Text ?? string.Empty).Trim();
-            if (text.Length > 0 && heard.End > heard.Start)
-            {
-                segments.Add(
-                    new Segment(
-                        Times.Round(heard.Start.TotalSeconds),
-                        Times.Round(heard.End.TotalSeconds),
-                        text
-                    )
-                );
-            }
-
-            if (heard.Tokens is { Length: > 0 } spoken)
-            {
-                tokens.AddRange(spoken);
-            }
+            throw new NotSupportedException(
+                $"Expected 16-bit PCM in '{wavPath}', found {wave.BitsPerSample}-bit."
+            );
         }
 
-        // Joined over the whole file rather than segment by segment: a word
-        // starts at the instant of the token before it, and for a segment's
-        // first word that token belongs to the segment before.
-        var words = WhisperWords.Join(tokens);
+        var frameBytes = wave.Channels * sizeof(short);
+        var frameCount = (long)wave.DataChunkSize / frameBytes;
+        var windows = TranscriptionWindows.Plan((double)frameCount / wave.SampleRate);
 
-        LogTranscribed(segments.Count, words.Count);
-        return new TranscriptionResult(segments, words);
+        var heard = new List<(TranscriptionWindow, TranscriptionResult)>(windows.Count);
+        foreach (var window in windows)
+        {
+            var firstFrame = (long)Math.Round(window.Start * wave.SampleRate);
+            var frames = (int)(
+                Math.Min(frameCount, (long)Math.Round(window.End * wave.SampleRate)) - firstFrame
+            );
+            var samples = await ReadWindowAsync(
+                    audio,
+                    (long)wave.DataChunkPosition + firstFrame * frameBytes,
+                    frames,
+                    wave.Channels,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+
+            heard.Add(
+                (
+                    window,
+                    await TranscribeWindowAsync(processor, samples, cancellationToken)
+                        .ConfigureAwait(false)
+                )
+            );
+        }
+
+        var result = TranscriptionWindows.Stitch(heard);
+        LogTranscribed(result.Segments.Count, result.Words.Count, windows.Count);
+        return result;
     }
 
     /// <inheritdoc />
@@ -133,6 +143,77 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         _factory?.Dispose();
         _factory = null;
         _gate.Dispose();
+    }
+
+    /// <summary>
+    /// One window's frames as mono samples in [-1, 1), channels averaged the way
+    /// Whisper.net's own parser does.
+    /// </summary>
+    private static async Task<float[]> ReadWindowAsync(
+        FileStream audio,
+        long position,
+        int frames,
+        int channels,
+        CancellationToken cancellationToken
+    )
+    {
+        var bytes = new byte[frames * channels * sizeof(short)];
+        audio.Position = position;
+        var read = await audio
+            .ReadAtLeastAsync(bytes, bytes.Length, throwOnEndOfStream: false, cancellationToken)
+            .ConfigureAwait(false);
+
+        var samples = new float[read / (channels * sizeof(short))];
+        for (var frame = 0; frame < samples.Length; frame++)
+        {
+            var sum = 0;
+            for (var channel = 0; channel < channels; channel++)
+            {
+                sum += BitConverter.ToInt16(bytes, (frame * channels + channel) * sizeof(short));
+            }
+
+            samples[frame] = sum / (channels * 32768f);
+        }
+
+        return samples;
+    }
+
+    /// <summary>What one window heard, on the window's own timeline.</summary>
+    private static async Task<TranscriptionResult> TranscribeWindowAsync(
+        WhisperProcessor processor,
+        float[] samples,
+        CancellationToken cancellationToken
+    )
+    {
+        var segments = new List<Segment>();
+        var tokens = new List<WhisperToken>();
+
+        await foreach (
+            var heard in processor.ProcessAsync(samples, cancellationToken).ConfigureAwait(false)
+        )
+        {
+            var text = (heard.Text ?? string.Empty).Trim();
+            if (text.Length > 0 && heard.End > heard.Start)
+            {
+                segments.Add(
+                    new Segment(
+                        Times.Round(heard.Start.TotalSeconds),
+                        Times.Round(heard.End.TotalSeconds),
+                        text
+                    )
+                );
+            }
+
+            if (heard.Tokens is { Length: > 0 } spoken)
+            {
+                tokens.AddRange(spoken);
+            }
+        }
+
+        // Joined over the whole window rather than segment by segment: a word
+        // starts at the instant of the token before it, and for a segment's
+        // first word that token belongs to the segment before.
+        return new TranscriptionResult(segments, WhisperWords.Join(tokens));
     }
 
     /// <summary>
@@ -226,9 +307,9 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Transcribed {Segments} segment(s), {Words} word(s)"
+        Message = "Transcribed {Segments} segment(s), {Words} word(s) in {Windows} window(s)"
     )]
-    private partial void LogTranscribed(int segments, int words);
+    private partial void LogTranscribed(int segments, int words, int windows);
 
     [LoggerMessage(
         Level = LogLevel.Information,

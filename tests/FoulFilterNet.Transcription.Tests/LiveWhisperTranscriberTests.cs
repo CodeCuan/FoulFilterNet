@@ -134,6 +134,43 @@ public sealed class LiveWhisperTranscriberTests
             .Start.ShouldBe(3.0, 1.0);
     }
 
+    /// <remarks>
+    /// With DTW on, Whisper.net returns only the first 30 seconds of whatever it
+    /// is given, and every fixture is shorter than that. This builds a file with
+    /// the single-hit fixture at the start and again 75 s in, well past the
+    /// first window and across a window share boundary, and expects the second
+    /// "damn" at its true place within the padding tolerances.
+    /// </remarks>
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task HearsTheProfanityPastTheFirstThirtySeconds()
+    {
+        using var directory = new TempDirectory();
+        var fixture = MediaFixtures.Path("single_hit.mp3");
+        var longFile = System.IO.Path.Combine(directory.Path, "long.wav");
+        await new FFmpegRunner().RunFFmpegAsync(
+            [
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                fixture,
+                "-i",
+                fixture,
+                "-filter_complex",
+                "[1]adelay=75000|75000[late];[0][late]amix=inputs=2:normalize=0",
+                longFile,
+            ],
+            TestContext.Current.CancellationToken
+        );
+
+        var late = (await LiveWhisper.TranscribeFileAsync(longFile)).Words.Single(w =>
+            w.Text.StartsWith("damn", StringComparison.Ordinal) && w.Start > 60
+        );
+
+        late.Start.ShouldBe(75 + 3.410, StartTolerance);
+        late.End.ShouldBe(75 + 3.897, EndTolerance);
+    }
+
     private static async Task<Word> Damn() =>
         (await LiveWhisper.WordsAsync("single_hit.mp3")).First(w =>
             w.Text.StartsWith("damn", StringComparison.Ordinal)
@@ -171,6 +208,9 @@ internal static class LiveWhisper
             Gate.Release();
         }
     }
+
+    public static Task<TranscriptionResult> TranscribeFileAsync(string path) =>
+        Transcriber.Value.TranscribeAsync(path, TestContext.Current.CancellationToken);
 
     public static async Task<IReadOnlyList<Word>> WordsAsync(string fixtureFileName) =>
         (await TranscribeAsync(fixtureFileName)).Words;
