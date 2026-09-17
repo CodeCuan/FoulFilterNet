@@ -121,6 +121,27 @@ foulfilter <file_path> <bad_words_list_path> [options]
   anywhere but the repository root, set `Transcription__ModelDirectory` to an
   absolute path.
 
+## Evaluating against the fixtures
+
+`foulfilter-eval` (`src/FoulFilterNet.Evaluation`) runs every fixture in
+`tests/fixtures/media/manifest.json` through the real pipeline and scores it
+twice: the transcriber's **raw words**, and the **final hits** after padding and
+merging. It reports detection, recall, precision (the fixtures' garden "hoe" is
+an expected false positive), and signed boundary error: a positive `dStart` is a
+late start and a negative `dEnd` an early end, the directions that leave speech
+audible, and `margin` says by how much each planted span is covered.
+
+```powershell
+$env:Transcription__ModelDirectory = "$PWD\models"
+$env:Transcription__Model = "large-v3-turbo"
+dotnet run --project src/FoulFilterNet.Evaluation -- --work $env:TEMP\ff-eval
+```
+
+It prints a table and writes `evaluation.json` into `--work` (or `--json`) for a
+later run to be diffed against. By default the Bad Words List is exactly the
+manifest's phrases and the transcript cache is `<work>/transcripts`, so a fresh
+`--work` always transcribes. Like the CLI it never downloads weights.
+
 ## Running in a container — not yet built or verified
 
 A [`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml) and
@@ -194,10 +215,10 @@ dotnet test FoulFilterNet.slnx
 ```
 
 Run it from the repository root. The default run needs no GPU, weights, network
-or LLM; 13 tests are skipped unless opted in:
+or LLM; 23 tests are skipped unless opted in:
 
-- `RUN_GPU_TESTS=1` — 9 transcription tests against the real engine and the
-  fixtures in `tests/fixtures/media`. Needs FFmpeg and weights in the repository's
+- `RUN_GPU_TESTS=1` — 9 transcription tests and 10 evaluation tests against the
+  real engine and the fixtures in `tests/fixtures/media`. Needs FFmpeg and weights in the repository's
   `models/` directory (`FOULFILTER_MODEL_DIR` and `FOULFILTER_TEST_MODEL`
   override where and which; the default model is `large-v3-turbo`). They never
   download anything.

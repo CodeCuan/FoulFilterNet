@@ -14,8 +14,8 @@ Last updated: 2026-09-17
 |---|---|
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
-| Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 1084 passing, 13 skipped (4 opt-in live-LLM + 9 opt-in GPU) |
+| Solution | `FoulFilterNet.slnx`, 9 production + 9 test projects, builds clean |
+| Tests | 1175 passing, 23 skipped (4 opt-in live-LLM + 19 opt-in GPU) |
 
 ## Conventions for agents
 
@@ -99,7 +99,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T31 | CLI | ✅ | `task/T31-cli` | `4203dc7` | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
 | T32 | Container + configuration | ✅ | `task/T32-container-config` | `7f04e44` | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified, **image build not yet verified**; see output below |
 | T33 | Documentation + ASR ADR | ✅ | `task/T33-documentation` | `59aabe2` | Root `README.md` and `CONTEXT.md`, docs index; the ADR was T13's (ADR-0006); doc/code discrepancies fixed in docs, see output below |
-| T34 | Evaluation harness | — | | | Stretch |
+| T34 | Evaluation harness | ✅ | `task/T34-evaluation-harness` | | `foulfilter-eval` (`FoulFilterNet.Evaluation`): `BoundaryScorer`, `ScoreCard`, `FixtureEvaluator`; reproduces ADR-0006 exactly on the CPU, one word 20 ms apart on CUDA; see output below |
 
 ## Completed outside the ledger
 
@@ -215,6 +215,166 @@ weights, and it must stay that way — CI is CPU-only.
 - The tolerance question ("is DTW precise enough?") is **answered** — yes, with
   the DTW pass rather than the token-timestamp heuristic. `PassThroughAligner`
   stays as the seam. See ADR-0006 and the T13 output section.
+
+## T34 output — the evaluation harness, and what it measured
+
+`foulfilter-eval` (`src/FoulFilterNet.Evaluation`, tests in
+`tests/FoulFilterNet.Evaluation.Tests`) ports the scoring half of
+`eval_misses.py`. It runs every fixture in `tests/fixtures/media/manifest.json`
+through the real `MediaPipeline` (the CLI's composition, `Render = false`) and
+scores it at two levels:
+
+- **Raw words**: the words the pipeline persisted to its transcript store, read
+  back and matched with `PhraseMatcher.FindHits`. This is what ADR-0006
+  measured. Margins assume the 0.15/0.25 s padding still to come.
+- **Final hits**: `JobSummary.Hits`, which are reconciled, padded, merged and
+  Smart Cut-refined if enabled. This is what actually gets censored. No further
+  padding is assumed.
+
+Only `FoulFilterNet.slnx` was touched among the shared files (two project
+entries, as authorised).
+
+### How it scores
+
+- **Scoring is pure.** `BoundaryScorer.Score(FixtureTruth, IReadOnlyList<Hit>,
+  ScoringRules)` needs no FFmpeg, model or GPU, and the 91 unit tests live there.
+  `ScoringRules.RawWords` and `ScoringRules.FinalHits` differ only in the padding
+  still to apply.
+- **Pairing**: each planted span goes to the nearest report of the same phrase,
+  greedily over all eligible pairs, nearest first by |Δstart| + |Δend|. A report
+  is eligible only within 1.0 s of the span; further away it is a false positive
+  plus a miss, not one huge error. A merged window (`damn+go to hell`) can be
+  claimed once per phrase it carries. This is what pairs the five repeats in
+  `repeated_hits.mp3` correctly.
+- **Signs**: `dStart` = reported − truth, so **positive is a late start**.
+  `dEnd` = reported − truth, so **negative is an early end**. These are the two
+  directions that leave speech audible. `margin` is the smaller of the two
+  sides' slack, and a negative margin is how much would be heard. `covered`
+  means both margins are >= 0.
+- **Two denominators.** The manifest records where words are, not whether they
+  are profane, so `false_positive.mp3` is named innocent by the harness
+  (`--innocent`, default that file). *Detection* and every boundary figure count
+  all 11 spans (as ADR-0006 did). *Recall* counts the 10 profanities.
+  *Precision* is reports paired with a profanity over all reports, so the "hoe"
+  hit is a false positive, marked expected.
+- **Magnitude "within tolerance"** (|dStart| <= 0.15, |dEnd| <= 0.25) is kept
+  because it is ADR-0006's "10/11 starts" column. At the final level it means
+  little, since padding moves every window by design; read `covered` and
+  `margin` there.
+
+### Running it
+
+```powershell
+$env:Transcription__ModelDirectory = 'F:\SourceCode\FoulFilterNet\models'
+$env:Transcription__Model = 'large-v3-turbo'
+$env:Transcription__Language = 'en'      # optional: auto-detect gave identical results
+dotnet run --project src/FoulFilterNet.Evaluation -- --work <scratch dir>
+```
+
+Options: `--manifest`, `--work` (default: a new folder under `%TEMP%\foulfilter-eval`),
+`--json` (default `<work>/evaluation.json`), `--bad-words` (default: exactly the
+manifest's phrases, written into `<work>`), `--innocent`, `--transcripts`
+(default `<work>/transcripts`; point it at an existing cache to resume instead
+of transcribing), `--rescan`. The JSON has `run` (model, language, device, the
+runtime that actually loaded, Smart Cut, timings), `rawWords` and `finalHits`
+(each a `summary` plus every span), and `timings`, so two runs can be diffed.
+Nothing is ever downloaded.
+
+`RUN_GPU_TESTS=1` also runs `TheRealPipelineAgainstTheFixtures` (10 facts, one
+shared run), which pins the ADR-0006 figures below as an acceptance test.
+
+### Measured results (large-v3-turbo, Cuda runtime, 2026-09-17)
+
+Raw words:
+
+```
+fixture              phrase            truth           reported                   dStart    dEnd covered  margin
+single_hit.mp3       damn              3.410-3.897     3.480-3.940                +0.070  +0.043 yes      +0.080
+phrase_hit.mp3       go to hell        3.505-4.227     3.360-4.120                -0.145  -0.107 yes      +0.143
+repeated_hits.mp3    damn              0.000-0.487     0.050-0.520                +0.050  +0.033 yes      +0.100
+repeated_hits.mp3    damn              2.202-2.689     1.960-2.720                -0.242  +0.031 yes      +0.281
+repeated_hits.mp3    damn              4.651-5.138     4.560-5.180                -0.091  +0.042 yes      +0.241
+repeated_hits.mp3    damn              6.790-7.277     6.700-7.300                -0.090  +0.023 yes      +0.240
+repeated_hits.mp3    damn              8.925-9.412     8.820-9.420                -0.105  +0.008 yes      +0.255
+false_positive.mp3   hoe (innocent)    2.634-3.082     2.560-2.960                -0.074  -0.122 yes      +0.128
+sample_video.mp4     damn              2.941-3.428     2.800-3.460                -0.141  +0.032 yes      +0.282
+audiobook.m4b        damn              5.580-6.067     5.500-5.860                -0.080  -0.207 yes      +0.043
+audiobook.m4b        go to hell        11.252-11.974   11.180-11.860              -0.072  -0.114 yes      +0.136
+detection 11/11 (1.000)   recall 10/10 (1.000)   precision 10/11 (0.909)   false positives 1 (1 expected)
+|dStart| mean 0.105 max 0.242 signed mean -0.084   within 0.15 s: 10/11
+|dEnd|   mean 0.069 max 0.207 signed mean -0.031   within 0.25 s: 11/11
+worst late start +0.070   worst early end +0.207   covered 11/11   worst margin start +0.080 end +0.043
+```
+
+Final hits:
+
+```
+fixture              phrase            truth           reported                   dStart    dEnd covered  margin
+single_hit.mp3       damn              3.410-3.897     3.330-4.190                -0.080  +0.293 yes      +0.080
+phrase_hit.mp3       go to hell        3.505-4.227     3.210-4.370                -0.295  +0.143 yes      +0.143
+repeated_hits.mp3    damn              0.000-0.487     0.000-0.770                 0.000  +0.283 yes       0.000
+repeated_hits.mp3    damn              2.202-2.689     1.810-2.970                -0.392  +0.281 yes      +0.281
+repeated_hits.mp3    damn              4.651-5.138     4.410-5.430                -0.241  +0.292 yes      +0.241
+repeated_hits.mp3    damn              6.790-7.277     6.550-7.550                -0.240  +0.273 yes      +0.240
+repeated_hits.mp3    damn              8.925-9.412     8.670-9.670                -0.255  +0.258 yes      +0.255
+false_positive.mp3   hoe (innocent)    2.634-3.082     2.410-3.210                -0.224  +0.128 yes      +0.128
+sample_video.mp4     damn              2.941-3.428     2.650-3.710                -0.291  +0.282 yes      +0.282
+audiobook.m4b        damn              5.580-6.067     5.350-6.110                -0.230  +0.043 yes      +0.043
+audiobook.m4b        go to hell        11.252-11.974   11.030-12.110              -0.222  +0.136 yes      +0.136
+audiobook.m4b        damn              (no plant)      4.570-5.283                               FALSE+
+detection 11/11 (1.000)   recall 10/10 (1.000)   precision 10/12 (0.833)   false positives 2 (1 expected)
+|dStart| mean 0.225 max 0.392 signed mean -0.225   within 0.15 s: 2/11
+|dEnd|   mean 0.219 max 0.293 signed mean +0.219   within 0.25 s: 4/11
+worst late start 0.000   worst early end -0.043   covered 11/11   worst margin start 0.000 end +0.043
+```
+
+The final-level start margin of 0.000 is `repeated_hits.mp3`'s first word, which
+starts at 0.000 s; the window is clamped to the file start and nothing can
+precede it.
+
+**Run time.** The first GPU run took 12.7 s wall clock for all seven fixtures,
+model load included (2.7 s for the first fixture, 1.3-1.7 s for each after).
+The GPU was shared with a game during later runs, and those varied from 67 s to
+328 s, with single fixtures stalling for up to 130 s. That is contention, not
+the harness. The same run on `Transcription__Device=Cpu` took 220.6 s (about
+31 s per fixture).
+
+### Did it reproduce ADR-0006? Yes on the CPU; on CUDA, all but one figure
+
+- **CPU: exactly.** 0.107 / 0.242 s start, 0.069 / 0.207 s end, 10/11 and 11/11
+  inside the padding, worst late start 0.070 s (margin 0.080), worst early end
+  0.207 s (margin 0.043), 11/11 covered, "hoe" reported once.
+- **CUDA: every figure but the start mean, 0.105 instead of 0.107.** The cause
+  is one word: the fourth "damn" in `repeated_hits.mp3` starts at 6.700 s on
+  CUDA and 6.680 s on the CPU. The ADR measured on the CPU, and its addendum's
+  "to the millisecond" was checked on `single_hit.mp3` alone. The backends are
+  close but not bit-identical. Neither the harness nor the ADR's conclusion is
+  wrong. A dated addendum in ADR-0006 records it, and the opt-in test allows
+  exactly that difference (0.0025, which absorbs floating-point rounding).
+- **Wording, not numbers:** ADR-0006's "11 planted profanities" are ten
+  profanities and the garden hoe. The addendum says so too.
+
+### A finding at the final level: one extra window in the audiobook
+
+The pipeline censors `audiobook.m4b` at 4.570-5.283 s ("thought, a") as well as
+at the real "damn". The segment is 3.00-7.30 s, and interpolating by character
+offset puts the Candidate at about 4.72 s. DTW puts the word at 5.50 s, which
+is 0.78 s away, beyond `HitReconciler`'s 0.40 s proximity tolerance (T20). So
+the Candidate is kept at its estimate as well, and the pipeline logs "No aligned
+timestamps for 'damn'". This over-censors about 0.7 s of speech and never
+leaks. **Not fixed here**: it is T20's reconciliation rule, a behaviour change
+with its own trade-off (a wider tolerance lets one word's hit suppress a
+neighbouring Candidate). Worth its own task, and this harness is the way to
+measure the fix.
+
+### Not done
+
+- No real long-form corpus was measured. The harness takes any `--manifest` in
+  the same shape, but only the seven synthetic fixtures exist.
+- The Rescan Pass and Smart Cut were not evaluated (`--rescan` and
+  `SmartCut__Enabled` are wired but were not run; Smart Cut needs an LLM).
+- No committed baseline JSON. The report contains absolute paths and timings,
+  so a baseline belongs in a scratch directory; the tables above are the record.
 
 ## T33 output — documentation, and where the docs had drifted from the code
 
@@ -806,4 +966,9 @@ hits = new HitMerger().Merge(hits);
 - ~~**CUDA has never actually run on this host.**~~ **Answered 2026-09-17** -
   with the CUDA runtime installed Whisper.net loads `Cuda` unprompted, and the
   GPU tests and the CLI reproduce the CPU boundaries; see the T13 output section
-  and ADR-0006's addendum.
+  and ADR-0006's addendum. *(T34: close, not identical; one fixture word differs
+  by 20 ms - see the T34 output section.)*
+- **`HitReconciler`'s 0.40 s tolerance vs DTW words.** T34 found the audiobook's
+  segment-interpolated Candidate 0.78 s from its aligned word, so the pipeline
+  censors an extra ~0.7 s of speech there. Over-censoring only; a candidate for
+  its own task, measured with `foulfilter-eval`.

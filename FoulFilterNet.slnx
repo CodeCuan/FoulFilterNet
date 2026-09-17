@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/FoulFilterNet.Cli/FoulFilterNet.Cli.csproj" />
     <Project Path="src/FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
+    <Project Path="src/FoulFilterNet.Evaluation/FoulFilterNet.Evaluation.csproj" />
     <Project Path="src/FoulFilterNet.Jobs/FoulFilterNet.Jobs.csproj" />
     <Project Path="src/FoulFilterNet.Media/FoulFilterNet.Media.csproj" />
     <Project Path="src/FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />
@@ -12,6 +13,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/FoulFilterNet.Cli.Tests/FoulFilterNet.Cli.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Domain.Tests/FoulFilterNet.Domain.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Evaluation.Tests/FoulFilterNet.Evaluation.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Jobs.Tests/FoulFilterNet.Jobs.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Media.Tests/FoulFilterNet.Media.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Pipeline.Tests/FoulFilterNet.Pipeline.Tests.csproj" />

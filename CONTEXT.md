@@ -146,6 +146,7 @@ under `tests/`:
 | `FoulFilterNet.Jobs` | Job queue (`Channel<T>`), worker, event fan-out | Domain, Pipeline |
 | `FoulFilterNet.Web` | ASP.NET Core minimal API, SSE, uploads, static UI; composition root | Domain, Pipeline, Jobs |
 | `FoulFilterNet.Cli` | `foulfilter`, the `find_and_remove.py` equivalent; composition root | Domain, Media, Pipeline, SmartCut, Transcription |
+| `FoulFilterNet.Evaluation` | `foulfilter-eval`, the `eval_misses.py` equivalent: scores the pipeline against the fixture manifest; composition root | Domain, Media, Pipeline, SmartCut, Transcription |
 
 Dependencies point inward to `Domain`. `MediaPipeline` reaches every engine
 through the `Domain.Abstractions` interfaces (`ITranscriber`, `IAligner`,

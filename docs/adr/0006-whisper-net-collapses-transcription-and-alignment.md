@@ -84,6 +84,33 @@ installed on the host.
 model load included, in about 5.6 s, and the CLI's run on `single_hit.mp3`
 reports the same boundaries as the CPU measurement to the millisecond.
 
+*Addendum, 2026-09-17 (T34):* the evaluation harness (`foulfilter-eval`, see
+the T34 output section of `docs/STATUS.md`) repeats this measurement
+mechanically, and three corrections to the text above come out of it.
+
+1. **The chosen row reproduces exactly on the CPU**: 0.107 / 0.242 s start,
+   0.069 / 0.207 s end, 10/11 starts and 11/11 ends inside the padding, worst
+   late start 0.070 s, worst early end 0.207 s, every span covered with 0.080 s
+   and 0.043 s of margin.
+2. **The backends are not identical.** On CUDA every figure matches except the
+   mean start error, 0.105 s: the fourth "damn" of `repeated_hits.mp3` starts at
+   6.700 s on CUDA against 6.680 s on the CPU (truth 6.790 s, so early and safe
+   either way). The previous addendum's "to the millisecond" was checked on
+   `single_hit.mp3` only, where it does hold. The conclusion is unchanged.
+3. **"11 planted profanities" is ten profanities and one garden tool.** The
+   eleven spans include `false_positive.mp3`'s "hoe", which the boundary figures
+   rightly count (its timing is exact like the rest). But detection over all
+   eleven is not the same as profanity recall (10/10), and the "hoe" hit is what
+   makes precision 10/11.
+
+The harness also scores the padded, merged windows the pipeline actually
+censors, which this ADR did not. All eleven spans are covered there too. But
+the audiobook produces one extra window, 4.570–5.283 s over "thought, a": the
+segment-interpolated Candidate for "damn" lands 0.78 s before DTW's word, beyond
+`HitReconciler`'s 0.40 s proximity tolerance, so it is censored at its estimate
+as well as at the aligned word. That over-censors rather than leaking, and it
+comes from reconciliation rather than from DTW's accuracy.
+
 ## Considered Options
 
 - **Keep the Python hybrid as an ASR sidecar**: rejected — preserves exact
