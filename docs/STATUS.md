@@ -15,7 +15,7 @@ Last updated: 2026-09-17
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 1031 passing, 13 skipped (4 opt-in live-LLM + 9 opt-in GPU) |
+| Tests | 1083 passing, 13 skipped (4 opt-in live-LLM + 9 opt-in GPU) |
 
 ## Conventions for agents
 
@@ -97,7 +97,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | `74044d5` | UI ported unchanged; advisor wiring closed by T21 |
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | ✅ | `task/T31-cli` | `4203dc7` | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
-| T32 | Container + configuration | ✅ | `task/T32-container-config` | | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified, **image build not yet verified**; see output below |
+| T32 | Container + configuration | ✅ | `task/T32-container-config` | `7f04e44` | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified, **image build not yet verified**; see output below |
 | T33 | Documentation + ASR ADR | — | | | |
 | T34 | Evaluation harness | — | | | Stretch |
 
