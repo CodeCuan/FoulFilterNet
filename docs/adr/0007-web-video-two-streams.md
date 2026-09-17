@@ -1,6 +1,7 @@
 # ADR-0007: Web video runs as two streams
 
-Status: **Proposed** (W01 spike; accepted or revised in W02)
+Status: **Accepted** (W01 spike, 2026-09-17; both assumptions hold, with the
+corrections below)
 
 ## Context
 
@@ -194,11 +195,89 @@ the 60-minute video, long before the playhead needs anything past 120 s.
 
 ### Browser spike (W01a)
 
-> **Placeholder — to be filled in by the W01a browser spike on this branch.**
-> Expected content: whether `MediaElementSource → GainNode` works on YouTube's
-> MSE-backed `<video>`; how precisely a hard-coded `[t, t+1]` span is muted;
-> behaviour on seek, rate change, SPA navigation to a second video, an ad break,
-> and a fresh tab (autoplay policy and a suspended `AudioContext`).
+Measured 2026-09-17 on real, signed-out YouTube watch pages (region AU, no
+consent banner shown), by driving a browser and running throwaway scripts in the
+page. No extension was built.
+
+**Browser.** The Chromium browser pane embedded in the Claude desktop app:
+`Chrome/152.0.7977.76` (brands `Chromium 152`), Windows 11. It is Chromium, not
+stock Chrome, and two of its differences matter below: it does not apply the
+autoplay gesture requirement, and a tab that is not in front still reports
+`document.hidden === false`. Scripts ran in the page's main world; an extension
+content script runs in an isolated world over the same DOM, so the element, its
+media pipeline and Web Audio behave identically, but page globals such as
+`window.__ff` would not be shared.
+
+**Method.** We cannot hear the output, so every check reads samples. The graph was
+`MediaElementSource → AnalyserNode (pre) → GainNode → AnalyserNode (post) →
+destination`, with 512-sample (10.7 ms) analysers polled several hundred times
+a second, each poll recording `ctx.currentTime`, `video.currentTime` and RMS. A
+source the browser treats as cross-origin feeds exact zeros, so a non-zero pre
+RMS proves real samples flow. For absolute alignment, the pre-gain envelope
+(10 ms bins, labelled by `video.currentTime`) was cross-correlated with the
+envelope of W01b's analysis WAV of the same video.
+
+**Videos.** `YwARwww5aFo` (the 10-minute talk), then in-app navigation to
+`N8TFwV4Q_w0`, `mUw27wG7uFA` and `orx8LLG1_hI`; `2SXr48OYxbA` in a fresh tab.
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | Route YouTube's `<video>` through Web Audio | **Works** | `src` is a `blob:` MediaSource URL. `AudioContext` 48 kHz, `running` on creation (no `resume()` needed). Over 1 s, 19 of 20 samples non-zero before and after the gain, identical values, mean RMS 0.059, peak 0.33. |
+| 2 | Mute media `[t+2, t+3]` scheduled with `ctx.currentTime + (target − video.currentTime) / rate` | **Sample-accurate against the schedule; ≈ 5 ms against the real audio** | Post-gain exactly 0 (pre non-zero) in 192 polls. First all-zero poll 15 ms after the scheduled start and last one 0.6 ms before the scheduled end, i.e. inside one analyser window. By `video.currentTime` the silence ran 158.017 → 158.999 for a target of 158 → 159. Envelope against the WAV: best lag **+5 ms** (r = 0.997; r = 0.986 at 0, 0.61–0.67 at ±50 ms). `baseLatency` 10 ms, `outputLatency` 40 ms, which delays the gain and the words equally. |
+| 3 | Seek +60 s, then `playbackRate = 2` | **Works, with a catch** | After the seek `seeking` and `waiting` fired at once, `video.currentTime` jumped to the target and **stayed frozen 1.47 s** while `ctx.currentTime` ran on, the graph carried zeros, then `seeked`/`playing` and audio resumed. At 2× a mute scheduled with the rate-1 mapping was cancelled with `cancelScheduledValues` and rescheduled: 0 silent polls in the stale window, 103 contiguous silent polls in the new one, edges +8 / −14 ms (ctx) against the schedule, 318.036 → 318.971 media. Envelope at 2× against the WAV: best lag **−5 ms** of media (r = 0.982). |
+| 4 | Clock drift over 1× playback | **None measurable** | 66 pairs over 65.48 s: `video.currentTime` advanced exactly as far as `ctx.currentTime` (end difference 0 ms, worst single reading −2.6 ms, slope 0.002 ms/s). `performance.now()` drifted 2.6 ms against both. |
+| 5 | SPA navigation by clicking a related video (three times) | **Same element, same graph, audio flows** | `video.html5-main-video` was the tagged element every time and the only `<video>`; no second `createMediaElementSource`. `yt-navigate-start`, `yt-navigate-finish` and `yt-page-data-updated` fired. Pre RMS non-zero on the new videos (e.g. 26 of 32 and 40 of 40 samples). Order on the first (250 ms polls): navigate-start; within 0.2 s `location` said `v=N8TFwV4Q_w0` while the element still played the **old** video at 146.15 s; one poll later the `blob:` `src` had changed and `currentTime` was 0; navigate-finish at +1.04 s; new audio at +1.36 s. |
+| 6 | Ads | **Not observed** | Five watch loads (four in-app, one fresh tab), `#movie_player.ad-showing` sampled every 250 ms for about 3 minutes: never set. Untested. |
+| 7 | Fresh tab, no gesture | **Not testable in this browser** | The new tab autoplayed with sound (`paused` false, `readyState` 4, `muted` false, `userActivation.hasBeenActive` false). A new `AudioContext` was `running`, `resume()` resolved, and 19 of 20 pre samples were non-zero. Stock Chrome would suspend the context; this browser does not enforce the policy, so the planned handling is still unproven. |
+| 8 | Timer throttling in a background tab | **Not testable in this browser** | With the watch tab behind another for about 20 s, `document.hidden` stayed false, no `visibilitychange` fired, and a 100 ms `setInterval` ran at 83–117 ms throughout. A mute scheduled 20 s ahead still landed on media 50.0–51.0 while the tab was behind, but that says nothing about a throttled tab. |
+| 9 | `createMediaElementSource` twice on the element | **Throws, even from another `AudioContext`** | Same context and a new context both: `InvalidStateError: … HTMLMediaElement already connected previously to a different MediaElementSourceNode.` |
+
+**The load-bearing assumption holds.** YouTube's MSE `<video>` routes through
+Web Audio with real samples, YouTube did nothing to stop it across seeks, rate
+changes and in-app navigation, and gain automation on the audio clock lands on
+the intended media span to within about 5 ms at 1× and 2×. The media clock is
+driven by the audio clock, so there is nothing to re-sync. What remains open is
+browser policy, not the mechanism: autoplay, background throttling and ads need
+stock Chrome and the real extension.
+
+### What the browser spike says about the plan
+
+- **Confirmed: the timing design.** The `audioNow + (start − currentTime) / rate`
+  mapping is accurate to about ±5 ms, far inside the 0.15 s / 0.25 s padding, and
+  does not drift. Output latency needs no correction because the gain sits on the
+  same path as the words. The per-user offset stays as an escape hatch but should
+  default to 0.
+- **Contradicted: the mapping is only valid while media is actually playing.**
+  During a seek (and any rebuffer) `currentTime` stands still for over a second
+  while the audio clock runs, so anything scheduled then lands late by the stall.
+  **Recommendation:** W14 cancels automation on `waiting` and `emptied` as well
+  as `seeking`/`pause`, and schedules only when `!paused` and `readyState ≥ 3`,
+  re-planning on `playing`. Holding the gain closed while stalled is harmless,
+  because the graph carries zeros then.
+- **Contradicted: a `WeakMap` is not enough.** A media element can be attached to
+  a `MediaElementSourceNode` once in its life, in any context. If our context is
+  ever lost — the extension reloads or updates, the content script is injected a
+  second time, or another extension (a volume booster) got there first — the
+  element cannot be re-attached and nothing can censor it. **Recommendation:**
+  W14 keeps one `AudioContext` per page for the page's life (never `close()` it),
+  guards against double injection, and treats `InvalidStateError` as a fail-closed
+  reason ("reload the page to filter") in W15.
+- **Refined: SPA navigation.** YouTube reuses the element and our graph survives,
+  as the plan assumed. But `location` changes before the element changes video,
+  so a tick that reads the video ID from `location` would, for a poll or two, apply
+  the new video's Hits to the old video's audio. **Recommendation:** W12 treats
+  `yt-navigate-start` as "stop": cancel automation, drop the snapshot, close
+  the gain and leave it closed. It starts the new Watch Session on
+  `yt-navigate-finish`, and W14 schedules nothing until the element has fired
+  `loadedmetadata` or `playing` for the new source.
+- **Unchanged: the Playback Gate thresholds (8 s / 30 s) and the 2 s horizon.**
+  Nothing here argues for other values; with no drift the horizon could be
+  longer, but it only matters in a throttled tab, which was not measured.
+- **Still unproven, moved to W16's checklist in stock Chrome:** a fresh tab with
+  no gesture (is the context suspended, does `resume()` from the `play` event
+  succeed, and does the overlay's click recover it); a background tab (tick
+  cadence and whether scheduled mutes still land); and an ad break (does
+  `.ad-showing` appear, and does `currentTime` refer to the ad).
 
 ## Decision
 
@@ -220,7 +299,10 @@ Web video is filtered with **two streams**, as laid out in
   to the server and brings back the latest snapshot; no SSE or WebSocket from
   the MV3 service worker.
 
-Subject to W01a, and with W01b's corrections: acquisition makes one yt-dlp call
+With W01a's corrections, live censoring schedules only while the media is
+actually playing, keeps one `AudioContext` for the page's life (an element can
+be attached once, ever), and keys a new video on `yt-navigate-finish` rather
+than on `location`. With W01b's corrections, acquisition makes one yt-dlp call
 rather than a resolve followed by a download, never uses
 `--download-sections`, and time-to-first-play is engineered (model load in
 parallel with the download, the head of the file converted first) rather than
@@ -256,6 +338,12 @@ WebSocket — and is not repeated here. W01b adds one:
   operation that yields the metadata and the downloaded file, with live videos
   refused inside the same yt-dlp call, instead of `ResolveAsync` followed by
   `DownloadAudioAsync`.
+- Live censoring is accurate to a few milliseconds on Chromium, so the existing
+  padding is ample. But the extension owns the page's audio for the page's life:
+  if its `AudioContext` is lost, or another extension attached the element
+  first, that video cannot be filtered until the page reloads.
+- Autoplay without a gesture, background-tab throttling and ad breaks were not
+  observable in the spike's browser; W16 verifies them in stock Chrome.
 - W17 stops being conditional and gets a concrete target (under 10 s for the
   60-minute video on this machine) and a reordered list of options.
 - Downloading with yt-dlp is against YouTube's Terms of Service; this stays a
