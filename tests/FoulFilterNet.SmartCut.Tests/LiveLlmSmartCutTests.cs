@@ -67,8 +67,12 @@ public class LiveLlmSmartCutTests
 
     /// <summary>Gate, read the same way the Python's marker read its variable.</summary>
     public static bool LiveLlmTestsEnabled =>
-        (Environment.GetEnvironmentVariable("RUN_LIVE_LLM_TESTS") ?? string.Empty).ToLowerInvariant()
-            is "1" or "true" or "yes";
+        (
+            Environment.GetEnvironmentVariable("RUN_LIVE_LLM_TESTS") ?? string.Empty
+        ).ToLowerInvariant()
+            is "1"
+                or "true"
+                or "yes";
 
     [Fact(Skip = OptIn, SkipUnless = nameof(LiveLlmTestsEnabled))]
     public async Task CutsOnlyTheIntensifierAndLeavesTheComplimentAlone()
@@ -92,7 +96,9 @@ public class LiveLlmSmartCutTests
 
     [Fact(Skip = OptIn, SkipUnless = nameof(LiveLlmTestsEnabled))]
     public async Task RejectsTheGardenTool() =>
-        (await RefineAsync(HoeIsAGardenTool, "hoe", centerIndex: 3)).Outcome.ShouldBe(SmartCutOutcome.Reject);
+        (await RefineAsync(HoeIsAGardenTool, "hoe", centerIndex: 3)).Outcome.ShouldBe(
+            SmartCutOutcome.Reject
+        );
 
     [Fact(Skip = OptIn, SkipUnless = nameof(LiveLlmTestsEnabled))]
     public async Task KeepsThePlotIntactAroundAPlotCriticalInsult()
@@ -106,7 +112,8 @@ public class LiveLlmSmartCutTests
     private static Task<SmartCutDecision> RefineAsync(
         IReadOnlyList<Word> contextWindow,
         string phrase,
-        int centerIndex)
+        int centerIndex
+    )
     {
         var url = Environment.GetEnvironmentVariable("LOCAL_LLM_URL") is { Length: > 0 } configured
             ? configured
@@ -117,9 +124,18 @@ public class LiveLlmSmartCutTests
             client,
             url,
             Environment.GetEnvironmentVariable("LOCAL_LLM_MODEL") ?? string.Empty,
-            NullLogger<OpenAiCompatibleTransport>.Instance);
+            NullLogger<OpenAiCompatibleTransport>.Instance
+        );
 
-        return new LlmSmartCutAdvisor(transport, NullLogger<LlmSmartCutAdvisor>.Instance)
-            .RefineAsync(contextWindow, phrase, centerIndex, allowWidening: true, TestContext.Current.CancellationToken);
+        return new LlmSmartCutAdvisor(
+            transport,
+            NullLogger<LlmSmartCutAdvisor>.Instance
+        ).RefineAsync(
+            contextWindow,
+            phrase,
+            centerIndex,
+            allowWidening: true,
+            TestContext.Current.CancellationToken
+        );
     }
 }

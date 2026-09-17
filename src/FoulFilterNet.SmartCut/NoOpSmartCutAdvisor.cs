@@ -26,6 +26,6 @@ public sealed class NoOpSmartCutAdvisor : ISmartCutAdvisor
         string phrase,
         int centerIndex,
         bool allowWidening,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(SmartCutDecision.KeepOriginal);
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(SmartCutDecision.KeepOriginal);
 }

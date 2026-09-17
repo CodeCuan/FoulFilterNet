@@ -52,7 +52,8 @@ public static class UploadStorage
         Stream source,
         string destinationPath,
         long maxBytes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -61,21 +62,34 @@ public static class UploadStorage
 
         try
         {
-            await using (var destination = new FileStream(
-                destinationPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                ChunkSize,
-                useAsync: true))
+            await using (
+                var destination = new FileStream(
+                    destinationPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    ChunkSize,
+                    useAsync: true
+                )
+            )
             {
                 int read;
-                while ((read = await source.ReadAsync(buffer.AsMemory(0, ChunkSize), cancellationToken)) > 0)
+                while (
+                    (
+                        read = await source.ReadAsync(
+                            buffer.AsMemory(0, ChunkSize),
+                            cancellationToken
+                        )
+                    ) > 0
+                )
                 {
                     written += read;
                     if (written > maxBytes)
                     {
-                        throw new UploadTooLargeException(Path.GetFileName(destinationPath), maxBytes);
+                        throw new UploadTooLargeException(
+                            Path.GetFileName(destinationPath),
+                            maxBytes
+                        );
                     }
 
                     await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
@@ -101,11 +115,7 @@ public static class UploadStorage
         {
             File.Delete(path);
         }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 }

@@ -19,7 +19,10 @@ public interface IWhisperEngine
     /// Transcribe a 16 kHz mono PCM WAV, with word timestamps. The path is a
     /// file the caller owns; the engine only reads it.
     /// </summary>
-    Task<TranscriptionResult> TranscribeWavAsync(string wavPath, CancellationToken cancellationToken = default);
+    Task<TranscriptionResult> TranscribeWavAsync(
+        string wavPath,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// Drop the model and hand its VRAM back. Called after every job, so it has

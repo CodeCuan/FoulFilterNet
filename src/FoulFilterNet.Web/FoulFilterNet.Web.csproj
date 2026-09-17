@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <ItemGroup>
     <ProjectReference Include="../FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
     <ProjectReference Include="../FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />
@@ -11,5 +10,4 @@
          on build, so a plain `dotnet build` output has no UI to serve. -->
     <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-
 </Project>

@@ -42,15 +42,20 @@ public static class FFprobeReport
             return Unrecognised;
         }
 
-        var streams = root.TryGetProperty("streams", out var streamList) && streamList.ValueKind == JsonValueKind.Array
-            ? streamList.EnumerateArray().ToList()
-            : [];
+        var streams =
+            root.TryGetProperty("streams", out var streamList)
+            && streamList.ValueKind == JsonValueKind.Array
+                ? streamList.EnumerateArray().ToList()
+                : [];
 
-        var hasPicture = streams.Any(stream => IsCodecType(stream, VideoCodecType) && !IsAttachedPicture(stream));
+        var hasPicture = streams.Any(stream =>
+            IsCodecType(stream, VideoCodecType) && !IsAttachedPicture(stream)
+        );
         var audio = streams.Find(stream => IsCodecType(stream, AudioCodecType));
         var hasAudio = audio.ValueKind == JsonValueKind.Object;
 
-        var kind = hasPicture ? MediaKind.Video
+        var kind =
+            hasPicture ? MediaKind.Video
             : hasAudio ? MediaKind.Audio
             : MediaKind.Unknown;
 
@@ -59,7 +64,11 @@ public static class FFprobeReport
             return Unrecognised;
         }
 
-        return new MediaInfo(kind, ReadDuration(root, streams), hasAudio ? ReadSampleRate(audio) : null);
+        return new MediaInfo(
+            kind,
+            ReadDuration(root, streams),
+            hasAudio ? ReadSampleRate(audio) : null
+        );
     }
 
     private static MediaInfo Unrecognised => new(MediaKind.Unknown, 0, null);
@@ -83,8 +92,10 @@ public static class FFprobeReport
     /// </summary>
     private static double ReadDuration(JsonElement root, List<JsonElement> streams)
     {
-        if (root.TryGetProperty("format", out var format)
-            && TryReadDouble(format, "duration", out var containerDuration))
+        if (
+            root.TryGetProperty("format", out var format)
+            && TryReadDouble(format, "duration", out var containerDuration)
+        )
         {
             return containerDuration;
         }
@@ -92,7 +103,10 @@ public static class FFprobeReport
         var longest = 0.0;
         foreach (var stream in streams)
         {
-            if (TryReadDouble(stream, "duration", out var streamDuration) && streamDuration > longest)
+            if (
+                TryReadDouble(stream, "duration", out var streamDuration)
+                && streamDuration > longest
+            )
             {
                 longest = streamDuration;
             }
@@ -104,7 +118,12 @@ public static class FFprobeReport
     private static int? ReadSampleRate(JsonElement audioStream) =>
         audioStream.TryGetProperty("sample_rate", out var value)
         && value.ValueKind == JsonValueKind.String
-        && int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var rate)
+        && int.TryParse(
+            value.GetString(),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var rate
+        )
             ? rate
             : null;
 
@@ -114,7 +133,12 @@ public static class FFprobeReport
         return element.ValueKind == JsonValueKind.Object
             && element.TryGetProperty(propertyName, out var value)
             && value.ValueKind == JsonValueKind.String
-            && double.TryParse(value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+            && double.TryParse(
+                value.GetString(),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out result
+            );
     }
 }
 
@@ -133,11 +157,16 @@ public sealed class FFprobeMediaProber : IMediaProber
     public static IReadOnlyList<string> BuildArguments(string path) =>
         ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path];
 
-    public async Task<MediaInfo> ProbeAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<MediaInfo> ProbeAsync(
+        string path,
+        CancellationToken cancellationToken = default
+    )
     {
         try
         {
-            var result = await _runner.RunFFprobeAsync(BuildArguments(path), cancellationToken).ConfigureAwait(false);
+            var result = await _runner
+                .RunFFprobeAsync(BuildArguments(path), cancellationToken)
+                .ConfigureAwait(false);
             return FFprobeReport.Parse(result.StandardOutput);
         }
         catch (FFmpegException)

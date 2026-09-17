@@ -22,7 +22,10 @@ public static class EvaluationServices
     /// is built without an acquisition delegate, so missing weights fail with the
     /// path that was expected.
     /// </summary>
-    public static IServiceCollection AddEvaluationPipeline(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddEvaluationPipeline(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -41,18 +44,25 @@ public static class EvaluationServices
             return new WhisperNetEngine(
                 options,
                 new WhisperModelSource(options.ModelDirectory),
-                provider.GetRequiredService<ILogger<WhisperNetEngine>>());
+                provider.GetRequiredService<ILogger<WhisperNetEngine>>()
+            );
         });
 
         services.AddSingleton<ITranscriber>(provider => new ReleasePolicyTranscriber(
             new WhisperTranscriber(
                 provider.GetRequiredService<IWhisperEngine>(),
-                provider.GetRequiredService<IAudioPreparer>()),
-            provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value));
+                provider.GetRequiredService<IAudioPreparer>()
+            ),
+            provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value
+        ));
 
         services.AddSingleton<IAligner, PassThroughAligner>();
-        services.AddSingleton<TranscriptStoreFactory>(_ => directory => new TranscriptStore(directory));
-        services.AddSingleton(provider => provider.GetRequiredService<IOptions<SmartCutOptions>>().Value);
+        services.AddSingleton<TranscriptStoreFactory>(_ =>
+            directory => new TranscriptStore(directory)
+        );
+        services.AddSingleton(provider =>
+            provider.GetRequiredService<IOptions<SmartCutOptions>>().Value
+        );
         services.AddSingleton<IMediaPipeline, MediaPipeline>();
         services.AddSingleton<FixtureEvaluator>();
 

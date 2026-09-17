@@ -17,24 +17,40 @@ public sealed class AScoreCardOverSeveralFixtures
     public AScoreCardOverSeveralFixtures()
     {
         var single = BoundaryScorer.Score(
-            new FixtureTruth("single_hit.mp3", "audio", 8.388, [new PlantedSpan("damn", 3.410, 3.897)]),
+            new FixtureTruth(
+                "single_hit.mp3",
+                "audio",
+                8.388,
+                [new PlantedSpan("damn", 3.410, 3.897)]
+            ),
             [new Hit("damn", 3.480, 3.800)],
-            ScoringRules.RawWords);
+            ScoringRules.RawWords
+        );
 
         var audiobook = BoundaryScorer.Score(
-            new FixtureTruth("audiobook.m4b", "audio", 13.03,
-            [
-                new PlantedSpan("damn", 5.580, 6.067),
-                new PlantedSpan("go to hell", 11.252, 11.974),
-            ]),
+            new FixtureTruth(
+                "audiobook.m4b",
+                "audio",
+                13.03,
+                [
+                    new PlantedSpan("damn", 5.580, 6.067),
+                    new PlantedSpan("go to hell", 11.252, 11.974),
+                ]
+            ),
             [new Hit("damn", 5.380, 6.100), new Hit("damn", 1.000, 1.200)],
-            ScoringRules.RawWords);
+            ScoringRules.RawWords
+        );
 
         var innocent = BoundaryScorer.Score(
-            new FixtureTruth("false_positive.mp3", "audio", 4.608,
-                [new PlantedSpan("hoe", 2.634, 3.082, IsProfanity: false)]),
+            new FixtureTruth(
+                "false_positive.mp3",
+                "audio",
+                4.608,
+                [new PlantedSpan("hoe", 2.634, 3.082, IsProfanity: false)]
+            ),
             [new Hit("hoe", 2.600, 3.050)],
-            ScoringRules.RawWords);
+            ScoringRules.RawWords
+        );
 
         _card = ScoreCard.From([single, audiobook, innocent], ScoringRules.RawWords);
     }
@@ -61,16 +77,19 @@ public sealed class AScoreCardOverSeveralFixtures
     public void CountsEveryReport() => _card.Reported.ShouldBe(4);
 
     [Fact]
-    public void CountsBothTheStrayAndTheInnocentReportAsFalsePositives() => _card.FalsePositives.ShouldBe(2);
+    public void CountsBothTheStrayAndTheInnocentReportAsFalsePositives() =>
+        _card.FalsePositives.ShouldBe(2);
 
     [Fact]
-    public void CountsTheInnocentReportAsAnExpectedFalsePositive() => _card.ExpectedFalsePositives.ShouldBe(1);
+    public void CountsTheInnocentReportAsAnExpectedFalsePositive() =>
+        _card.ExpectedFalsePositives.ShouldBe(1);
 
     [Fact]
     public void ComputesPrecisionOverEveryReport() => _card.Precision.ShouldBe(0.5);
 
     [Fact]
-    public void AveragesTheAbsoluteStartErrorOverEveryDetectedSpan() => _card.StartError.MeanAbsolute.ShouldBe(0.101);
+    public void AveragesTheAbsoluteStartErrorOverEveryDetectedSpan() =>
+        _card.StartError.MeanAbsolute.ShouldBe(0.101);
 
     [Fact]
     public void FindsTheLargestAbsoluteStartError() => _card.StartError.MaxAbsolute.ShouldBe(0.2);
@@ -117,7 +136,10 @@ public sealed class AScoreCardWithNothingPlanted
     public AScoreCardWithNothingPlanted()
     {
         var clean = BoundaryScorer.Score(
-            new FixtureTruth("clean_speech.mp3", "audio", 6.732, []), [], ScoringRules.RawWords);
+            new FixtureTruth("clean_speech.mp3", "audio", 6.732, []),
+            [],
+            ScoringRules.RawWords
+        );
 
         _card = ScoreCard.From([clean], ScoringRules.RawWords);
     }

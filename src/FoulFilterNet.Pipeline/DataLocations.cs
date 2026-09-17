@@ -19,11 +19,14 @@ public static class DataLocations
     public const string ApplicationFolderName = "FoulFilterNet";
 
     /// <summary>The data root used when none is configured.</summary>
-    public static string DefaultDataDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData,
-            Environment.SpecialFolderOption.DoNotVerify),
-        ApplicationFolderName);
+    public static string DefaultDataDirectory { get; } =
+        Path.Combine(
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify
+            ),
+            ApplicationFolderName
+        );
 
     /// <summary>A blank data directory is the default one, not the working directory.</summary>
     public static string DataDirectory(string? dataDirectory) =>

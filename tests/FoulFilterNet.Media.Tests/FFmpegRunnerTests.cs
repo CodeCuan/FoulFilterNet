@@ -41,7 +41,10 @@ public class WhenDescribingAnFFmpegCommandForTheLog
 
     public WhenDescribingAnFFmpegCommandForTheLog()
     {
-        _description = FFmpegProcess.Describe("ffmpeg", ["-i", "a file.mp3", "-map", "[out]", "out.mp3"]);
+        _description = FFmpegProcess.Describe(
+            "ffmpeg",
+            ["-i", "a file.mp3", "-map", "[out]", "out.mp3"]
+        );
 
         _description.ShouldNotBeNullOrWhiteSpace();
         _description.ShouldStartWith("ffmpeg ");
@@ -106,9 +109,7 @@ public class WhenFFprobeSucceeds
 
     public WhenFFprobeSucceeds()
     {
-        _result = new FFmpegRunner()
-            .RunFFprobeAsync(["-version"])
-            .GetAwaiter().GetResult();
+        _result = new FFmpegRunner().RunFFprobeAsync(["-version"]).GetAwaiter().GetResult();
 
         _result.ShouldNotBeNull();
     }
@@ -127,9 +128,12 @@ public class WhenFFmpegExitsNonZero
 
     public WhenFFmpegExitsNonZero()
     {
-        _thrown = Should.Throw<FFmpegException>(() => new FFmpegRunner()
-            .RunFFmpegAsync(["-i", "no-such-input-file.mp3", "-f", "null", "-"])
-            .GetAwaiter().GetResult());
+        _thrown = Should.Throw<FFmpegException>(() =>
+            new FFmpegRunner()
+                .RunFFmpegAsync(["-i", "no-such-input-file.mp3", "-f", "null", "-"])
+                .GetAwaiter()
+                .GetResult()
+        );
 
         _thrown.ShouldNotBeNull();
     }
@@ -155,22 +159,29 @@ public class WhenTheExecutableIsMissing
 
     public WhenTheExecutableIsMissing()
     {
-        _runner = new FFmpegRunner(new FFmpegOptions
-        {
-            FFmpegPath = "ffmpeg-that-is-not-installed",
-            FFprobePath = "ffprobe-that-is-not-installed",
-        });
+        _runner = new FFmpegRunner(
+            new FFmpegOptions
+            {
+                FFmpegPath = "ffmpeg-that-is-not-installed",
+                FFprobePath = "ffprobe-that-is-not-installed",
+            }
+        );
 
         _runner.ShouldNotBeNull();
     }
 
     [Fact]
     public void ReportsItRatherThanLettingWin32ErrorsEscape() =>
-        Should.Throw<FFmpegException>(() => _runner.RunFFmpegAsync(["-version"]).GetAwaiter().GetResult());
+        Should.Throw<FFmpegException>(() =>
+            _runner.RunFFmpegAsync(["-version"]).GetAwaiter().GetResult()
+        );
 
     [Fact]
     public void NamesTheExecutableItCouldNotStart() =>
-        Should.Throw<FFmpegException>(() => _runner.RunFFmpegAsync(["-version"]).GetAwaiter().GetResult())
+        Should
+            .Throw<FFmpegException>(() =>
+                _runner.RunFFmpegAsync(["-version"]).GetAwaiter().GetResult()
+            )
             .Message.ShouldContain("ffmpeg-that-is-not-installed");
 }
 

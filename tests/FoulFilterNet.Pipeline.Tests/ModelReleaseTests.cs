@@ -33,17 +33,16 @@ public sealed class WhenAJobSucceeds : IDisposable
         await _harness.Transcriber.Received(1).ReleaseAsync();
 
     [Fact]
-    public async Task ReleasesTheAlignerToo() =>
-        await _harness.Aligner.Received(1).ReleaseAsync();
+    public async Task ReleasesTheAlignerToo() => await _harness.Aligner.Received(1).ReleaseAsync();
 
     [Fact]
-    public void ReleasesOnlyAfterTheRenderHasFinishedWithTheFile() => _harness.EngineCalls.ShouldBe(
-    [
-        PipelineHarness.TranscribeCall,
-        PipelineHarness.RenderCall,
-        PipelineHarness.ReleaseTranscriberCall,
-        PipelineHarness.ReleaseAlignerCall,
-    ]);
+    public void ReleasesOnlyAfterTheRenderHasFinishedWithTheFile() =>
+        _harness.EngineCalls.ShouldBe([
+            PipelineHarness.TranscribeCall,
+            PipelineHarness.RenderCall,
+            PipelineHarness.ReleaseTranscriberCall,
+            PipelineHarness.ReleaseAlignerCall,
+        ]);
 }
 
 /// <summary>
@@ -75,8 +74,7 @@ public sealed class WhenAJobFails : IDisposable
 
     [Fact]
     public void ReleasesAfterTheRenderItAttempted() =>
-        _harness.EngineCalls.ShouldBe(
-        [
+        _harness.EngineCalls.ShouldBe([
             PipelineHarness.TranscribeCall,
             PipelineHarness.RenderCall,
             PipelineHarness.ReleaseTranscriberCall,
@@ -113,7 +111,8 @@ public sealed class WhenAJobIsCancelledPartWayThrough : IDisposable
         await _harness.Aligner.Received(1).ReleaseAsync();
 
     [Fact]
-    public void NeverRendered() => _harness.EngineCalls.ShouldNotContain(PipelineHarness.RenderCall);
+    public void NeverRendered() =>
+        _harness.EngineCalls.ShouldNotContain(PipelineHarness.RenderCall);
 }
 
 /// <summary>
@@ -136,8 +135,7 @@ public sealed class WhenAJobIsCancelledBeforeAnythingIsLoaded : IDisposable
     public void Dispose() => _harness.Dispose();
 
     [Fact]
-    public async Task ReleasesAnyway() =>
-        await _harness.Transcriber.Received(1).ReleaseAsync();
+    public async Task ReleasesAnyway() => await _harness.Transcriber.Received(1).ReleaseAsync();
 
     [Fact]
     public void NeverTranscribed() =>

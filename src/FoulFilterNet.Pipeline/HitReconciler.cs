@@ -64,7 +64,8 @@ public sealed class HitReconciler
     public IReadOnlyList<Hit> Reconcile(
         IReadOnlyList<Candidate> candidates,
         IReadOnlyList<Word> words,
-        BadWordsList badWords)
+        BadWordsList badWords
+    )
     {
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(words);

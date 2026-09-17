@@ -5,7 +5,8 @@ namespace FoulFilterNet.Pipeline.Tests;
 /// <summary>Shared material for the reconciliation specs.</summary>
 internal static class ReconcileFixture
 {
-    public static BadWordsList BadWords { get; } = BadWordsList.FromLines(["damn", "hell", "go to hell"]);
+    public static BadWordsList BadWords { get; } =
+        BadWordsList.FromLines(["damn", "hell", "go to hell"]);
 
     /// <summary>
     /// The five occurrences of "damn" in <c>repeated_hits.mp3</c>, exact by
@@ -14,17 +15,12 @@ internal static class ReconcileFixture
     /// these times once the aligner has lost most of them.
     /// </summary>
     public static IReadOnlyList<(double Start, double End)> Occurrences { get; } =
-    [
-        (0.000, 0.487),
-        (2.202, 2.689),
-        (4.651, 5.138),
-        (6.790, 7.277),
-        (8.925, 9.412),
-    ];
+    [(0.000, 0.487), (2.202, 2.689), (4.651, 5.138), (6.790, 7.277), (8.925, 9.412)];
 
     /// <summary>One segment per occurrence, so the interpolated estimate is the true time.</summary>
-    public static IReadOnlyList<Segment> SegmentsFor(IEnumerable<(double Start, double End)> spans) =>
-        [.. spans.Select(span => new Segment(span.Start, span.End, "damn"))];
+    public static IReadOnlyList<Segment> SegmentsFor(
+        IEnumerable<(double Start, double End)> spans
+    ) => [.. spans.Select(span => new Segment(span.Start, span.End, "damn"))];
 
     public static IReadOnlyList<Candidate> CandidatesFor(IReadOnlyList<Segment> segments) =>
         PhraseMatcher.FindCandidates(segments, BadWords);
@@ -71,8 +67,9 @@ public class WhenOnlyOneOfFiveRepeatedOccurrencesWasAligned
 
     [Fact]
     public void CoversEverySpokenOccurrenceAfterMerging() =>
-        ReconcileFixture.Occurrences.ShouldAllBe(
-            o => _merged.Any(m => m.Start <= o.Start && m.End >= o.End));
+        ReconcileFixture.Occurrences.ShouldAllBe(o =>
+            _merged.Any(m => m.Start <= o.Start && m.End >= o.End)
+        );
 
     [Fact]
     public void KeepsThemAsFiveSeparateCutWindows() => _merged.Count.ShouldBe(5);
@@ -91,7 +88,10 @@ public class WhenAlignmentRecoveredEveryCandidate
         var segments = ReconcileFixture.SegmentsFor(ReconcileFixture.Occurrences.Take(2));
         var candidates = ReconcileFixture.CandidatesFor(segments);
         IReadOnlyList<Word> words =
-            [new Word("damn", 0.000, 0.487), new Word("damn", 2.202, 2.689)];
+        [
+            new Word("damn", 0.000, 0.487),
+            new Word("damn", 2.202, 2.689),
+        ];
 
         _hits = new HitReconciler().Reconcile(candidates, words, ReconcileFixture.BadWords);
 
@@ -183,8 +183,10 @@ public class WhenTheAlignedHitIsJustInsideTheTolerance
         IReadOnlyList<Word> words = [new Word("damn", 2.800, 3.200)];
 
         _hits = new HitReconciler().Reconcile(candidates, words, ReconcileFixture.BadWords);
-        _hadBothBeenKept = new HitMerger().Merge(
-            [new Hit("damn", 2.800, 3.200, 0), new Hit("damn", 2.000, 2.400)]);
+        _hadBothBeenKept = new HitMerger().Merge([
+            new Hit("damn", 2.800, 3.200, 0),
+            new Hit("damn", 2.000, 2.400),
+        ]);
 
         _hits.ShouldNotBeNull();
     }
@@ -226,8 +228,7 @@ public class WhenTheAlignedHitIsBeyondTheTolerance
     public void KeepsTheCandidateAsAHitOfItsOwn() => _hits.Count.ShouldBe(2);
 
     [Fact]
-    public void MarksThatOneAsAnEstimate() =>
-        _hits.Count(h => h.WordIndex is null).ShouldBe(1);
+    public void MarksThatOneAsAnEstimate() => _hits.Count(h => h.WordIndex is null).ShouldBe(1);
 
     [Fact]
     public void LeavesThemAsTwoSeparateCutWindows() => _merged.Count.ShouldBe(2);
@@ -328,11 +329,15 @@ public class WhenThereIsNothingToReconcile
 
     [Fact]
     public void RejectsANullCandidateList() =>
-        Should.Throw<ArgumentNullException>(() => _sut.Reconcile(null!, [], ReconcileFixture.BadWords));
+        Should.Throw<ArgumentNullException>(() =>
+            _sut.Reconcile(null!, [], ReconcileFixture.BadWords)
+        );
 
     [Fact]
     public void RejectsANullWordList() =>
-        Should.Throw<ArgumentNullException>(() => _sut.Reconcile([], null!, ReconcileFixture.BadWords));
+        Should.Throw<ArgumentNullException>(() =>
+            _sut.Reconcile([], null!, ReconcileFixture.BadWords)
+        );
 
     [Fact]
     public void RejectsANullBadWordsList() =>

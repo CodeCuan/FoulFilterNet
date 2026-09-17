@@ -34,22 +34,35 @@ public static partial class SmartCutResponseParser
         string? responseText,
         IReadOnlyList<Word> contextWindow,
         int centerIndex,
-        bool allowWidening)
+        bool allowWidening
+    )
     {
         ArgumentNullException.ThrowIfNull(contextWindow);
 
         // Checked first, and against the whole response rather than a parsed
         // field, because a model that talks itself out of the edit in prose is
         // still saying "do not cut this".
-        if (!string.IsNullOrEmpty(responseText)
-            && responseText.Contains("NONE", StringComparison.OrdinalIgnoreCase))
+        if (
+            !string.IsNullOrEmpty(responseText)
+            && responseText.Contains("NONE", StringComparison.OrdinalIgnoreCase)
+        )
         {
             return SmartCutDecision.Reject;
         }
 
-        if (string.IsNullOrEmpty(responseText)
-            || string.Equals(responseText, SmartCutResponses.ApiUnavailable, StringComparison.Ordinal)
-            || string.Equals(responseText, SmartCutResponses.ErrorOrRefusal, StringComparison.Ordinal))
+        if (
+            string.IsNullOrEmpty(responseText)
+            || string.Equals(
+                responseText,
+                SmartCutResponses.ApiUnavailable,
+                StringComparison.Ordinal
+            )
+            || string.Equals(
+                responseText,
+                SmartCutResponses.ErrorOrRefusal,
+                StringComparison.Ordinal
+            )
+        )
         {
             return SmartCutDecision.KeepOriginal;
         }
@@ -69,14 +82,17 @@ public static partial class SmartCutResponseParser
                 ReadIndex(document.RootElement, "end_index"),
                 contextWindow,
                 centerIndex,
-                allowWidening);
+                allowWidening
+            );
         }
-        catch (Exception ex) when (
-            ex is JsonException
-                or FormatException
-                or OverflowException
-                or InvalidOperationException
-                or ArgumentException)
+        catch (Exception ex)
+            when (ex
+                    is JsonException
+                        or FormatException
+                        or OverflowException
+                        or InvalidOperationException
+                        or ArgumentException
+            )
         {
             // Matches the Python's blanket except: a malformed answer is worth no
             // more than a missing one, and neither may fail a job.
@@ -113,8 +129,13 @@ public static partial class SmartCutResponseParser
 
         return value.ValueKind switch
         {
-            JsonValueKind.Number => value.TryGetInt32(out var index) ? index : (int)value.GetDouble(),
-            JsonValueKind.String => int.Parse(value.GetString() ?? string.Empty, CultureInfo.InvariantCulture),
+            JsonValueKind.Number => value.TryGetInt32(out var index)
+                ? index
+                : (int)value.GetDouble(),
+            JsonValueKind.String => int.Parse(
+                value.GetString() ?? string.Empty,
+                CultureInfo.InvariantCulture
+            ),
             _ => throw new JsonException($"Smart Cut response has a non-numeric '{name}'."),
         };
     }

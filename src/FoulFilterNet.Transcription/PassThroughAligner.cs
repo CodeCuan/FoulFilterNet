@@ -37,7 +37,8 @@ public sealed class PassThroughAligner : IAligner
         IReadOnlyList<Segment> segments,
         IReadOnlyList<Word> existingWords,
         IProgress<JobProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(existingWords);
         cancellationToken.ThrowIfCancellationRequested();

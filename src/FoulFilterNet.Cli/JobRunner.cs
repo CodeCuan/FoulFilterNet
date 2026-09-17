@@ -25,7 +25,8 @@ public sealed class JobRunner
         IMediaPipeline pipeline,
         TextWriter output,
         TextWriter error,
-        bool interactive = false)
+        bool interactive = false
+    )
     {
         ArgumentNullException.ThrowIfNull(prober);
         ArgumentNullException.ThrowIfNull(pipeline);
@@ -39,7 +40,10 @@ public sealed class JobRunner
         _interactive = interactive;
     }
 
-    public async Task<int> RunAsync(JobRequest request, CancellationToken cancellationToken = default)
+    public async Task<int> RunAsync(
+        JobRequest request,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -91,9 +95,12 @@ public sealed class JobRunner
             await _output.WriteLineAsync($"{summary.Hits.Count} hit(s):");
             foreach (var hit in summary.Hits)
             {
-                await _output.WriteLineAsync(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"  {hit.Start,8:F2} - {hit.End,8:F2}  {hit.Phrase}"));
+                await _output.WriteLineAsync(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"  {hit.Start, 8:F2} - {hit.End, 8:F2}  {hit.Phrase}"
+                    )
+                );
             }
         }
         else
@@ -102,7 +109,8 @@ public sealed class JobRunner
         }
 
         await _output.WriteLineAsync(
-            $"Done. Output: {(request.Render ? request.OutputPath : "(not written)")}");
+            $"Done. Output: {(request.Render ? request.OutputPath : "(not written)")}"
+        );
     }
 }
 
@@ -132,7 +140,8 @@ public sealed class ConsoleProgressReporter : IProgress<JobProgress>
 
         var line = string.Create(
             CultureInfo.InvariantCulture,
-            $"  [{value.Percent,3}%] {value.Stage}{(value.Detail.Length > 0 ? " " + value.Detail : string.Empty)}");
+            $"  [{value.Percent, 3}%] {value.Stage}{(value.Detail.Length > 0 ? " " + value.Detail : string.Empty)}"
+        );
 
         _wrote = true;
 

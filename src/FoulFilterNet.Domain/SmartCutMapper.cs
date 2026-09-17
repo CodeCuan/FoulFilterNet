@@ -31,7 +31,8 @@ public static class SmartCutMapper
         int endIndex,
         IReadOnlyList<Word> contextWindow,
         int centerIndex,
-        bool allowWidening)
+        bool allowWidening
+    )
     {
         ArgumentNullException.ThrowIfNull(contextWindow);
 
@@ -42,7 +43,10 @@ public static class SmartCutMapper
 
         if (contextWindow.Count == 0)
         {
-            throw new ArgumentException("Smart Cut context window is empty.", nameof(contextWindow));
+            throw new ArgumentException(
+                "Smart Cut context window is empty.",
+                nameof(contextWindow)
+            );
         }
 
         if (!allowWidening)

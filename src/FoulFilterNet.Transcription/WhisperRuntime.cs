@@ -25,14 +25,21 @@ namespace FoulFilterNet.Transcription;
 public static class WhisperRuntime
 {
     /// <summary>The runtimes to try, in order, for a configured device.</summary>
-    public static IReadOnlyList<RuntimeLibrary> LibraryOrder(TranscriptionDevice device) => device switch
-    {
-        // Cuda12 follows Cuda because the shipped native library is built with
-        // the CUDA 13 toolchain and a machine on 12.x drivers needs the other.
-        TranscriptionDevice.Cuda => [RuntimeLibrary.Cuda, RuntimeLibrary.Cuda12],
-        TranscriptionDevice.Cpu => [RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx],
-        _ => [RuntimeLibrary.Cuda, RuntimeLibrary.Cuda12, RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx],
-    };
+    public static IReadOnlyList<RuntimeLibrary> LibraryOrder(TranscriptionDevice device) =>
+        device switch
+        {
+            // Cuda12 follows Cuda because the shipped native library is built with
+            // the CUDA 13 toolchain and a machine on 12.x drivers needs the other.
+            TranscriptionDevice.Cuda => [RuntimeLibrary.Cuda, RuntimeLibrary.Cuda12],
+            TranscriptionDevice.Cpu => [RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx],
+            _ =>
+            [
+                RuntimeLibrary.Cuda,
+                RuntimeLibrary.Cuda12,
+                RuntimeLibrary.Cpu,
+                RuntimeLibrary.CpuNoAvx,
+            ],
+        };
 
     /// <summary>
     /// Whether the model itself should be offered the GPU. Separate from the
@@ -56,7 +63,8 @@ public static class WhisperRuntime
     /// </remarks>
     public static WhisperFactoryOptions FactoryOptions(
         TranscriptionDevice device,
-        WhisperAlignmentHeadsPreset? heads)
+        WhisperAlignmentHeadsPreset? heads
+    )
     {
         var options = WhisperFactoryOptions.Default;
         options.UseGpu = UsesGpu(device);

@@ -72,7 +72,10 @@ public sealed class TranscriptStore : ITranscriptStore
     /// key over local files, not a security boundary, and collision resistance
     /// buys nothing here.
     /// </remarks>
-    public async Task<string> ComputeHashAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<string> ComputeHashAsync(
+        string filePath,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         cancellationToken.ThrowIfCancellationRequested();
@@ -87,7 +90,10 @@ public sealed class TranscriptStore : ITranscriptStore
             await using var stream = Open(filePath);
 
             int read;
-            while ((read = await stream.ReadAsync(buffer.AsMemory(0, ChunkSize), cancellationToken)) > 0)
+            while (
+                (read = await stream.ReadAsync(buffer.AsMemory(0, ChunkSize), cancellationToken))
+                > 0
+            )
             {
                 digest.AppendData(buffer, 0, read);
             }
@@ -111,7 +117,10 @@ public sealed class TranscriptStore : ITranscriptStore
     /// disagrees with the one it was found under - a file can be renamed, and
     /// reusing another file's transcript would censor the wrong timestamps.
     /// </remarks>
-    public async Task<Transcript?> FindAsync(string digest, CancellationToken cancellationToken = default)
+    public async Task<Transcript?> FindAsync(
+        string digest,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(digest);
         cancellationToken.ThrowIfCancellationRequested();
@@ -151,7 +160,8 @@ public sealed class TranscriptStore : ITranscriptStore
     public async Task SaveAsync(
         Transcript transcript,
         string baseName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(transcript);
         cancellationToken.ThrowIfCancellationRequested();
@@ -164,10 +174,23 @@ public sealed class TranscriptStore : ITranscriptStore
 
         try
         {
-            await using (var stream = new FileStream(
-                partial, FileMode.Create, FileAccess.Write, FileShare.None, ChunkSize, useAsync: true))
+            await using (
+                var stream = new FileStream(
+                    partial,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    ChunkSize,
+                    useAsync: true
+                )
+            )
             {
-                await JsonSerializer.SerializeAsync(stream, transcript, SerializerOptions, cancellationToken);
+                await JsonSerializer.SerializeAsync(
+                    stream,
+                    transcript,
+                    SerializerOptions,
+                    cancellationToken
+                );
             }
 
             File.Move(partial, path, overwrite: true);
@@ -202,18 +225,21 @@ public sealed class TranscriptStore : ITranscriptStore
             return PlaceholderName;
         }
 
-        var truncated = baseName.Length > MaxReadableLength
-            ? baseName[..MaxReadableLength]
-            : baseName;
+        var truncated =
+            baseName.Length > MaxReadableLength ? baseName[..MaxReadableLength] : baseName;
 
-        return string.Create(truncated.Length, truncated, static (span, source) =>
-        {
-            for (var i = 0; i < source.Length; i++)
+        return string.Create(
+            truncated.Length,
+            truncated,
+            static (span, source) =>
             {
-                var c = source[i];
-                span[i] = char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_';
+                for (var i = 0; i < source.Length; i++)
+                {
+                    var c = source[i];
+                    span[i] = char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_';
+                }
             }
-        });
+        );
     }
 
     private static FileStream Open(string path) =>
@@ -223,18 +249,26 @@ public sealed class TranscriptStore : ITranscriptStore
     /// A transcript deserialized from a file that omitted <c>segments</c> or
     /// <c>words</c> arrives with nulls where the record promises lists.
     /// </summary>
-    private static Transcript Complete(Transcript transcript) => transcript with
-    {
-        Segments = transcript.Segments ?? [],
-        Words = transcript.Words ?? [],
-    };
+    private static Transcript Complete(Transcript transcript) =>
+        transcript with
+        {
+            Segments = transcript.Segments ?? [],
+            Words = transcript.Words ?? [],
+        };
 
-    private static async Task<Transcript?> TryReadAsync(string path, CancellationToken cancellationToken)
+    private static async Task<Transcript?> TryReadAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
     {
         try
         {
             await using var stream = Open(path);
-            return await JsonSerializer.DeserializeAsync<Transcript>(stream, SerializerOptions, cancellationToken);
+            return await JsonSerializer.DeserializeAsync<Transcript>(
+                stream,
+                SerializerOptions,
+                cancellationToken
+            );
         }
         catch (JsonException)
         {
@@ -264,8 +298,12 @@ public sealed class TranscriptStore : ITranscriptStore
         {
             return
             [
-                .. Directory.EnumerateFiles(_directory, "*" + JsonExtension)
-                    .Where(path => Path.GetFileName(path).StartsWith(digest, StringComparison.OrdinalIgnoreCase))
+                .. Directory
+                    .EnumerateFiles(_directory, "*" + JsonExtension)
+                    .Where(path =>
+                        Path.GetFileName(path)
+                            .StartsWith(digest, StringComparison.OrdinalIgnoreCase)
+                    )
                     .Order(StringComparer.Ordinal),
             ];
         }
@@ -300,11 +338,7 @@ public sealed class TranscriptStore : ITranscriptStore
         {
             File.Delete(path);
         }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 }

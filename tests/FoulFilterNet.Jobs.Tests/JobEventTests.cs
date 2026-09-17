@@ -76,20 +76,20 @@ public class WhenAJobMovesThroughItsLifecycle : IDisposable
 
     [Fact]
     public void ReportsThemInOrder() =>
-        _received.Select(job => job.Status).ShouldBe(
-        [
-            JobStatus.Queued,
-            JobStatus.Processing,
-            JobStatus.Processing,
-            JobStatus.Completed,
-        ]);
+        _received
+            .Select(job => job.Status)
+            .ShouldBe([
+                JobStatus.Queued,
+                JobStatus.Processing,
+                JobStatus.Processing,
+                JobStatus.Completed,
+            ]);
 
     [Fact]
     public void CarriesTheProgressCheckpoint() => _received[2].Progress.ShouldBe(40);
 
     [Fact]
-    public void EndsWithTheDownloadLink() =>
-        _received[^1].DownloadUrl.ShouldBe("/download/abc123");
+    public void EndsWithTheDownloadLink() => _received[^1].DownloadUrl.ShouldBe("/download/abc123");
 
     public void Dispose()
     {
@@ -202,7 +202,10 @@ public class WhenTheWorkerRunsWhileASubscriberIsStalled : IDisposable
         _harness.StartAsync().GetAwaiter().GetResult();
 
         var queued = _harness.Enqueue("book.mp3");
-        _record = _harness.WaitForStatusAsync(queued.Id, JobStatus.Completed).GetAwaiter().GetResult();
+        _record = _harness
+            .WaitForStatusAsync(queued.Id, JobStatus.Completed)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]

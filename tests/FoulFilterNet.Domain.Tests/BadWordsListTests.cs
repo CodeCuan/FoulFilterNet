@@ -22,7 +22,8 @@ public class WhenNormalizingABadWordsList
     public void KeepsOnlyTheRealEntries() => _list.Count.ShouldBe(2);
 
     [Fact]
-    public void HoldsEveryEntryAsNormalizedTokens() => _list.Phrases.ShouldBe(["damn", "hell"], ignoreOrder: true);
+    public void HoldsEveryEntryAsNormalizedTokens() =>
+        _list.Phrases.ShouldBe(["damn", "hell"], ignoreOrder: true);
 
     [Fact]
     public void SkipsBlankLines() => _list.Contains("").ShouldBeFalse();
@@ -69,7 +70,8 @@ public class WhenABadWordsListEntryIsTooLong
     }
 
     [Fact]
-    public void DropsTheOverLongEntrySilently() => _list.Contains("one two three four").ShouldBeFalse();
+    public void DropsTheOverLongEntrySilently() =>
+        _list.Contains("one two three four").ShouldBeFalse();
 
     [Fact]
     public void KeepsAThreeTokenEntry() =>
@@ -97,7 +99,8 @@ public class WhenABadWordsListHasNoUsableLines
     public void Throws() => Should.Throw<ArgumentException>(_fromBlanks);
 
     [Fact]
-    public void ThrowsForAnEmptyFile() => Should.Throw<ArgumentException>(() => BadWordsList.FromLines([]));
+    public void ThrowsForAnEmptyFile() =>
+        Should.Throw<ArgumentException>(() => BadWordsList.FromLines([]));
 
     [Fact]
     public void SaysWhichArgumentWasWrong() =>

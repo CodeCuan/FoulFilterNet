@@ -61,15 +61,20 @@ public static partial class LegacyEnvironmentVariables
     /// </summary>
     public static IReadOnlyList<RetiredVariable> Retired { get; } =
     [
-        new("ALIGN_DEVICE",
+        new(
+            "ALIGN_DEVICE",
             "alignment is part of whisper.cpp transcription now; to keep the GPU free use UNLOAD_MODELS_AFTER_JOB, "
-            + "or Transcription__Device=Cpu to move all of transcription off it"),
+                + "or Transcription__Device=Cpu to move all of transcription off it"
+        ),
         new("WHISPER_MULTI_GPU", "whisper.cpp runs on one device; there is no sharding to switch"),
         new("WHISPER_ATTN", "there is no PyTorch attention implementation to override"),
         new("ANALYSIS_CHUNK_SIZE", "nothing read it, in the Python or here"),
         new("TORCH_INDEX_URL", "there are no PyTorch wheels to choose between"),
         new("HSA_OVERRIDE_GFX_VERSION", "a ROCm workaround for RDNA2 cards; the target is CUDA"),
-        new("HF_HOME", "models are GGML files under Transcription__ModelDirectory, not a Hugging Face cache"),
+        new(
+            "HF_HOME",
+            "models are GGML files under Transcription__ModelDirectory, not a Hugging Face cache"
+        ),
         new("MIOPEN_USER_DB_PATH", "a ROCm kernel cache; the target is CUDA"),
         new("TRITON_CACHE_DIR", "there is no Triton JIT"),
     ];
@@ -84,7 +89,10 @@ public static partial class LegacyEnvironmentVariables
 
         foreach (var variable in Mapped)
         {
-            if (!variables.TryGetValue(variable.Name, out var value) || string.IsNullOrWhiteSpace(value))
+            if (
+                !variables.TryGetValue(variable.Name, out var value)
+                || string.IsNullOrWhiteSpace(value)
+            )
             {
                 continue;
             }
@@ -109,8 +117,13 @@ public static partial class LegacyEnvironmentVariables
 
         var variables = Read(environment);
 
-        return [.. Retired.Where(variable =>
-            variables.TryGetValue(variable.Name, out var value) && !string.IsNullOrWhiteSpace(value))];
+        return
+        [
+            .. Retired.Where(variable =>
+                variables.TryGetValue(variable.Name, out var value)
+                && !string.IsNullOrWhiteSpace(value)
+            ),
+        ];
     }
 
     /// <summary>Warns once for each retired variable the process environment sets.</summary>
@@ -132,32 +145,44 @@ public static partial class LegacyEnvironmentVariables
     /// Adds the process environment's legacy variables. Call it after the
     /// defaults, so it sits above <c>appsettings.json</c>.
     /// </summary>
-    public static IConfigurationBuilder AddLegacyEnvironmentVariables(this IConfigurationBuilder builder) =>
-        builder.AddLegacyEnvironmentVariables(null);
+    public static IConfigurationBuilder AddLegacyEnvironmentVariables(
+        this IConfigurationBuilder builder
+    ) => builder.AddLegacyEnvironmentVariables(null);
 
     /// <summary>Adds the legacy variables in <paramref name="environment"/>, or the process's when null.</summary>
     public static IConfigurationBuilder AddLegacyEnvironmentVariables(
         this IConfigurationBuilder builder,
-        IDictionary? environment)
+        IDictionary? environment
+    )
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         return builder.Add(new LegacyEnvironmentConfigurationSource(environment));
     }
 
-    private static string TranslateValue(string name, string value) => name switch
-    {
-        // (os.getenv("AI_ENHANCE") or "").lower() == "true"
-        "AI_ENHANCE" => value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
+    private static string TranslateValue(string name, string value) =>
+        name switch
+        {
+            // (os.getenv("AI_ENHANCE") or "").lower() == "true"
+            "AI_ENHANCE" => value.Equals("true", StringComparison.OrdinalIgnoreCase)
+                ? "true"
+                : "false",
 
-        // flag.strip().lower() in ("1", "true", "yes")
-        "UNLOAD_MODELS_AFTER_JOB" => UnloadTruthy.Contains(value, StringComparer.OrdinalIgnoreCase) ? "true" : "false",
+            // flag.strip().lower() in ("1", "true", "yes")
+            "UNLOAD_MODELS_AFTER_JOB" => UnloadTruthy.Contains(
+                value,
+                StringComparer.OrdinalIgnoreCase
+            )
+                ? "true"
+                : "false",
 
-        // if AI_MODE == "local": ... else Gemini
-        "AI_MODE" => value.Equals("local", StringComparison.OrdinalIgnoreCase) ? "Local" : "Google",
+            // if AI_MODE == "local": ... else Gemini
+            "AI_MODE" => value.Equals("local", StringComparison.OrdinalIgnoreCase)
+                ? "Local"
+                : "Google",
 
-        _ => value,
-    };
+            _ => value,
+        };
 
     /// <summary>
     /// Environment names compared case-insensitively, as .NET's own environment
@@ -172,7 +197,8 @@ public static partial class LegacyEnvironmentVariables
         {
             if (entry.Key is string name)
             {
-                variables[name.Replace("__", ":", StringComparison.Ordinal)] = entry.Value as string;
+                variables[name.Replace("__", ":", StringComparison.Ordinal)] =
+                    entry.Value as string;
                 variables[name] = entry.Value as string;
             }
         }
@@ -183,12 +209,14 @@ public static partial class LegacyEnvironmentVariables
     [LoggerMessage(
         EventId = 1,
         Level = LogLevel.Warning,
-        Message = "{Variable} is set but no longer has any effect: {Reason}.")]
+        Message = "{Variable} is set but no longer has any effect: {Reason}."
+    )]
     private static partial void LogRetired(ILogger logger, string variable, string reason);
 }
 
 /// <summary>The configuration source for <see cref="LegacyEnvironmentVariables"/>.</summary>
-public sealed class LegacyEnvironmentConfigurationSource(IDictionary? environment) : IConfigurationSource
+public sealed class LegacyEnvironmentConfigurationSource(IDictionary? environment)
+    : IConfigurationSource
 {
     public IConfigurationProvider Build(IConfigurationBuilder builder) =>
         new LegacyEnvironmentConfigurationProvider(environment);
@@ -198,10 +226,14 @@ public sealed class LegacyEnvironmentConfigurationSource(IDictionary? environmen
 /// Reads the environment when configuration loads, so a host picks up the
 /// variables it was started with rather than the ones present when it was built.
 /// </summary>
-public sealed class LegacyEnvironmentConfigurationProvider(IDictionary? environment) : ConfigurationProvider
+public sealed class LegacyEnvironmentConfigurationProvider(IDictionary? environment)
+    : ConfigurationProvider
 {
     public override void Load() =>
         Data = new Dictionary<string, string?>(
-            LegacyEnvironmentVariables.Translate(environment ?? Environment.GetEnvironmentVariables()),
-            StringComparer.OrdinalIgnoreCase);
+            LegacyEnvironmentVariables.Translate(
+                environment ?? Environment.GetEnvironmentVariables()
+            ),
+            StringComparer.OrdinalIgnoreCase
+        );
 }

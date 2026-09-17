@@ -16,7 +16,9 @@ public sealed class ARawWordReportedLateAndEarly
     {
         var fixture = Fixtures.Single("damn", 3.410, 3.897);
 
-        _span = BoundaryScorer.Score(fixture, [new Hit("damn", 3.480, 3.690)], ScoringRules.RawWords).Spans.Single();
+        _span = BoundaryScorer
+            .Score(fixture, [new Hit("damn", 3.480, 3.690)], ScoringRules.RawWords)
+            .Spans.Single();
     }
 
     [Fact]
@@ -29,10 +31,12 @@ public sealed class ARawWordReportedLateAndEarly
     public void ReportsAnEarlyEndAsANegativeError() => _span.EndError.ShouldBe(-0.207);
 
     [Fact]
-    public void MeasuresTheStartMarginAgainstThePrePaddingStillToCome() => _span.StartMargin.ShouldBe(0.080);
+    public void MeasuresTheStartMarginAgainstThePrePaddingStillToCome() =>
+        _span.StartMargin.ShouldBe(0.080);
 
     [Fact]
-    public void MeasuresTheEndMarginAgainstThePostPaddingStillToCome() => _span.EndMargin.ShouldBe(0.043);
+    public void MeasuresTheEndMarginAgainstThePostPaddingStillToCome() =>
+        _span.EndMargin.ShouldBe(0.043);
 
     [Fact]
     public void TakesTheSmallerSideAsTheMargin() => _span.Margin.ShouldBe(0.043);
@@ -60,7 +64,9 @@ public sealed class ARawWordReportedWellBeforeItStarts
     {
         var fixture = Fixtures.Single("damn", 3.410, 3.897);
 
-        _span = BoundaryScorer.Score(fixture, [new Hit("damn", 3.168, 3.900)], ScoringRules.RawWords).Spans.Single();
+        _span = BoundaryScorer
+            .Score(fixture, [new Hit("damn", 3.168, 3.900)], ScoringRules.RawWords)
+            .Spans.Single();
     }
 
     [Fact]
@@ -82,7 +88,9 @@ public sealed class ARawWordEndingBeyondThePaddingsReach
     {
         var fixture = Fixtures.Single("damn", 5.580, 6.067);
 
-        _span = BoundaryScorer.Score(fixture, [new Hit("damn", 4.900, 5.170)], ScoringRules.RawWords).Spans.Single();
+        _span = BoundaryScorer
+            .Score(fixture, [new Hit("damn", 4.900, 5.170)], ScoringRules.RawWords)
+            .Spans.Single();
     }
 
     [Fact]
@@ -104,7 +112,9 @@ public sealed class AFinalHitThatIsAlreadyPadded
     {
         var fixture = Fixtures.Single("damn", 3.410, 3.897);
 
-        _span = BoundaryScorer.Score(fixture, [new Hit("damn", 3.330, 3.940)], ScoringRules.FinalHits).Spans.Single();
+        _span = BoundaryScorer
+            .Score(fixture, [new Hit("damn", 3.330, 3.940)], ScoringRules.FinalHits)
+            .Spans.Single();
     }
 
     [Fact]
@@ -128,27 +138,39 @@ public sealed class RepeatedWordsReportedOutOfOrder
 
     public RepeatedWordsReportedOutOfOrder()
     {
-        var fixture = new FixtureTruth("repeated_hits.mp3", "audio", 11.016,
-        [
-            new PlantedSpan("damn", 0.000, 0.487),
-            new PlantedSpan("damn", 2.202, 2.689),
-            new PlantedSpan("damn", 4.651, 5.138),
-        ]);
+        var fixture = new FixtureTruth(
+            "repeated_hits.mp3",
+            "audio",
+            11.016,
+            [
+                new PlantedSpan("damn", 0.000, 0.487),
+                new PlantedSpan("damn", 2.202, 2.689),
+                new PlantedSpan("damn", 4.651, 5.138),
+            ]
+        );
 
         _score = BoundaryScorer.Score(
             fixture,
-            [new Hit("damn", 4.700, 5.100), new Hit("damn", 0.020, 0.500), new Hit("damn", 2.250, 2.650)],
-            ScoringRules.RawWords);
+            [
+                new Hit("damn", 4.700, 5.100),
+                new Hit("damn", 0.020, 0.500),
+                new Hit("damn", 2.250, 2.650),
+            ],
+            ScoringRules.RawWords
+        );
     }
 
     [Fact]
-    public void PairsTheFirstPlantWithTheReportNearestIt() => _score.Spans[0].Reported!.Start.ShouldBe(0.020);
+    public void PairsTheFirstPlantWithTheReportNearestIt() =>
+        _score.Spans[0].Reported!.Start.ShouldBe(0.020);
 
     [Fact]
-    public void PairsTheSecondPlantWithTheReportNearestIt() => _score.Spans[1].Reported!.Start.ShouldBe(2.250);
+    public void PairsTheSecondPlantWithTheReportNearestIt() =>
+        _score.Spans[1].Reported!.Start.ShouldBe(2.250);
 
     [Fact]
-    public void PairsTheThirdPlantWithTheReportNearestIt() => _score.Spans[2].Reported!.Start.ShouldBe(4.700);
+    public void PairsTheThirdPlantWithTheReportNearestIt() =>
+        _score.Spans[2].Reported!.Start.ShouldBe(4.700);
 
     [Fact]
     public void LeavesNoReportUnpaired() => _score.FalsePositives.ShouldBeEmpty();
@@ -161,13 +183,18 @@ public sealed class TwoPlantsCompetingForOneReport
 
     public TwoPlantsCompetingForOneReport()
     {
-        var fixture = new FixtureTruth("f.mp3", "audio", 10,
-        [
-            new PlantedSpan("damn", 1.000, 1.500),
-            new PlantedSpan("damn", 2.000, 2.500),
-        ]);
+        var fixture = new FixtureTruth(
+            "f.mp3",
+            "audio",
+            10,
+            [new PlantedSpan("damn", 1.000, 1.500), new PlantedSpan("damn", 2.000, 2.500)]
+        );
 
-        _score = BoundaryScorer.Score(fixture, [new Hit("damn", 1.950, 2.450)], ScoringRules.RawWords);
+        _score = BoundaryScorer.Score(
+            fixture,
+            [new Hit("damn", 1.950, 2.450)],
+            ScoringRules.RawWords
+        );
     }
 
     [Fact]
@@ -185,7 +212,10 @@ public sealed class AReportOfTheWrongPhrase
     public AReportOfTheWrongPhrase()
     {
         _score = BoundaryScorer.Score(
-            Fixtures.Single("go to hell", 3.505, 4.227), [new Hit("hell", 3.900, 4.200)], ScoringRules.RawWords);
+            Fixtures.Single("go to hell", 3.505, 4.227),
+            [new Hit("hell", 3.900, 4.200)],
+            ScoringRules.RawWords
+        );
     }
 
     [Fact]
@@ -206,7 +236,10 @@ public sealed class AReportOfTheRightPhraseTooFarAway
     public AReportOfTheRightPhraseTooFarAway()
     {
         _score = BoundaryScorer.Score(
-            Fixtures.Single("damn", 3.410, 3.897), [new Hit("damn", 8.000, 8.400)], ScoringRules.RawWords);
+            Fixtures.Single("damn", 3.410, 3.897),
+            [new Hit("damn", 8.000, 8.400)],
+            ScoringRules.RawWords
+        );
     }
 
     [Fact]
@@ -229,13 +262,18 @@ public sealed class AMergedFinalWindowCoveringTwoPlants
 
     public AMergedFinalWindowCoveringTwoPlants()
     {
-        var fixture = new FixtureTruth("f.mp3", "audio", 10,
-        [
-            new PlantedSpan("damn", 1.000, 1.400),
-            new PlantedSpan("go to hell", 1.500, 2.200),
-        ]);
+        var fixture = new FixtureTruth(
+            "f.mp3",
+            "audio",
+            10,
+            [new PlantedSpan("damn", 1.000, 1.400), new PlantedSpan("go to hell", 1.500, 2.200)]
+        );
 
-        _score = BoundaryScorer.Score(fixture, [new Hit("damn+go to hell", 0.850, 2.450)], ScoringRules.FinalHits);
+        _score = BoundaryScorer.Score(
+            fixture,
+            [new Hit("damn+go to hell", 0.850, 2.450)],
+            ScoringRules.FinalHits
+        );
     }
 
     [Fact]
@@ -258,10 +296,18 @@ public sealed class AReportOfAnInnocentSpan
 
     public AReportOfAnInnocentSpan()
     {
-        var fixture = new FixtureTruth("false_positive.mp3", "audio", 4.608,
-            [new PlantedSpan("hoe", 2.634, 3.082, IsProfanity: false)]);
+        var fixture = new FixtureTruth(
+            "false_positive.mp3",
+            "audio",
+            4.608,
+            [new PlantedSpan("hoe", 2.634, 3.082, IsProfanity: false)]
+        );
 
-        _score = BoundaryScorer.Score(fixture, [new Hit("hoe", 2.600, 3.050)], ScoringRules.RawWords);
+        _score = BoundaryScorer.Score(
+            fixture,
+            [new Hit("hoe", 2.600, 3.050)],
+            ScoringRules.RawWords
+        );
     }
 
     [Fact]
@@ -271,7 +317,8 @@ public sealed class AReportOfAnInnocentSpan
     public void CountsItAsAFalsePositive() => _score.FalsePositives.Count.ShouldBe(1);
 
     [Fact]
-    public void KnowsTheFalsePositiveWasExpected() => _score.ExpectedFalsePositives.Count.ShouldBe(1);
+    public void KnowsTheFalsePositiveWasExpected() =>
+        _score.ExpectedFalsePositives.Count.ShouldBe(1);
 }
 
 internal static class Fixtures

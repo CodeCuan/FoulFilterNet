@@ -91,7 +91,8 @@ public class WhenCancellingAJobThatWasNeverQueued
     }
 
     [Fact]
-    public void ReportsThatThereWasNothingToCancel() => _outcome.ShouldBe(JobCancelOutcome.NotFound);
+    public void ReportsThatThereWasNothingToCancel() =>
+        _outcome.ShouldBe(JobCancelOutcome.NotFound);
 }
 
 /// <summary>
@@ -159,12 +160,18 @@ public class WhenCancellingAJobThatAlreadyFinished
 
 internal static class Requests
 {
-    public static JobRequest For(string fileName) => new()
-    {
-        InputPath = Path.Combine(Path.GetTempPath(), "ffn-unused", "uploads", fileName),
-        OutputPath = Path.Combine(Path.GetTempPath(), "ffn-unused", "outputs", $"censored_{fileName}"),
-        BadWordsPath = Path.Combine(Path.GetTempPath(), "ffn-unused", "bad_words.txt"),
-        TranscriptDirectory = Path.Combine(Path.GetTempPath(), "ffn-unused", "transcripts"),
-        ScratchDirectory = Path.Combine(Path.GetTempPath(), "ffn-unused", "scratch"),
-    };
+    public static JobRequest For(string fileName) =>
+        new()
+        {
+            InputPath = Path.Combine(Path.GetTempPath(), "ffn-unused", "uploads", fileName),
+            OutputPath = Path.Combine(
+                Path.GetTempPath(),
+                "ffn-unused",
+                "outputs",
+                $"censored_{fileName}"
+            ),
+            BadWordsPath = Path.Combine(Path.GetTempPath(), "ffn-unused", "bad_words.txt"),
+            TranscriptDirectory = Path.Combine(Path.GetTempPath(), "ffn-unused", "transcripts"),
+            ScratchDirectory = Path.Combine(Path.GetTempPath(), "ffn-unused", "scratch"),
+        };
 }

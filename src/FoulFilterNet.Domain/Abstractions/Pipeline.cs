@@ -16,7 +16,11 @@ public interface ITranscriptStore
     /// </summary>
     Task<Transcript?> FindAsync(string digest, CancellationToken cancellationToken = default);
 
-    Task SaveAsync(Transcript transcript, string baseName, CancellationToken cancellationToken = default);
+    Task SaveAsync(
+        Transcript transcript,
+        string baseName,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>Runs one file end to end.</summary>
@@ -30,5 +34,6 @@ public interface IMediaPipeline
     Task<JobSummary> RunAsync(
         JobRequest request,
         IProgress<JobProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 }

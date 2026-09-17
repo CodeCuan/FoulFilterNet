@@ -22,7 +22,8 @@ public sealed class WhenTheWeightsAreAlreadyOnDisk : IDisposable
 
         var sut = new WhisperModelSource(_directory.Path, Acquire);
         _resolved = sut.ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _resolved.ShouldNotBeNullOrWhiteSpace();
     }
@@ -59,9 +60,12 @@ public sealed class WhenTheWeightsAreMissingAndNothingMayFetchThem : IDisposable
     {
         var sut = new WhisperModelSource(_directory.Path);
 
-        _thrown = Should.ThrowAsync<FileNotFoundException>(
-            () => sut.ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken))
-            .GetAwaiter().GetResult();
+        _thrown = Should
+            .ThrowAsync<FileNotFoundException>(() =>
+                sut.ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken)
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _thrown.ShouldNotBeNull();
     }
@@ -93,8 +97,12 @@ public sealed class WhenTheWeightsHaveToBeAcquired : IDisposable
     public WhenTheWeightsHaveToBeAcquired()
     {
         var sut = new WhisperModelSource(_directory.Path, Acquire);
-        _resolved = sut.ResolveAsync("openai/whisper-large-v3-turbo", TestContext.Current.CancellationToken)
-            .GetAwaiter().GetResult();
+        _resolved = sut.ResolveAsync(
+                "openai/whisper-large-v3-turbo",
+                TestContext.Current.CancellationToken
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _resolved.ShouldNotBeNullOrWhiteSpace();
     }
@@ -109,8 +117,7 @@ public sealed class WhenTheWeightsHaveToBeAcquired : IDisposable
         _resolved.ShouldBe(Path.Combine(_directory.Path, "ggml-large-v3-turbo.bin"));
 
     [Fact]
-    public void WritesEveryByteItWasGiven() =>
-        File.ReadAllBytes(_resolved).ShouldBe([7, 8, 9]);
+    public void WritesEveryByteItWasGiven() => File.ReadAllBytes(_resolved).ShouldBe([7, 8, 9]);
 
     [Fact]
     public void LeavesNoHalfWrittenFileBeside() =>
@@ -122,8 +129,10 @@ public sealed class WhenTheWeightsHaveToBeAcquired : IDisposable
         using var parent = new TempDirectory();
         var nested = Path.Combine(parent.Path, "models");
 
-        await new WhisperModelSource(nested, Acquire)
-            .ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken);
+        await new WhisperModelSource(nested, Acquire).ResolveAsync(
+            ModelNames.Default,
+            TestContext.Current.CancellationToken
+        );
 
         File.Exists(Path.Combine(nested, "ggml-base.bin")).ShouldBeTrue();
     }
@@ -148,11 +157,18 @@ public sealed class WhenAThirdPartyModelIsNotInstalled : IDisposable
     {
         var sut = new WhisperModelSource(
             _directory.Path,
-            (_, _) => Task.FromResult<Stream>(new MemoryStream([1])));
+            (_, _) => Task.FromResult<Stream>(new MemoryStream([1]))
+        );
 
-        _thrown = Should.ThrowAsync<InvalidOperationException>(
-            () => sut.ResolveAsync("distil-whisper/distil-large-v3", TestContext.Current.CancellationToken))
-            .GetAwaiter().GetResult();
+        _thrown = Should
+            .ThrowAsync<InvalidOperationException>(() =>
+                sut.ResolveAsync(
+                    "distil-whisper/distil-large-v3",
+                    TestContext.Current.CancellationToken
+                )
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _thrown.ShouldNotBeNull();
     }
@@ -164,7 +180,8 @@ public sealed class WhenAThirdPartyModelIsNotInstalled : IDisposable
         _thrown.Message.ShouldContain("distil-whisper/distil-large-v3");
 
     [Fact]
-    public void SaysWhichFileToInstallInstead() => _thrown.Message.ShouldContain("ggml-distil-large-v3.bin");
+    public void SaysWhichFileToInstallInstead() =>
+        _thrown.Message.ShouldContain("ggml-distil-large-v3.bin");
 }
 
 /// <summary>A failed acquisition leaves the machine as it found it.</summary>
@@ -177,19 +194,27 @@ public sealed class WhenAcquiringTheWeightsFails : IDisposable
     [Fact]
     public async Task LetsTheFailureThrough()
     {
-        var sut = new WhisperModelSource(_directory.Path, (_, _) => throw new HttpRequestException("no route"));
+        var sut = new WhisperModelSource(
+            _directory.Path,
+            (_, _) => throw new HttpRequestException("no route")
+        );
 
-        await Should.ThrowAsync<HttpRequestException>(
-            () => sut.ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<HttpRequestException>(() =>
+            sut.ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
     public async Task LeavesNoPartialWeightsBehind()
     {
-        var sut = new WhisperModelSource(_directory.Path, (_, _) => throw new HttpRequestException("no route"));
+        var sut = new WhisperModelSource(
+            _directory.Path,
+            (_, _) => throw new HttpRequestException("no route")
+        );
 
-        await Should.ThrowAsync<HttpRequestException>(
-            () => sut.ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<HttpRequestException>(() =>
+            sut.ResolveAsync(ModelNames.Default, TestContext.Current.CancellationToken)
+        );
 
         Directory.GetFiles(_directory.Path).ShouldBeEmpty();
     }
@@ -215,10 +240,13 @@ public sealed class WhenConfigurationSaysNothingAboutWhereWeightsLive
 
     [Fact]
     public void UsesWhateverAnOperatorConfiguredInstead() =>
-        new TranscriptionOptions { ModelDirectory = "D:/weights" }.ModelDirectory.ShouldBe("D:/weights");
+        new TranscriptionOptions { ModelDirectory = "D:/weights" }.ModelDirectory.ShouldBe(
+            "D:/weights"
+        );
 
     [Fact]
     public void TreatsABlankSettingAsUnconfigured() =>
-        new TranscriptionOptions { ModelDirectory = "  " }.ModelDirectory
-            .ShouldBe(WhisperModelSource.DefaultDirectory);
+        new TranscriptionOptions { ModelDirectory = "  " }.ModelDirectory.ShouldBe(
+            WhisperModelSource.DefaultDirectory
+        );
 }

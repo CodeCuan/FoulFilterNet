@@ -51,7 +51,8 @@ internal sealed class StubPipeline : IMediaPipeline
     public Task<JobSummary> RunAsync(
         JobRequest request,
         IProgress<JobProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         Requests.Add(request);
 
@@ -70,7 +71,14 @@ internal sealed class StubPipeline : IMediaPipeline
             File.WriteAllText(request.OutputPath, "censored");
         }
 
-        return Task.FromResult(new JobSummary(_hits, TranscriptWordCount: 12, UsedCachedTranscript: false, Rescanned: request.Rescan));
+        return Task.FromResult(
+            new JobSummary(
+                _hits,
+                TranscriptWordCount: 12,
+                UsedCachedTranscript: false,
+                Rescanned: request.Rescan
+            )
+        );
     }
 }
 
@@ -79,7 +87,10 @@ internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()
     {
-        Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "foulfilter-cli-" + Guid.NewGuid().ToString("N"));
+        Path = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            "foulfilter-cli-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(Path);
     }
 

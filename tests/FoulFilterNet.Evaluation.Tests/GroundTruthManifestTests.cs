@@ -23,13 +23,15 @@ public sealed class ParsingAManifest
         _fixtures = GroundTruthManifest.Parse(Json, innocentFixtures: ["false_positive.mp3"]);
 
     [Fact]
-    public void ReadsEveryFixture() => _fixtures.Select(f => f.File).ShouldBe(["single_hit.mp3", "false_positive.mp3"]);
+    public void ReadsEveryFixture() =>
+        _fixtures.Select(f => f.File).ShouldBe(["single_hit.mp3", "false_positive.mp3"]);
 
     [Fact]
     public void ReadsTheKind() => _fixtures[0].Kind.ShouldBe("audio");
 
     [Fact]
-    public void ReadsThePlantedSpan() => _fixtures[0].Spans.Single().ShouldBe(new PlantedSpan("damn", 3.41, 3.897));
+    public void ReadsThePlantedSpan() =>
+        _fixtures[0].Spans.Single().ShouldBe(new PlantedSpan("damn", 3.41, 3.897));
 
     [Fact]
     public void MarksAnInnocentFixturesSpansAsNotProfanity() =>
@@ -72,16 +74,20 @@ public sealed class TheRepositorysManifest
 
     public TheRepositorysManifest() =>
         _fixtures = GroundTruthManifest.Load(
-            GroundTruthManifest.Locate(AppContext.BaseDirectory), GroundTruthManifest.DefaultInnocentFixtures);
+            GroundTruthManifest.Locate(AppContext.BaseDirectory),
+            GroundTruthManifest.DefaultInnocentFixtures
+        );
 
     [Fact]
     public void HasSevenFixtures() => _fixtures.Count.ShouldBe(7);
 
     [Fact]
-    public void PlantsTenProfanities() => _fixtures.SelectMany(f => f.Spans).Count(s => s.IsProfanity).ShouldBe(10);
+    public void PlantsTenProfanities() =>
+        _fixtures.SelectMany(f => f.Spans).Count(s => s.IsProfanity).ShouldBe(10);
 
     [Fact]
-    public void PlantsOneInnocentWord() => _fixtures.SelectMany(f => f.Spans).Count(s => !s.IsProfanity).ShouldBe(1);
+    public void PlantsOneInnocentWord() =>
+        _fixtures.SelectMany(f => f.Spans).Count(s => !s.IsProfanity).ShouldBe(1);
 
     [Fact]
     public void ListsEveryPhraseForTheDefaultBadWordsList() =>

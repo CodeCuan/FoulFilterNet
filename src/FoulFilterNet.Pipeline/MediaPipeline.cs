@@ -75,7 +75,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
         IMediaEditor editor,
         TranscriptStoreFactory transcriptStores,
         SmartCutOptions? smartCutOptions = null,
-        ILogger<MediaPipeline>? logger = null)
+        ILogger<MediaPipeline>? logger = null
+    )
     {
         ArgumentNullException.ThrowIfNull(prober);
         ArgumentNullException.ThrowIfNull(audioPreparer);
@@ -103,7 +104,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
     public async Task<JobSummary> RunAsync(
         JobRequest request,
         IProgress<JobProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -159,7 +161,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
     private async Task<JobSummary> RunCoreAsync(
         JobRequest request,
         IProgress<JobProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ThrowIfCancelled(cancellationToken);
 
@@ -175,7 +178,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
         // ADR-0004: widening a Hit into its idiom only ever makes sense for a
         // jump cut on audio. Silence, bleep and every video edit stay surgical,
         // because stretching them reads as a glitch rather than a censor.
-        var allowWidening = request.CensorMethod is CensorMethod.Remove && media.Kind is MediaKind.Audio;
+        var allowWidening =
+            request.CensorMethod is CensorMethod.Remove && media.Kind is MediaKind.Audio;
 
         // Video is analysed from its extracted audio track and rendered from the
         // original file, so the picture survives the edit untouched.
@@ -184,11 +188,16 @@ public sealed partial class MediaPipeline : IMediaPipeline
         {
             Checkpoint(progress, "preparing", 2, "Extracting audio track", cancellationToken);
             analysisSource = Path.Combine(request.ScratchDirectory, ExtractedAudioName);
-            await _audio.ExtractAudioTrackAsync(request.InputPath, analysisSource, cancellationToken);
+            await _audio.ExtractAudioTrackAsync(
+                request.InputPath,
+                analysisSource,
+                cancellationToken
+            );
         }
 
         var badWords = BadWordsList.FromLines(
-            await File.ReadAllLinesAsync(request.BadWordsPath, cancellationToken));
+            await File.ReadAllLinesAsync(request.BadWordsPath, cancellationToken)
+        );
 
         var store = _stores(request.TranscriptDirectory);
         var digest = await store.ComputeHashAsync(request.InputPath, cancellationToken);
@@ -197,16 +206,20 @@ public sealed partial class MediaPipeline : IMediaPipeline
         // A Rescan is a request to listen again, so the cache is not even
         // consulted - and the summary then honestly reports that nothing was
         // resumed, which the Python got wrong by reporting the lookup instead.
-        var cached = request.Rescan
-            ? null
-            : await store.FindAsync(digest, cancellationToken);
+        var cached = request.Rescan ? null : await store.FindAsync(digest, cancellationToken);
 
         IReadOnlyList<Segment> segments;
         IReadOnlyList<Word> words;
 
         if (cached is not null)
         {
-            Checkpoint(progress, "transcribing", 45, "Reusing persisted transcript", cancellationToken);
+            Checkpoint(
+                progress,
+                "transcribing",
+                45,
+                "Reusing persisted transcript",
+                cancellationToken
+            );
             LogResumedTranscript(digest, request.InputPath);
 
             segments = cached.Segments;
@@ -220,15 +233,28 @@ public sealed partial class MediaPipeline : IMediaPipeline
             words = heard.Words;
 
             Checkpoint(
-                progress, "transcribing", 40, $"{segments.Count} segments transcribed", cancellationToken);
+                progress,
+                "transcribing",
+                40,
+                $"{segments.Count} segments transcribed",
+                cancellationToken
+            );
 
             if (request.Rescan)
             {
                 Checkpoint(
-                    progress, "transcribing", 42, "Rescan pass (offset boundaries)", cancellationToken);
+                    progress,
+                    "transcribing",
+                    42,
+                    "Rescan pass (offset boundaries)",
+                    cancellationToken
+                );
 
                 var shifted = await _transcriber.TranscribeShiftedAsync(
-                    analysisSource, RescanPass.DefaultOffsetSeconds, cancellationToken);
+                    analysisSource,
+                    RescanPass.DefaultOffsetSeconds,
+                    cancellationToken
+                );
 
                 // Segments only. A word the second pass heard has no counterpart
                 // in the first pass's timeline to be reconciled against, and the
@@ -247,7 +273,13 @@ public sealed partial class MediaPipeline : IMediaPipeline
         if (candidates.Count > 0 && words.Count == 0)
         {
             Checkpoint(progress, "aligning", 55, "Forced alignment started", cancellationToken);
-            words = await _aligner.AlignAsync(analysisSource, segments, words, progress, cancellationToken);
+            words = await _aligner.AlignAsync(
+                analysisSource,
+                segments,
+                words,
+                progress,
+                cancellationToken
+            );
             Checkpoint(progress, "aligning", 75, $"{words.Count} words aligned", cancellationToken);
         }
 
@@ -255,7 +287,10 @@ public sealed partial class MediaPipeline : IMediaPipeline
         // it files the entry under; anything else writes a transcript that can
         // never be found again.
         await store.SaveAsync(
-            new Transcript(Transcript.CurrentVersion, digest, segments, words), baseName, cancellationToken);
+            new Transcript(Transcript.CurrentVersion, digest, segments, words),
+            baseName,
+            cancellationToken
+        );
 
         var hits = Reconcile(candidates, words, badWords);
 
@@ -273,7 +308,12 @@ public sealed partial class MediaPipeline : IMediaPipeline
         if (!request.Render)
         {
             Checkpoint(
-                progress, "completed", 100, "Analysis complete (no edit requested)", cancellationToken);
+                progress,
+                "completed",
+                100,
+                "Analysis complete (no edit requested)",
+                cancellationToken
+            );
 
             return new JobSummary(hits, words.Count, cached is not null, request.Rescan);
         }
@@ -291,7 +331,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
     private IReadOnlyList<Hit> Reconcile(
         IReadOnlyList<Candidate> candidates,
         IReadOnlyList<Word> words,
-        BadWordsList badWords)
+        BadWordsList badWords
+    )
     {
         var hits = _reconciler.Reconcile(candidates, words, badWords);
 
@@ -320,7 +361,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
         IReadOnlyList<Word> words,
         bool allowWidening,
         IProgress<JobProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         var kept = new List<Hit>(hits.Count);
 
@@ -331,12 +373,18 @@ public sealed partial class MediaPipeline : IMediaPipeline
                 "refining",
                 78 + (10 * i / hits.Count),
                 $"Smart Cut {i + 1}/{hits.Count}",
-                cancellationToken);
+                cancellationToken
+            );
 
             var hit = hits[i];
             var (window, centerIndex) = ContextWindow(words, hit, _contextRadius);
             var decision = await _smartCut.RefineAsync(
-                window, hit.Phrase, centerIndex, allowWidening, cancellationToken);
+                window,
+                hit.Phrase,
+                centerIndex,
+                allowWidening,
+                cancellationToken
+            );
 
             switch (decision.Outcome)
             {
@@ -344,11 +392,13 @@ public sealed partial class MediaPipeline : IMediaPipeline
                     break;
 
                 case SmartCutOutcome.Adjust:
-                    kept.Add(hit with
-                    {
-                        Start = Times.Round(Math.Max(0.0, decision.CutStart - _padding.Pre)),
-                        End = Times.Round(decision.CutEnd + _padding.Post),
-                    });
+                    kept.Add(
+                        hit with
+                        {
+                            Start = Times.Round(Math.Max(0.0, decision.CutStart - _padding.Pre)),
+                            End = Times.Round(decision.CutEnd + _padding.Post),
+                        }
+                    );
                     break;
 
                 default:
@@ -381,7 +431,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
     private static (IReadOnlyList<Word> Window, int CenterIndex) ContextWindow(
         IReadOnlyList<Word> words,
         Hit hit,
-        int radius)
+        int radius
+    )
     {
         var center = 0;
         var nearest = double.MaxValue;
@@ -414,10 +465,16 @@ public sealed partial class MediaPipeline : IMediaPipeline
         MediaKind kind,
         IReadOnlyList<Hit> hits,
         IProgress<JobProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         Checkpoint(
-            progress, "editing", 88, $"Rendering {Describe(request.CensorMethod)} edit", cancellationToken);
+            progress,
+            "editing",
+            88,
+            $"Rendering {Describe(request.CensorMethod)} edit",
+            cancellationToken
+        );
 
         // The editor does not hand back the path it wrote, and a blank one means
         // "you choose", so the path is resolved the way the editor would.
@@ -434,12 +491,22 @@ public sealed partial class MediaPipeline : IMediaPipeline
             // a picture that is stream-copied. The editor guards this as well;
             // asking for what is meant keeps the two from drifting apart.
             await _editor.CensorVideoAsync(
-                request.InputPath, hits, ForVideo(request.CensorMethod), outputPath, cancellationToken);
+                request.InputPath,
+                hits,
+                ForVideo(request.CensorMethod),
+                outputPath,
+                cancellationToken
+            );
         }
         else
         {
             await _editor.CensorAudioAsync(
-                request.InputPath, hits, request.CensorMethod, outputPath, cancellationToken);
+                request.InputPath,
+                hits,
+                request.CensorMethod,
+                outputPath,
+                cancellationToken
+            );
         }
 
         // A silent non-render must fail the job rather than complete it with a
@@ -454,12 +521,13 @@ public sealed partial class MediaPipeline : IMediaPipeline
         method is CensorMethod.Remove ? CensorMethod.Silence : method;
 
     /// <summary>The wire spellings, so a renamed enum member cannot change what the UI reads.</summary>
-    private static string Describe(CensorMethod method) => method switch
-    {
-        CensorMethod.Bleep => "bleep",
-        CensorMethod.Remove => "remove",
-        _ => "silence",
-    };
+    private static string Describe(CensorMethod method) =>
+        method switch
+        {
+            CensorMethod.Bleep => "bleep",
+            CensorMethod.Remove => "remove",
+            _ => "silence",
+        };
 
     private static void CopyThrough(string inputPath, string outputPath)
     {
@@ -477,10 +545,14 @@ public sealed partial class MediaPipeline : IMediaPipeline
         File.Copy(inputPath, outputPath, overwrite: true);
     }
 
-    private static bool SamePath(string first, string second) => string.Equals(
-        Path.GetFullPath(first),
-        Path.GetFullPath(second),
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    private static bool SamePath(string first, string second) =>
+        string.Equals(
+            Path.GetFullPath(first),
+            Path.GetFullPath(second),
+            OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal
+        );
 
     /// <summary>
     /// The transcript as plain text, from the aligned words when there are any
@@ -490,11 +562,13 @@ public sealed partial class MediaPipeline : IMediaPipeline
         JobRequest request,
         IReadOnlyList<Segment> segments,
         IReadOnlyList<Word> words,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
-        var tokens = words.Count > 0
-            ? words.Select(word => word.Text).ToList()
-            : segments.SelectMany(segment => Tokenizer.Tokenize(segment.Text)).ToList();
+        var tokens =
+            words.Count > 0
+                ? words.Select(word => word.Text).ToList()
+                : segments.SelectMany(segment => Tokenizer.Tokenize(segment.Text)).ToList();
 
         var text = new StringBuilder();
         for (var i = 0; i < tokens.Count; i++)
@@ -504,7 +578,10 @@ public sealed partial class MediaPipeline : IMediaPipeline
         }
 
         await File.WriteAllTextAsync(
-            Path.Combine(request.ScratchDirectory, DebugTranscriptName), text.ToString(), cancellationToken);
+            Path.Combine(request.ScratchDirectory, DebugTranscriptName),
+            text.ToString(),
+            cancellationToken
+        );
     }
 
     /// <summary>
@@ -520,7 +597,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
         string stage,
         int percent,
         string detail,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ThrowIfCancelled(cancellationToken);
         progress?.Report(new JobProgress(stage, percent, detail));
@@ -539,12 +617,14 @@ public sealed partial class MediaPipeline : IMediaPipeline
     // written. The messages themselves are the Python's.
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Reusing persisted transcript {Digest} rather than transcribing {Input} again")]
+        Message = "Reusing persisted transcript {Digest} rather than transcribing {Input} again"
+    )]
     private partial void LogResumedTranscript(string digest, string input);
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Rescan grew the transcript to {Count} segments")]
+        Message = "Rescan grew the transcript to {Count} segments"
+    )]
     private partial void LogRescanGrewTranscript(int count);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "{Count} candidate(s)")]
@@ -552,7 +632,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "No aligned timestamps for '{Phrase}'; using the segment estimate")]
+        Message = "No aligned timestamps for '{Phrase}'; using the segment estimate"
+    )]
     private partial void LogUnalignedCandidate(string phrase);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "{Count} hit(s) after merge")]
@@ -563,6 +644,7 @@ public sealed partial class MediaPipeline : IMediaPipeline
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Releasing the {Engine} model failed; the job's own outcome stands")]
+        Message = "Releasing the {Engine} model failed; the job's own outcome stands"
+    )]
     private partial void LogReleaseFailed(Exception exception, string engine);
 }

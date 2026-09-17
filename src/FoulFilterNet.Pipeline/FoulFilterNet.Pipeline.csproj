@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <ItemGroup>
     <!-- The orchestrator logs the Resume hit and warns per unaligned candidate,
          as the Python did. Abstractions only: nothing here picks a sink. -->
@@ -16,5 +15,4 @@
     <ProjectReference Include="../FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
     <ProjectReference Include="../FoulFilterNet.SmartCut/FoulFilterNet.SmartCut.csproj" />
   </ItemGroup>
-
 </Project>

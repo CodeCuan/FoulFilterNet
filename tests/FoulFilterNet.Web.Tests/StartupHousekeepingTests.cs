@@ -42,7 +42,8 @@ public class WhenStartingOverAPreviousRunsFiles : IDisposable
 
     [Fact]
     public void KeepsTheTranscriptCacheThatCostAGpuToProduce() =>
-        File.Exists(Path.Combine(_options.ResolvedTranscriptDirectory, "d41d8__book.mp3.json")).ShouldBeTrue();
+        File.Exists(Path.Combine(_options.ResolvedTranscriptDirectory, "d41d8__book.mp3.json"))
+            .ShouldBeTrue();
 
     [Fact]
     public void KeepsTheOutputsSomeoneCameBackFor() =>
@@ -127,7 +128,8 @@ public class WhenAScratchFileCannotBeDeleted : IDisposable
             Path.Combine(_options.ScratchDirectory, "held.wav"),
             FileMode.Create,
             FileAccess.Write,
-            FileShare.None);
+            FileShare.None
+        );
 
         // The act is the assertion: anything thrown here fails every fact below.
         StorageHousekeeping.Prepare(_options);

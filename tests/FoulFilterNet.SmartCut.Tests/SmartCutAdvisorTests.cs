@@ -29,12 +29,15 @@ public class WhenTheAdvisorRefinesAHit
 
     public WhenTheAdvisorRefinesAHit()
     {
-        _transport = new StubTransport("""{"reasoning": "idiom", "start_index": 4, "end_index": 6}""");
+        _transport = new StubTransport(
+            """{"reasoning": "idiom", "start_index": 4, "end_index": 6}"""
+        );
         var advisor = new LlmSmartCutAdvisor(_transport, NullLogger<LlmSmartCutAdvisor>.Instance);
 
         _decision = advisor
             .RefineAsync(PromptWindow.Words, "hell", centerIndex: 6, allowWidening: true)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _decision.ShouldNotBeNull();
         _transport.Prompts.Count.ShouldBe(1);
@@ -42,7 +45,10 @@ public class WhenTheAdvisorRefinesAHit
 
     [Fact]
     public void ReportsItselfEnabled() =>
-        new LlmSmartCutAdvisor(_transport, NullLogger<LlmSmartCutAdvisor>.Instance).IsEnabled.ShouldBeTrue();
+        new LlmSmartCutAdvisor(
+            _transport,
+            NullLogger<LlmSmartCutAdvisor>.Instance
+        ).IsEnabled.ShouldBeTrue();
 
     [Fact]
     public void SendsThePromptBuiltFromTheHit() =>
@@ -72,7 +78,8 @@ public class WhenTheAdvisorMayNotWiden
 
         _decision = advisor
             .RefineAsync(PromptWindow.Words, "hell", centerIndex: 6, allowWidening: false)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _decision.ShouldNotBeNull();
     }
@@ -92,12 +99,16 @@ public class WhenTheModelRejectsTheHitThroughTheAdvisor
     public WhenTheModelRejectsTheHitThroughTheAdvisor()
     {
         var advisor = new LlmSmartCutAdvisor(
-            new StubTransport("""{"reasoning": "a garden tool", "start_index": -1, "end_index": -1}"""),
-            NullLogger<LlmSmartCutAdvisor>.Instance);
+            new StubTransport(
+                """{"reasoning": "a garden tool", "start_index": -1, "end_index": -1}"""
+            ),
+            NullLogger<LlmSmartCutAdvisor>.Instance
+        );
 
         _decision = advisor
             .RefineAsync(PromptWindow.Words, "hoe", centerIndex: 6, allowWidening: true)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _decision.ShouldNotBeNull();
     }
@@ -120,11 +131,16 @@ public class WhenTheAdvisorHitsTrouble
 
     public WhenTheAdvisorHitsTrouble()
     {
-        _exploding = new StubTransport(_ => throw new InvalidOperationException("the transport blew up"));
+        _exploding = new StubTransport(_ =>
+            throw new InvalidOperationException("the transport blew up")
+        );
 
         _afterTheTransportThrew = Refine(_exploding, PromptWindow.Words, 6);
-        _afterTheTransportWasUnavailable =
-            Refine(new StubTransport(SmartCutResponses.ApiUnavailable), PromptWindow.Words, 6);
+        _afterTheTransportWasUnavailable = Refine(
+            new StubTransport(SmartCutResponses.ApiUnavailable),
+            PromptWindow.Words,
+            6
+        );
         _afterAnEmptyContextWindow = Refine(_exploding, [], 0);
     }
 
@@ -151,8 +167,10 @@ public class WhenTheAdvisorHitsTrouble
     private static SmartCutDecision Refine(
         ISmartCutTransport transport,
         IReadOnlyList<Word> contextWindow,
-        int centerIndex) =>
+        int centerIndex
+    ) =>
         new LlmSmartCutAdvisor(transport, NullLogger<LlmSmartCutAdvisor>.Instance)
             .RefineAsync(contextWindow, "hell", centerIndex, allowWidening: true)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 }

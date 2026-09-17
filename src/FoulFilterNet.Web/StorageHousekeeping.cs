@@ -26,7 +26,8 @@ namespace FoulFilterNet.Web;
 /// </remarks>
 public sealed class StorageHousekeeping(
     IOptions<StorageOptions> options,
-    ILogger<StorageHousekeeping> logger) : IHostedService
+    ILogger<StorageHousekeeping> logger
+) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {

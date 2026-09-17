@@ -69,7 +69,9 @@ internal sealed class JobHarness : IAsyncDisposable
             await Task.Delay(10);
         }
 
-        throw new TimeoutException($"Job {id} never reached the expected state (was {Get(id).Status}).");
+        throw new TimeoutException(
+            $"Job {id} never reached the expected state (was {Get(id).Status})."
+        );
     }
 
     public Task<JobRecord> WaitForStatusAsync(string id, JobStatus status) =>

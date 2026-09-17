@@ -1,7 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <ItemGroup>
     <ProjectReference Include="../../src/FoulFilterNet.SmartCut/FoulFilterNet.SmartCut.csproj" />
   </ItemGroup>
-
 </Project>

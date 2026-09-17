@@ -28,7 +28,8 @@ public class WhenGeminiAnswers
             _handler.Client(),
             apiKey: "test-key",
             model: "gemini-2.5-flash-lite",
-            NullLogger<GeminiTransport>.Instance);
+            NullLogger<GeminiTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
 
@@ -42,8 +43,12 @@ public class WhenGeminiAnswers
 
     [Fact]
     public void PostsToTheConfiguredModelsGenerateContentEndpoint() =>
-        _handler.Requests[0].Uri.ToString()
-            .ShouldBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent");
+        _handler
+            .Requests[0]
+            .Uri.ToString()
+            .ShouldBe(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
+            );
 
     [Fact]
     public void SendsTheApiKeyAsAHeader() =>
@@ -55,20 +60,35 @@ public class WhenGeminiAnswers
 
     [Fact]
     public void SendsThePromptAsTheOnlyPart() =>
-        _payload.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString()
+        _payload
+            .GetProperty("contents")[0]
+            .GetProperty("parts")[0]
+            .GetProperty("text")
+            .GetString()
             .ShouldBe("the prompt");
 
     [Fact]
     public void AsksForANearlyDeterministicAnswer() =>
-        _payload.GetProperty("generationConfig").GetProperty("temperature").GetDouble().ShouldBe(0.1, 0.0001);
+        _payload
+            .GetProperty("generationConfig")
+            .GetProperty("temperature")
+            .GetDouble()
+            .ShouldBe(0.1, 0.0001);
 
     [Fact]
     public void CapsTheOutputAtThreeHundredTokens() =>
-        _payload.GetProperty("generationConfig").GetProperty("maxOutputTokens").GetInt32().ShouldBe(300);
+        _payload
+            .GetProperty("generationConfig")
+            .GetProperty("maxOutputTokens")
+            .GetInt32()
+            .ShouldBe(300);
 
     [Fact]
     public void AsksForJson() =>
-        _payload.GetProperty("generationConfig").GetProperty("responseMimeType").GetString()
+        _payload
+            .GetProperty("generationConfig")
+            .GetProperty("responseMimeType")
+            .GetString()
             .ShouldBe("application/json");
 
     [Fact]
@@ -76,18 +96,21 @@ public class WhenGeminiAnswers
     {
         var settings = _payload.GetProperty("safetySettings").EnumerateArray().ToList();
 
-        settings.Select(setting => setting.GetProperty("category").GetString()).ShouldBe(
-        [
-            "HARM_CATEGORY_HATE_SPEECH",
-            "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            "HARM_CATEGORY_HARASSMENT",
-            "HARM_CATEGORY_DANGEROUS_CONTENT",
-        ]);
+        settings
+            .Select(setting => setting.GetProperty("category").GetString())
+            .ShouldBe([
+                "HARM_CATEGORY_HATE_SPEECH",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "HARM_CATEGORY_HARASSMENT",
+                "HARM_CATEGORY_DANGEROUS_CONTENT",
+            ]);
     }
 
     [Fact]
     public void BlocksNothing() =>
-        _payload.GetProperty("safetySettings").EnumerateArray()
+        _payload
+            .GetProperty("safetySettings")
+            .EnumerateArray()
             .ShouldAllBe(setting => setting.GetProperty("threshold").GetString() == "BLOCK_NONE");
 }
 
@@ -107,7 +130,8 @@ public class WhenGeminiIsBusyThenAnswers
         _handler = FakeHttpMessageHandler.Returning(
             (HttpStatusCode.TooManyRequests, GeminiReplies.Busy),
             (HttpStatusCode.ServiceUnavailable, GeminiReplies.Busy),
-            (HttpStatusCode.OK, GeminiReplies.Answer));
+            (HttpStatusCode.OK, GeminiReplies.Answer)
+        );
 
         var transport = new GeminiTransport(
             _handler.Client(),
@@ -118,7 +142,8 @@ public class WhenGeminiIsBusyThenAnswers
             {
                 _delays.Add(wait);
                 return Task.CompletedTask;
-            });
+            }
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
     }
@@ -143,7 +168,9 @@ public class WhenGeminiStaysBusy
 
     public WhenGeminiStaysBusy()
     {
-        _handler = FakeHttpMessageHandler.Returning((HttpStatusCode.ServiceUnavailable, GeminiReplies.Busy));
+        _handler = FakeHttpMessageHandler.Returning(
+            (HttpStatusCode.ServiceUnavailable, GeminiReplies.Busy)
+        );
 
         var transport = new GeminiTransport(
             _handler.Client(),
@@ -154,7 +181,8 @@ public class WhenGeminiStaysBusy
             {
                 _delays.Add(wait);
                 return Task.CompletedTask;
-            });
+            }
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
     }
@@ -166,7 +194,8 @@ public class WhenGeminiStaysBusy
     public void TriesThreeTimes() => _handler.Requests.Count.ShouldBe(GeminiTransport.MaxAttempts);
 
     [Fact]
-    public void DoesNotSleepAfterTheLastAttempt() => _delays.Count.ShouldBe(GeminiTransport.MaxAttempts - 1);
+    public void DoesNotSleepAfterTheLastAttempt() =>
+        _delays.Count.ShouldBe(GeminiTransport.MaxAttempts - 1);
 }
 
 public class WhenGeminiFailsForAnyOtherReason
@@ -177,7 +206,9 @@ public class WhenGeminiFailsForAnyOtherReason
 
     public WhenGeminiFailsForAnyOtherReason()
     {
-        _handler = FakeHttpMessageHandler.Returning((HttpStatusCode.BadRequest, """{"error":"bad model"}"""));
+        _handler = FakeHttpMessageHandler.Returning(
+            (HttpStatusCode.BadRequest, """{"error":"bad model"}""")
+        );
 
         var transport = new GeminiTransport(
             _handler.Client(),
@@ -188,7 +219,8 @@ public class WhenGeminiFailsForAnyOtherReason
             {
                 _delays.Add(wait);
                 return Task.CompletedTask;
-            });
+            }
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
     }
@@ -212,7 +244,11 @@ public class WhenGeminiRefusesTheContent
     {
         var handler = FakeHttpMessageHandler.Returning((HttpStatusCode.OK, GeminiReplies.Refusal));
         var transport = new GeminiTransport(
-            handler.Client(), "test-key", "gemini-2.5-flash-lite", NullLogger<GeminiTransport>.Instance);
+            handler.Client(),
+            "test-key",
+            "gemini-2.5-flash-lite",
+            NullLogger<GeminiTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
 
@@ -225,7 +261,8 @@ public class WhenGeminiRefusesTheContent
 
     [Fact]
     public void WhichStillMeansKeepTheOriginalTimestamps() =>
-        SmartCutResponseParser.Parse(_response, PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(_response, PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 }
 
@@ -237,7 +274,11 @@ public class WhenGeminiCannotBeReached
     {
         var handler = FakeHttpMessageHandler.Throwing(new HttpRequestException("no such host"));
         var transport = new GeminiTransport(
-            handler.Client(), "test-key", "gemini-2.5-flash-lite", NullLogger<GeminiTransport>.Instance);
+            handler.Client(),
+            "test-key",
+            "gemini-2.5-flash-lite",
+            NullLogger<GeminiTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
     }
@@ -248,6 +289,7 @@ public class WhenGeminiCannotBeReached
 
     [Fact]
     public void WhichMeansKeepTheOriginalTimestamps() =>
-        SmartCutResponseParser.Parse(_response, PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(_response, PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 }

@@ -56,9 +56,10 @@ public sealed record TranscriptionOptions
     public string ModelDirectory
     {
         get => _modelDirectory;
-        init => _modelDirectory = string.IsNullOrWhiteSpace(value)
-            ? WhisperModelSource.DefaultDirectory
-            : value.Trim();
+        init =>
+            _modelDirectory = string.IsNullOrWhiteSpace(value)
+                ? WhisperModelSource.DefaultDirectory
+                : value.Trim();
     }
 
     /// <summary>

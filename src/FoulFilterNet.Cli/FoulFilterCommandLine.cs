@@ -50,14 +50,12 @@ public sealed class FoulFilterCommandLine
         };
         CensorMethodName.AcceptOnlyFromAmong(CensorMethodResolution.Accepted);
 
-        Debug = new Option<bool>("--debug")
-        {
-            Description = "Export transcript to text file",
-        };
+        Debug = new Option<bool>("--debug") { Description = "Export transcript to text file" };
 
         Rescan = new Option<bool>("--rescan")
         {
-            Description = "Second detection pass with shifted chunk boundaries (finds boundary-garbled words)",
+            Description =
+                "Second detection pass with shifted chunk boundaries (finds boundary-garbled words)",
         };
 
         NoEdit = new Option<bool>("--no_edit")
@@ -65,7 +63,9 @@ public sealed class FoulFilterCommandLine
             Description = "Analyze only: report what would be cut, do not edit",
         };
 
-        Command = new RootCommand("Finds and removes a list of swear words from an audio or video file.");
+        Command = new RootCommand(
+            "Finds and removes a list of swear words from an audio or video file."
+        );
         Command.Add(FilePath);
         Command.Add(BadWordsListPath);
         Command.Add(Output);
@@ -116,7 +116,8 @@ public sealed class FoulFilterCommandLine
             parsed.GetValue(CensorMethodName),
             parsed.GetValue(Bleep),
             parsed.GetValue(Delete),
-            configuration(ConfigurationKeys.CensorMethod));
+            configuration(ConfigurationKeys.CensorMethod)
+        );
     }
 
     /// <summary>
@@ -139,7 +140,10 @@ public sealed class FoulFilterCommandLine
         // moves it elsewhere, exactly as the Python composed it.
         var outputPath = parsed.GetValue(Output) is { Length: > 0 } explicitOutput
             ? explicitOutput
-            : Path.Combine(DirectoryOf(inputPath), $"censored_{baseName}{Path.GetExtension(inputPath)}");
+            : Path.Combine(
+                DirectoryOf(inputPath),
+                $"censored_{baseName}{Path.GetExtension(inputPath)}"
+            );
 
         return new JobRequest
         {
@@ -148,7 +152,8 @@ public sealed class FoulFilterCommandLine
             BadWordsPath = parsed.GetRequiredValue(BadWordsListPath),
             TranscriptDirectory = DataLocations.TranscriptDirectory(
                 configuration(ConfigurationKeys.DataDirectory),
-                configuration(ConfigurationKeys.TranscriptDirectory)),
+                configuration(ConfigurationKeys.TranscriptDirectory)
+            ),
             ScratchDirectory = Path.Combine(DirectoryOf(outputPath), $".{baseName}_scratch"),
             CensorMethod = ResolveCensorMethod(parsed, configuration),
             Debug = parsed.GetValue(Debug),
@@ -182,7 +187,12 @@ public static class CensorMethodResolution
     public static readonly string[] Accepted = ["silence", "bleep", "remove", "delete"];
 
     /// <summary>The whole chain, in the Python's order.</summary>
-    public static CensorMethod Resolve(string? explicitMethod, bool bleep, bool delete, string? environmentDefault)
+    public static CensorMethod Resolve(
+        string? explicitMethod,
+        bool bleep,
+        bool delete,
+        string? environmentDefault
+    )
     {
         if (TryParse(explicitMethod, out var chosen))
         {
@@ -203,7 +213,9 @@ public static class CensorMethodResolution
         // os.getenv("CENSOR_METHOD", "silence") plus an unknown value did: the
         // pipeline treated anything it did not know as silence rather than
         // failing a run over a stale variable.
-        return TryParse(environmentDefault, out var fromEnvironment) ? fromEnvironment : CensorMethod.Silence;
+        return TryParse(environmentDefault, out var fromEnvironment)
+            ? fromEnvironment
+            : CensorMethod.Silence;
     }
 
     /// <summary>

@@ -32,7 +32,8 @@ public class WhenTokenizingText
     public void KeepsDigits() => _tokens.ShouldContain("42");
 
     [Fact]
-    public void ReturnsNothingForTextWithoutWordCharacters() => Tokenizer.Tokenize("-- !! --").ShouldBeEmpty();
+    public void ReturnsNothingForTextWithoutWordCharacters() =>
+        Tokenizer.Tokenize("-- !! --").ShouldBeEmpty();
 
     [Fact]
     public void ReturnsNothingForEmptyText() => Tokenizer.Tokenize("").ShouldBeEmpty();
@@ -56,10 +57,12 @@ public class WhenNormalizingAWordForMatching
     public void StripsPunctuationAndCase() => _normalized.ShouldBe("hell");
 
     [Fact]
-    public void LeavesAnAlreadyNormalizedWordAlone() => Tokenizer.Normalize("damn").ShouldBe("damn");
+    public void LeavesAnAlreadyNormalizedWordAlone() =>
+        Tokenizer.Normalize("damn").ShouldBe("damn");
 
     [Fact]
-    public void JoinsSeveralTokensWithASingleSpace() => Tokenizer.Normalize(" Go   To! ").ShouldBe("go to");
+    public void JoinsSeveralTokensWithASingleSpace() =>
+        Tokenizer.Normalize(" Go   To! ").ShouldBe("go to");
 
     [Fact]
     public void YieldsAnEmptyStringForPurePunctuation() => Tokenizer.Normalize("...").ShouldBe("");

@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>foulfilter</AssemblyName>
@@ -14,10 +13,12 @@
   <ItemGroup>
     <!-- One configuration file for both hosts: Web's, copied beside the
          executable. See the T32 output section of docs/STATUS.md. -->
-    <None Include="../FoulFilterNet.Web/appsettings.json"
-          Link="appsettings.json"
-          CopyToOutputDirectory="PreserveNewest"
-          CopyToPublishDirectory="PreserveNewest" />
+    <None
+      Include="../FoulFilterNet.Web/appsettings.json"
+      Link="appsettings.json"
+      CopyToOutputDirectory="PreserveNewest"
+      CopyToPublishDirectory="PreserveNewest"
+    />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,5 +28,4 @@
     <ProjectReference Include="../FoulFilterNet.SmartCut/FoulFilterNet.SmartCut.csproj" />
     <ProjectReference Include="../FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
   </ItemGroup>
-
 </Project>

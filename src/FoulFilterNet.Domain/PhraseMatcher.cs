@@ -18,7 +18,8 @@ public static class PhraseMatcher
     /// </remarks>
     public static IReadOnlyList<Candidate> FindCandidates(
         IReadOnlyList<Segment> segments,
-        BadWordsList badWords)
+        BadWordsList badWords
+    )
     {
         ArgumentNullException.ThrowIfNull(segments);
         ArgumentNullException.ThrowIfNull(badWords);
@@ -44,11 +45,14 @@ public static class PhraseMatcher
                 var firstChar = spans[match.Start].Start;
                 var lastChar = spans[match.End - 1].End;
 
-                candidates.Add(new Candidate(
-                    match.Phrase,
-                    index,
-                    Times.Round(segment.Start + (duration * firstChar / totalChars)),
-                    Times.Round(segment.Start + (duration * lastChar / totalChars))));
+                candidates.Add(
+                    new Candidate(
+                        match.Phrase,
+                        index,
+                        Times.Round(segment.Start + (duration * firstChar / totalChars)),
+                        Times.Round(segment.Start + (duration * lastChar / totalChars))
+                    )
+                );
             }
         }
 
@@ -77,11 +81,14 @@ public static class PhraseMatcher
         var hits = new List<Hit>();
         foreach (var match in Match(tokens, badWords))
         {
-            hits.Add(new Hit(
-                match.Phrase,
-                words[match.Start].Start,
-                words[match.End - 1].End,
-                match.Start));
+            hits.Add(
+                new Hit(
+                    match.Phrase,
+                    words[match.Start].Start,
+                    words[match.End - 1].End,
+                    match.Start
+                )
+            );
         }
 
         return hits;
@@ -100,7 +107,8 @@ public static class PhraseMatcher
         {
             for (var start = 0; start + size <= tokens.Count; start++)
             {
-                var gram = size == 1 ? tokens[start] : string.Join(' ', tokens.Skip(start).Take(size));
+                var gram =
+                    size == 1 ? tokens[start] : string.Join(' ', tokens.Skip(start).Take(size));
                 if (gram.Length == 0)
                 {
                     continue;
@@ -122,10 +130,7 @@ public static class PhraseMatcher
     /// </summary>
     private static List<PhraseMatch> Dedupe(List<PhraseMatch> matches)
     {
-        var ordered = matches
-            .OrderBy(m => m.Start)
-            .ThenByDescending(m => m.End - m.Start)
-            .ToList();
+        var ordered = matches.OrderBy(m => m.Start).ThenByDescending(m => m.End - m.Start).ToList();
 
         var kept = new List<PhraseMatch>();
         foreach (var match in ordered)
@@ -152,9 +157,10 @@ public static class PhraseMatcher
 
         for (var i = 0; i < tokens.Count; i++)
         {
-            var found = position <= lowered.Length
-                ? lowered.IndexOf(tokens[i], position, StringComparison.Ordinal)
-                : -1;
+            var found =
+                position <= lowered.Length
+                    ? lowered.IndexOf(tokens[i], position, StringComparison.Ordinal)
+                    : -1;
 
             if (found < 0)
             {

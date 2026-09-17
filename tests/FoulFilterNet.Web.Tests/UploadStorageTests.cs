@@ -13,8 +13,10 @@ public class WhenSavingAnUploadThatFitsTheLimit : IDisposable
         _destination = Path.Combine(_directory.Path, "book.mp3");
         using var source = new MemoryStream(new byte[3_000_000]);
 
-        _written = UploadStorage.SaveAsync(source, _destination, maxBytes: 4_000_000)
-            .GetAwaiter().GetResult();
+        _written = UploadStorage
+            .SaveAsync(source, _destination, maxBytes: 4_000_000)
+            .GetAwaiter()
+            .GetResult();
 
         File.Exists(_destination).ShouldBeTrue();
     }
@@ -32,7 +34,11 @@ public class WhenSavingAnUploadThatFitsTheLimit : IDisposable
         using var source = new MemoryStream();
 
         var written = await UploadStorage.SaveAsync(
-            source, empty, maxBytes: 10, TestContext.Current.CancellationToken);
+            source,
+            empty,
+            maxBytes: 10,
+            TestContext.Current.CancellationToken
+        );
 
         written.ShouldBe(0);
     }
@@ -60,7 +66,11 @@ public class WhenAnUploadExceedsTheLimit : IDisposable
         using var source = new MemoryStream(new byte[4_000_000]);
 
         _thrown = Should.Throw<UploadTooLargeException>(() =>
-            UploadStorage.SaveAsync(source, _destination, maxBytes: 1_000_000).GetAwaiter().GetResult());
+            UploadStorage
+                .SaveAsync(source, _destination, maxBytes: 1_000_000)
+                .GetAwaiter()
+                .GetResult()
+        );
 
         _thrown.ShouldNotBeNull();
     }
@@ -93,8 +103,11 @@ public class WhenAnUploadFailsPartWayThrough : IDisposable
         using var source = new FaultingStream(faultAfter: 1024);
 
         Should.Throw<IOException>(() =>
-            UploadStorage.SaveAsync(source, _destination, maxBytes: long.MaxValue)
-                .GetAwaiter().GetResult());
+            UploadStorage
+                .SaveAsync(source, _destination, maxBytes: long.MaxValue)
+                .GetAwaiter()
+                .GetResult()
+        );
     }
 
     [Fact]
@@ -113,7 +126,8 @@ internal sealed class TempDirectory : IDisposable
     {
         Path = System.IO.Path.Combine(
             System.IO.Path.GetTempPath(),
-            "ffn-web-" + Guid.NewGuid().ToString("N")[..8]);
+            "ffn-web-" + Guid.NewGuid().ToString("N")[..8]
+        );
         Directory.CreateDirectory(Path);
     }
 
@@ -125,9 +139,7 @@ internal sealed class TempDirectory : IDisposable
         {
             Directory.Delete(Path, recursive: true);
         }
-        catch (IOException)
-        {
-        }
+        catch (IOException) { }
     }
 }
 
@@ -162,13 +174,12 @@ internal sealed class FaultingStream(int faultAfter) : Stream
         return served;
     }
 
-    public override void Flush()
-    {
-    }
+    public override void Flush() { }
 
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
     public override void SetLength(long value) => throw new NotSupportedException();
 
-    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) =>
+        throw new NotSupportedException();
 }

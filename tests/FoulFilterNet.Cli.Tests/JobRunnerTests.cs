@@ -61,7 +61,10 @@ internal sealed class RunnerHarness : IDisposable
 /// </summary>
 public sealed class WhenTheFileIsNotRecognisedMedia : IDisposable
 {
-    private readonly RunnerHarness _run = new(new StubProber(MediaKind.Unknown), new StubPipeline());
+    private readonly RunnerHarness _run = new(
+        new StubProber(MediaKind.Unknown),
+        new StubPipeline()
+    );
 
     public void Dispose() => _run.Dispose();
 
@@ -81,7 +84,8 @@ public sealed class WhenTheJobFindsHits : IDisposable
 {
     private readonly RunnerHarness _run = new(
         new StubProber(MediaKind.Audio),
-        new StubPipeline([new Hit("hell", 1.0, 1.5), new Hit("damn", 2.25, 2.5)]));
+        new StubPipeline([new Hit("hell", 1.0, 1.5), new Hit("damn", 2.25, 2.5)])
+    );
 
     public void Dispose() => _run.Dispose();
 
@@ -126,7 +130,8 @@ public sealed class WhenAnalysisOnlyIsRequested : IDisposable
     private readonly RunnerHarness _run = new(
         new StubProber(MediaKind.Audio),
         new StubPipeline([new Hit("hell", 1.0, 1.5)]),
-        "--no_edit");
+        "--no_edit"
+    );
 
     public void Dispose() => _run.Dispose();
 
@@ -140,7 +145,8 @@ public sealed class WhenAnalysisOnlyIsRequested : IDisposable
     public void StillReportsTheHit() => _run.Printed.ShouldContain("1 hit(s):");
 
     [Fact]
-    public void SaysNothingWasWritten() => _run.Printed.ShouldContain("Done. Output: (not written)");
+    public void SaysNothingWasWritten() =>
+        _run.Printed.ShouldContain("Done. Output: (not written)");
 
     [Fact]
     public void WritesNoOutputFile() => File.Exists(_run.Request.OutputPath).ShouldBeFalse();
@@ -183,7 +189,8 @@ public sealed class WhenTheJobFails : IDisposable
 {
     private readonly RunnerHarness _run = new(
         new StubProber(MediaKind.Audio),
-        new StubPipeline(failure: new InvalidOperationException("ffmpeg exited with 1")));
+        new StubPipeline(failure: new InvalidOperationException("ffmpeg exited with 1"))
+    );
 
     public void Dispose() => _run.Dispose();
 
@@ -202,7 +209,8 @@ public sealed class WhenTheFileCannotBeProbed : IDisposable
 {
     private readonly RunnerHarness _run = new(
         new StubProber(MediaKind.Audio, new FileNotFoundException("clip.mp3 does not exist")),
-        new StubPipeline());
+        new StubPipeline()
+    );
 
     public void Dispose() => _run.Dispose();
 
@@ -221,7 +229,8 @@ public sealed class WhenTheJobIsCancelled : IDisposable
 {
     private readonly RunnerHarness _run = new(
         new StubProber(MediaKind.Audio),
-        new StubPipeline(failure: new JobCancelledException()));
+        new StubPipeline(failure: new JobCancelledException())
+    );
 
     public void Dispose() => _run.Dispose();
 

@@ -6,8 +6,12 @@ namespace FoulFilterNet.Jobs.Tests;
 /// </summary>
 internal sealed class Gate
 {
-    private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _entered = new(
+        TaskCreationOptions.RunContinuationsAsynchronously
+    );
+    private readonly TaskCompletionSource _released = new(
+        TaskCreationOptions.RunContinuationsAsynchronously
+    );
 
     /// <summary>Completes once the gated call has been reached.</summary>
     public Task Entered => _entered.Task;

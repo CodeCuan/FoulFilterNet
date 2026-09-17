@@ -36,9 +36,8 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
     private readonly IFFmpegRunner _runner;
     private readonly string _temporaryDirectory;
 
-    public FFmpegAudioPreparer(IFFmpegRunner runner) : this(runner, Path.GetTempPath())
-    {
-    }
+    public FFmpegAudioPreparer(IFFmpegRunner runner)
+        : this(runner, Path.GetTempPath()) { }
 
     public FFmpegAudioPreparer(IFFmpegRunner runner, string temporaryDirectory)
     {
@@ -49,17 +48,25 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
     }
 
     /// <summary>Arguments for the extraction, kept pure so they can be asserted on their own.</summary>
-    public static IReadOnlyList<string> BuildExtractArguments(string videoPath, string outputPath) =>
-        FFmpegArguments.Quiet("-i", videoPath, "-vn", "-acodec", "aac", outputPath);
+    public static IReadOnlyList<string> BuildExtractArguments(
+        string videoPath,
+        string outputPath
+    ) => FFmpegArguments.Quiet("-i", videoPath, "-vn", "-acodec", "aac", outputPath);
 
     /// <summary>Arguments for the Rescan Pass's leading silence.</summary>
-    public static IReadOnlyList<string> BuildPadArguments(string audioPath, double offsetSeconds, string outputPath)
+    public static IReadOnlyList<string> BuildPadArguments(
+        string audioPath,
+        double offsetSeconds,
+        string outputPath
+    )
     {
         // Python's int(offset * 1000): whole milliseconds, truncated.
         var delay = ((int)(offsetSeconds * 1000)).ToString(CultureInfo.InvariantCulture);
         return FFmpegArguments.Quiet([
-            "-i", audioPath,
-            "-af", $"adelay={delay}|{delay}",
+            "-i",
+            audioPath,
+            "-af",
+            $"adelay={delay}|{delay}",
             .. AnalysisWavFormat,
             outputPath,
         ]);
@@ -74,11 +81,15 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
         string audioPath,
         double offsetSeconds,
         double durationSeconds,
-        string outputPath) =>
+        string outputPath
+    ) =>
         FFmpegArguments.Quiet([
-            "-ss", Times.ToFixed(offsetSeconds),
-            "-t", Times.ToFixed(durationSeconds),
-            "-i", audioPath,
+            "-ss",
+            Times.ToFixed(offsetSeconds),
+            "-t",
+            Times.ToFixed(durationSeconds),
+            "-i",
+            audioPath,
             .. AnalysisWavFormat,
             outputPath,
         ]);
@@ -86,19 +97,22 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
     public async Task ExtractAudioTrackAsync(
         string videoPath,
         string outputPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(videoPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
 
-        await _runner.RunFFmpegAsync(BuildExtractArguments(videoPath, outputPath), cancellationToken)
+        await _runner
+            .RunFFmpegAsync(BuildExtractArguments(videoPath, outputPath), cancellationToken)
             .ConfigureAwait(false);
     }
 
     public Task<string> PadStartAsync(
         string audioPath,
         double offsetSeconds,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(audioPath);
         ArgumentOutOfRangeException.ThrowIfNegative(offsetSeconds);
@@ -106,14 +120,16 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
         return RenderTemporaryAsync(
             "rescan",
             outputPath => BuildPadArguments(audioPath, offsetSeconds, outputPath),
-            cancellationToken);
+            cancellationToken
+        );
     }
 
     public Task<string> CropAsync(
         string audioPath,
         double offsetSeconds,
         double durationSeconds,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(audioPath);
         ArgumentOutOfRangeException.ThrowIfNegative(offsetSeconds);
@@ -122,7 +138,8 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
         return RenderTemporaryAsync(
             "span",
             outputPath => BuildCropArguments(audioPath, offsetSeconds, durationSeconds, outputPath),
-            cancellationToken);
+            cancellationToken
+        );
     }
 
     /// <summary>Mono, 16 kHz, uncompressed, with any picture stream dropped.</summary>
@@ -137,14 +154,17 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
     private async Task<string> RenderTemporaryAsync(
         string tag,
         Func<string, IReadOnlyList<string>> buildArguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         Directory.CreateDirectory(_temporaryDirectory);
         var outputPath = Path.Combine(_temporaryDirectory, $"ffn_{tag}_{Guid.NewGuid():N}.wav");
 
         try
         {
-            await _runner.RunFFmpegAsync(buildArguments(outputPath), cancellationToken).ConfigureAwait(false);
+            await _runner
+                .RunFFmpegAsync(buildArguments(outputPath), cancellationToken)
+                .ConfigureAwait(false);
         }
         catch
         {

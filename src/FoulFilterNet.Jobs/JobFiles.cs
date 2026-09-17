@@ -33,12 +33,8 @@ internal static class JobFiles
                 Directory.Delete(path, recursive: true);
             }
         }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private static void TryDeleteFile(string path)
@@ -47,11 +43,7 @@ internal static class JobFiles
         {
             File.Delete(path);
         }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 }

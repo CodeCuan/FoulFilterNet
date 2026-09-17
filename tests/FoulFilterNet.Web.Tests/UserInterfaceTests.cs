@@ -20,7 +20,10 @@ public class WhenABrowserOpensTheApp : IDisposable
     public WhenABrowserOpensTheApp()
     {
         _client = _app.CreateClient();
-        _response = _client.GetAsync(new Uri("/", UriKind.Relative), Api.Token).GetAwaiter().GetResult();
+        _response = _client
+            .GetAsync(new Uri("/", UriKind.Relative), Api.Token)
+            .GetAwaiter()
+            .GetResult();
         _html = _response.Content.ReadAsStringAsync(Api.Token).GetAwaiter().GetResult();
 
         _response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -39,8 +42,7 @@ public class WhenABrowserOpensTheApp : IDisposable
         _html.ShouldContain("/static/app.css");
 
     [Fact]
-    public void KeepsTheScriptUrlThePageWasWrittenWith() =>
-        _html.ShouldContain("/static/app.js");
+    public void KeepsTheScriptUrlThePageWasWrittenWith() => _html.ShouldContain("/static/app.js");
 
     public void Dispose()
     {
@@ -162,8 +164,10 @@ public class WhenSmartCutIsLeftAtItsDefault : IDisposable
 
     private string Read(string path)
     {
-        using var response = _client.GetAsync(new Uri(path, UriKind.Relative), Api.Token)
-            .GetAwaiter().GetResult();
+        using var response = _client
+            .GetAsync(new Uri(path, UriKind.Relative), Api.Token)
+            .GetAwaiter()
+            .GetResult();
         return response.Content.ReadAsStringAsync(Api.Token).GetAwaiter().GetResult();
     }
 
@@ -195,6 +199,5 @@ public class WhenTheProjectIsBuilt
         File.Exists(Path.Combine(_wwwroot, "app.css")).ShouldBeTrue();
 
     [Fact]
-    public void SoIsTheScript() =>
-        File.Exists(Path.Combine(_wwwroot, "app.js")).ShouldBeTrue();
+    public void SoIsTheScript() => File.Exists(Path.Combine(_wwwroot, "app.js")).ShouldBeTrue();
 }

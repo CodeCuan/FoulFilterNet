@@ -37,23 +37,18 @@ public sealed record JobSummary(
     IReadOnlyList<Hit> Hits,
     int TranscriptWordCount,
     bool UsedCachedTranscript,
-    bool Rescanned);
+    bool Rescanned
+);
 
 /// <summary>Raised when a job observes that it has been cancelled.</summary>
 public sealed class JobCancelledException : Exception
 {
     public JobCancelledException()
-        : base("Job cancelled.")
-    {
-    }
+        : base("Job cancelled.") { }
 
     public JobCancelledException(string message)
-        : base(message)
-    {
-    }
+        : base(message) { }
 
     public JobCancelledException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-    }
+        : base(message, innerException) { }
 }

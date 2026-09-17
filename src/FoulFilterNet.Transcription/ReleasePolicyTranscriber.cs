@@ -41,15 +41,15 @@ public sealed class ReleasePolicyTranscriber : ITranscriber
     /// <inheritdoc />
     public Task<TranscriptionResult> TranscribeAsync(
         string audioPath,
-        CancellationToken cancellationToken = default) =>
-        _engine.TranscribeAsync(audioPath, cancellationToken);
+        CancellationToken cancellationToken = default
+    ) => _engine.TranscribeAsync(audioPath, cancellationToken);
 
     /// <inheritdoc />
     public Task<TranscriptionResult> TranscribeShiftedAsync(
         string audioPath,
         double offsetSeconds,
-        CancellationToken cancellationToken = default) =>
-        _engine.TranscribeShiftedAsync(audioPath, offsetSeconds, cancellationToken);
+        CancellationToken cancellationToken = default
+    ) => _engine.TranscribeShiftedAsync(audioPath, offsetSeconds, cancellationToken);
 
     /// <inheritdoc />
     /// <remarks>

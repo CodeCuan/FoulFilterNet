@@ -13,7 +13,8 @@ public class WhenTheModelAnswersWithCleanJson
             """{"reasoning": "idiomatic phrase", "start_index": 4, "end_index": 6}""",
             PromptWindow.Words,
             centerIndex: 6,
-            allowWidening: true);
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
         _decision.Outcome.ShouldBe(SmartCutOutcome.Adjust);
@@ -27,20 +28,35 @@ public class WhenTheModelAnswersWithCleanJson
 
     [Fact]
     public void AcceptsIndicesTheModelQuotedAsStrings() =>
-        SmartCutResponseParser.Parse(
-                """{"start_index": "4", "end_index": "6"}""", PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(
+                """{"start_index": "4", "end_index": "6"}""",
+                PromptWindow.Words,
+                6,
+                allowWidening: true
+            )
             .CutStart.ShouldBe(5.6, 0.001);
 
     [Fact]
     public void AcceptsIndicesTheModelWroteAsWholeFloats() =>
-        SmartCutResponseParser.Parse(
-                """{"start_index": 4.0, "end_index": 6.0}""", PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(
+                """{"start_index": 4.0, "end_index": 6.0}""",
+                PromptWindow.Words,
+                6,
+                allowWidening: true
+            )
             .CutStart.ShouldBe(5.6, 0.001);
 
     [Fact]
     public void StillClampsToTheTargetWhenWideningIsForbidden() =>
-        SmartCutResponseParser.Parse(
-                """{"start_index": 4, "end_index": 6}""", PromptWindow.Words, 6, allowWidening: false)
+        SmartCutResponseParser
+            .Parse(
+                """{"start_index": 4, "end_index": 6}""",
+                PromptWindow.Words,
+                6,
+                allowWidening: false
+            )
             .CutStart.ShouldBe(5.9, 0.001);
 }
 
@@ -58,7 +74,8 @@ public class WhenTheJsonArrivesInsideChatter
             "Sure! Here is my answer:\n{\"start_index\": 4, \"end_index\": 6}\nHope that helps.",
             PromptWindow.Words,
             centerIndex: 6,
-            allowWidening: true);
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
         _decision.Outcome.ShouldBe(SmartCutOutcome.Adjust);
@@ -69,26 +86,35 @@ public class WhenTheJsonArrivesInsideChatter
 
     [Fact]
     public void ReadsThroughAMarkdownCodeFence() =>
-        SmartCutResponseParser.Parse(
-                "```json\n{\"start_index\": 0, \"end_index\": 1}\n```", PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(
+                "```json\n{\"start_index\": 0, \"end_index\": 1}\n```",
+                PromptWindow.Words,
+                6,
+                allowWidening: true
+            )
             .CutEnd.ShouldBe(5.4, 0.001);
 
     [Fact]
     public void ReadsThroughAReasoningPreambleSpanningLines() =>
-        SmartCutResponseParser.Parse(
+        SmartCutResponseParser
+            .Parse(
                 "I need to think about this.\n\nThe idiom starts at 4.\n\n{\n  \"start_index\": 4,\n  \"end_index\": 6\n}",
                 PromptWindow.Words,
                 6,
-                allowWidening: true)
+                allowWidening: true
+            )
             .CutStart.ShouldBe(5.6, 0.001);
 
     [Fact]
     public void TakesTheFirstJsonObjectWhenTheModelOffersTwo() =>
-        SmartCutResponseParser.Parse(
+        SmartCutResponseParser
+            .Parse(
                 "{\"start_index\": 0, \"end_index\": 0}\nor maybe {\"start_index\": 4, \"end_index\": 6}",
                 PromptWindow.Words,
                 6,
-                allowWidening: true)
+                allowWidening: true
+            )
             .CutEnd.ShouldBe(5.2, 0.001);
 }
 
@@ -103,7 +129,12 @@ public class WhenTheModelDeclinesTheHit
 
     public WhenTheModelDeclinesTheHit()
     {
-        _decision = SmartCutResponseParser.Parse("NONE", PromptWindow.Words, 6, allowWidening: true);
+        _decision = SmartCutResponseParser.Parse(
+            "NONE",
+            PromptWindow.Words,
+            6,
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
     }
@@ -113,25 +144,30 @@ public class WhenTheModelDeclinesTheHit
 
     [Fact]
     public void RejectsWhateverTheCasing() =>
-        SmartCutResponseParser.Parse("none", PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse("none", PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.Reject);
 
     [Fact]
     public void RejectsWhenTheWordAppearsInProseAroundTheJson() =>
-        SmartCutResponseParser.Parse(
+        SmartCutResponseParser
+            .Parse(
                 "There is none of that here. {\"start_index\": 4, \"end_index\": 6}",
                 PromptWindow.Words,
                 6,
-                allowWidening: true)
+                allowWidening: true
+            )
             .Outcome.ShouldBe(SmartCutOutcome.Reject);
 
     [Fact]
     public void RejectsTheMinusOnePairToo() =>
-        SmartCutResponseParser.Parse(
+        SmartCutResponseParser
+            .Parse(
                 """{"reasoning": "a garden tool", "start_index": -1, "end_index": -1}""",
                 PromptWindow.Words,
                 6,
-                allowWidening: true)
+                allowWidening: true
+            )
             .Outcome.ShouldBe(SmartCutOutcome.Reject);
 }
 
@@ -147,7 +183,11 @@ public class WhenTheModelDidNotAnswer
     public WhenTheModelDidNotAnswer()
     {
         _decision = SmartCutResponseParser.Parse(
-            SmartCutResponses.ApiUnavailable, PromptWindow.Words, 6, allowWidening: true);
+            SmartCutResponses.ApiUnavailable,
+            PromptWindow.Words,
+            6,
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
     }
@@ -158,22 +198,26 @@ public class WhenTheModelDidNotAnswer
 
     [Fact]
     public void KeepsTheOriginalTimestampsWhenTheModelRefused() =>
-        SmartCutResponseParser.Parse(SmartCutResponses.ErrorOrRefusal, PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(SmartCutResponses.ErrorOrRefusal, PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 
     [Fact]
     public void KeepsTheOriginalTimestampsForANullResponse() =>
-        SmartCutResponseParser.Parse(null, PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(null, PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 
     [Fact]
     public void KeepsTheOriginalTimestampsForAnEmptyResponse() =>
-        SmartCutResponseParser.Parse(string.Empty, PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(string.Empty, PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 
     [Fact]
     public void KeepsTheOriginalTimestampsForWhitespace() =>
-        SmartCutResponseParser.Parse("   \n  ", PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse("   \n  ", PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 }
 
@@ -188,32 +232,41 @@ public class WhenTheResponseCannotBeParsed
     public WhenTheResponseCannotBeParsed()
     {
         _decision = SmartCutResponseParser.Parse(
-            "{ this is not valid json }", PromptWindow.Words, 6, allowWidening: true);
+            "{ this is not valid json }",
+            PromptWindow.Words,
+            6,
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
     }
 
     [Fact]
-    public void KeepsTheOriginalTimestamps() => _decision.Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
+    public void KeepsTheOriginalTimestamps() =>
+        _decision.Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 
     [Fact]
     public void KeepsTheOriginalTimestampsWhenThereIsNoJsonAtAll() =>
-        SmartCutResponseParser.Parse("I am sorry, I cannot help with that.", PromptWindow.Words, 6, true)
+        SmartCutResponseParser
+            .Parse("I am sorry, I cannot help with that.", PromptWindow.Words, 6, true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 
     [Fact]
     public void KeepsTheOriginalTimestampsWhenTheIndicesAreMissing() =>
-        SmartCutResponseParser.Parse("""{"reasoning": "I thought about it"}""", PromptWindow.Words, 6, true)
+        SmartCutResponseParser
+            .Parse("""{"reasoning": "I thought about it"}""", PromptWindow.Words, 6, true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 
     [Fact]
     public void KeepsTheOriginalTimestampsWhenAnIndexIsNotANumber() =>
-        SmartCutResponseParser.Parse("""{"start_index": "four", "end_index": 6}""", PromptWindow.Words, 6, true)
+        SmartCutResponseParser
+            .Parse("""{"start_index": "four", "end_index": 6}""", PromptWindow.Words, 6, true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 
     [Fact]
     public void KeepsTheOriginalTimestampsWhenTheContextWindowIsEmpty() =>
-        SmartCutResponseParser.Parse("""{"start_index": 0, "end_index": 0}""", [], 0, true)
+        SmartCutResponseParser
+            .Parse("""{"start_index": 0, "end_index": 0}""", [], 0, true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 }
 
@@ -224,7 +277,8 @@ public class WhenExtractingTheFirstJsonObject
     public WhenExtractingTheFirstJsonObject()
     {
         _extracted = SmartCutResponseParser.ExtractFirstJsonObject(
-            "blah {\"a\": 1} blah {\"b\": 2}");
+            "blah {\"a\": 1} blah {\"b\": 2}"
+        );
 
         _extracted.ShouldNotBeNull();
     }
@@ -241,5 +295,6 @@ public class WhenExtractingTheFirstJsonObject
         SmartCutResponseParser.ExtractFirstJsonObject("no braces here").ShouldBeNull();
 
     [Fact]
-    public void ReturnsNullForNull() => SmartCutResponseParser.ExtractFirstJsonObject(null).ShouldBeNull();
+    public void ReturnsNullForNull() =>
+        SmartCutResponseParser.ExtractFirstJsonObject(null).ShouldBeNull();
 }

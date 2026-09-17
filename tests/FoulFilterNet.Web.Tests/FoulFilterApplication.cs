@@ -14,7 +14,8 @@ namespace FoulFilterNet.Web.Tests;
 /// depends on no engine: everything below <see cref="IMediaPipeline"/> is T21's,
 /// and these tests must pass before a line of it exists.
 /// </summary>
-internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096) : WebApplicationFactory<Program>
+internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096)
+    : WebApplicationFactory<Program>
 {
     private readonly TempDirectory _data = new();
 
@@ -32,7 +33,8 @@ internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096) : Web
         builder.UseSetting("Storage:BadWordsPath", Path.Combine(_data.Path, "bad_words.txt"));
         builder.UseSetting(
             "Storage:MaxUploadMegabytes",
-            maxUploadMegabytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            maxUploadMegabytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        );
 
         builder.ConfigureServices(services =>
         {
@@ -58,7 +60,12 @@ internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096) : Web
 /// </summary>
 internal sealed class StubMediaPipeline : IMediaPipeline
 {
-    public Func<JobRequest, IProgress<JobProgress>?, CancellationToken, Task<JobSummary>> Behaviour { get; set; } =
+    public Func<
+        JobRequest,
+        IProgress<JobProgress>?,
+        CancellationToken,
+        Task<JobSummary>
+    > Behaviour { get; set; } =
         static (request, _, _) =>
         {
             Directory.CreateDirectory(Path.GetDirectoryName(request.OutputPath)!);
@@ -71,7 +78,8 @@ internal sealed class StubMediaPipeline : IMediaPipeline
     public Task<JobSummary> RunAsync(
         JobRequest request,
         IProgress<JobProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         lock (Requests)
         {
@@ -95,7 +103,8 @@ internal static class Api
         string censorMethod = "silence",
         int sizeBytes = 16,
         bool debug = false,
-        bool rescan = false)
+        bool rescan = false
+    )
     {
         using var form = new MultipartFormDataContent();
         foreach (var name in fileNames)
@@ -117,7 +126,8 @@ internal static class Api
         HttpClient client,
         string fileName = "book.mp3",
         string censorMethod = "silence",
-        bool rescan = false)
+        bool rescan = false
+    )
     {
         using var response = await UploadAsync(client, [fileName], censorMethod, rescan: rescan);
         var body = await ReadAsync(response);
@@ -134,7 +144,11 @@ internal static class Api
     }
 
     /// <summary>Polls <c>/status</c> until the job reaches <paramref name="status"/>.</summary>
-    public static async Task<JsonElement> WaitForStatusAsync(HttpClient client, string jobId, string status)
+    public static async Task<JsonElement> WaitForStatusAsync(
+        HttpClient client,
+        string jobId,
+        string status
+    )
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)

@@ -8,7 +8,8 @@ internal sealed record RecordedRequest(
     HttpMethod Method,
     Uri Uri,
     string? Body,
-    IReadOnlyDictionary<string, string> Headers);
+    IReadOnlyDictionary<string, string> Headers
+);
 
 /// <summary>
 /// The only thing standing in for an LLM in this suite. CI has neither a GPU nor
@@ -29,24 +30,32 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
     public List<RecordedRequest> Requests { get; } = [];
 
     /// <summary>Answer each request with the next scripted reply, repeating the last.</summary>
-    public static FakeHttpMessageHandler Returning(params (HttpStatusCode Status, string Body)[] replies) =>
-        new((_, index) =>
-        {
-            var (status, body) = replies[Math.Min(index, replies.Length - 1)];
-            return Json(status, body);
-        });
+    public static FakeHttpMessageHandler Returning(
+        params (HttpStatusCode Status, string Body)[] replies
+    ) =>
+        new(
+            (_, index) =>
+            {
+                var (status, body) = replies[Math.Min(index, replies.Length - 1)];
+                return Json(status, body);
+            }
+        );
 
     /// <summary>Answer by request, so a POST and a <c>/models</c> GET can differ.</summary>
     public static FakeHttpMessageHandler Responding(
-        Func<HttpRequestMessage, (HttpStatusCode Status, string Body)> respond) =>
-        new((request, _) =>
-        {
-            var (status, body) = respond(request);
-            return Json(status, body);
-        });
+        Func<HttpRequestMessage, (HttpStatusCode Status, string Body)> respond
+    ) =>
+        new(
+            (request, _) =>
+            {
+                var (status, body) = respond(request);
+                return Json(status, body);
+            }
+        );
 
     /// <summary>The server is not there at all.</summary>
-    public static FakeHttpMessageHandler Throwing(Exception failure) => new((_, _) => throw failure);
+    public static FakeHttpMessageHandler Throwing(Exception failure) =>
+        new((_, _) => throw failure);
 
     public HttpClient Client() => new(this, disposeHandler: false);
 
@@ -55,17 +64,24 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         var body = request.Content is null
             ? null
             : await request.Content.ReadAsStringAsync(cancellationToken);
 
-        Requests.Add(new RecordedRequest(
-            request.Method,
-            request.RequestUri!,
-            body,
-            request.Headers.ToDictionary(header => header.Key, header => string.Join(",", header.Value))));
+        Requests.Add(
+            new RecordedRequest(
+                request.Method,
+                request.RequestUri!,
+                body,
+                request.Headers.ToDictionary(
+                    header => header.Key,
+                    header => string.Join(",", header.Value)
+                )
+            )
+        );
 
         return _respond(request, Requests.Count - 1);
     }

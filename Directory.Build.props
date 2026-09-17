@@ -1,5 +1,4 @@
 <Project>
-
   <!--
     Shared settings for every project in the solution. Individual csproj files
     stay near-empty so that concurrent work on different projects does not
@@ -31,5 +30,4 @@
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1848;CA2007</NoWarn>
   </PropertyGroup>
-
 </Project>

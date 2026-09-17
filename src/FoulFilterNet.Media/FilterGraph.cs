@@ -64,13 +64,23 @@ public static class FilterGraph
             var delayMilliseconds = (int)(hit.Start * 1000);
             var index = i.ToString(CultureInfo.InvariantCulture);
 
-            graph.Append(CultureInfo.InvariantCulture, $";sine=frequency=1000:duration={Times.ToFixed(duration)}[s{index}]")
-                 .Append(CultureInfo.InvariantCulture, $";[s{index}]adelay={delayMilliseconds.ToString(CultureInfo.InvariantCulture)}|{delayMilliseconds.ToString(CultureInfo.InvariantCulture)}[b{index}]");
+            graph
+                .Append(
+                    CultureInfo.InvariantCulture,
+                    $";sine=frequency=1000:duration={Times.ToFixed(duration)}[s{index}]"
+                )
+                .Append(
+                    CultureInfo.InvariantCulture,
+                    $";[s{index}]adelay={delayMilliseconds.ToString(CultureInfo.InvariantCulture)}|{delayMilliseconds.ToString(CultureInfo.InvariantCulture)}[b{index}]"
+                );
             mixLabels.Append(CultureInfo.InvariantCulture, $"[b{index}]");
         }
 
         var inputs = (hits.Count + 1).ToString(CultureInfo.InvariantCulture);
-        graph.Append(CultureInfo.InvariantCulture, $";{mixLabels}amix=inputs={inputs}:duration=first:normalize=0{OutputLabel}");
+        graph.Append(
+            CultureInfo.InvariantCulture,
+            $";{mixLabels}amix=inputs={inputs}:duration=first:normalize=0{OutputLabel}"
+        );
         return graph.ToString();
     }
 
@@ -101,26 +111,39 @@ public static class FilterGraph
         {
             if (hit.Start > cursor)
             {
-                parts.Add($"[0:a]atrim=start={Times.ToFixed(cursor)}:end={Times.ToFixed(hit.Start)},asetpts=PTS-STARTPTS[clip{kept.ToString(CultureInfo.InvariantCulture)}]");
-                concatRefs.Append(CultureInfo.InvariantCulture, $"[clip{kept.ToString(CultureInfo.InvariantCulture)}]");
+                parts.Add(
+                    $"[0:a]atrim=start={Times.ToFixed(cursor)}:end={Times.ToFixed(hit.Start)},asetpts=PTS-STARTPTS[clip{kept.ToString(CultureInfo.InvariantCulture)}]"
+                );
+                concatRefs.Append(
+                    CultureInfo.InvariantCulture,
+                    $"[clip{kept.ToString(CultureInfo.InvariantCulture)}]"
+                );
                 kept++;
             }
 
             cursor = Math.Max(cursor, hit.End);
         }
 
-        var hasTail = totalDurationSeconds is null || cursor < totalDurationSeconds.Value - TailEpsilon;
+        var hasTail =
+            totalDurationSeconds is null || cursor < totalDurationSeconds.Value - TailEpsilon;
         if (hasTail)
         {
-            parts.Add($"[0:a]atrim=start={Times.ToFixed(cursor)},asetpts=PTS-STARTPTS[clip{kept.ToString(CultureInfo.InvariantCulture)}]");
-            concatRefs.Append(CultureInfo.InvariantCulture, $"[clip{kept.ToString(CultureInfo.InvariantCulture)}]");
+            parts.Add(
+                $"[0:a]atrim=start={Times.ToFixed(cursor)},asetpts=PTS-STARTPTS[clip{kept.ToString(CultureInfo.InvariantCulture)}]"
+            );
+            concatRefs.Append(
+                CultureInfo.InvariantCulture,
+                $"[clip{kept.ToString(CultureInfo.InvariantCulture)}]"
+            );
             kept++;
         }
 
         if (kept == 0)
         {
             throw new ArgumentException(
-                "Hits cover the entire file; nothing would remain.", nameof(hits));
+                "Hits cover the entire file; nothing would remain.",
+                nameof(hits)
+            );
         }
 
         return string.Join(';', parts)
@@ -131,11 +154,16 @@ public static class FilterGraph
     /// Wrap an unlabelled <see cref="Silence"/> chain so it reads a file's audio
     /// stream and publishes <see cref="SilenceOutputLabel"/>.
     /// </summary>
-    public static string LabelSilence(string silenceChain) => $"[0:a]{silenceChain}{SilenceOutputLabel}";
+    public static string LabelSilence(string silenceChain) =>
+        $"[0:a]{silenceChain}{SilenceOutputLabel}";
 
     private static string VolumeChain(IReadOnlyList<Hit> hits) =>
-        string.Join(',', hits.Select(hit =>
-            $"volume=enable='between(t,{Times.ToRepr(hit.Start)},{Times.ToRepr(hit.End)})':volume=0"));
+        string.Join(
+            ',',
+            hits.Select(hit =>
+                $"volume=enable='between(t,{Times.ToRepr(hit.Start)},{Times.ToRepr(hit.End)})':volume=0"
+            )
+        );
 
     private static void RequireHits(IReadOnlyList<Hit> hits)
     {

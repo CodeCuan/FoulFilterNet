@@ -29,8 +29,9 @@ public static class Times
     public static string ToRepr(double seconds)
     {
         var text = seconds.ToString("R", CultureInfo.InvariantCulture);
-        var needsPoint = text.IndexOf('.', StringComparison.Ordinal) < 0
-                      && text.IndexOf('E', StringComparison.Ordinal) < 0;
+        var needsPoint =
+            text.IndexOf('.', StringComparison.Ordinal) < 0
+            && text.IndexOf('E', StringComparison.Ordinal) < 0;
         return needsPoint ? text + ".0" : text;
     }
 

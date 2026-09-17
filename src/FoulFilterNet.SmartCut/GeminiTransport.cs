@@ -25,7 +25,8 @@ public sealed class GeminiTransport : ISmartCutTransport
     /// <summary>Where the key goes. Never the query string - URLs end up in logs and proxies.</summary>
     public const string ApiKeyHeader = "x-goog-api-key";
 
-    private const string EndpointPrefix = "https://generativelanguage.googleapis.com/v1beta/models/";
+    private const string EndpointPrefix =
+        "https://generativelanguage.googleapis.com/v1beta/models/";
     private const string EndpointSuffix = ":generateContent";
 
     private static readonly string[] SafetyCategories =
@@ -51,7 +52,8 @@ public sealed class GeminiTransport : ISmartCutTransport
         string apiKey,
         string model,
         ILogger<GeminiTransport> logger,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+        Func<TimeSpan, CancellationToken, Task>? delay = null
+    )
     {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
@@ -65,7 +67,10 @@ public sealed class GeminiTransport : ISmartCutTransport
         _delay = delay ?? ((wait, token) => Task.Delay(wait, token));
     }
 
-    public async Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default)
+    public async Task<string> CompleteAsync(
+        string prompt,
+        CancellationToken cancellationToken = default
+    )
     {
         var payload = BuildPayload(prompt);
 
@@ -86,7 +91,8 @@ public sealed class GeminiTransport : ISmartCutTransport
                 status = response.StatusCode;
                 body = await response.Content.ReadAsStringAsync(cancellationToken);
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+            catch (Exception ex)
+                when (ex is HttpRequestException or TaskCanceledException or IOException)
             {
                 // The Python's exception branch only retried when the message
                 // mentioned 429, 503 or "demand"; a dead connection fell straight
@@ -108,7 +114,8 @@ public sealed class GeminiTransport : ISmartCutTransport
                     (int)status,
                     attempt + 1,
                     MaxAttempts,
-                    wait);
+                    wait
+                );
 
                 await _delay(wait, cancellationToken);
                 continue;
@@ -126,19 +133,23 @@ public sealed class GeminiTransport : ISmartCutTransport
         return SmartCutResponses.ApiUnavailable;
     }
 
-    private static string BuildPayload(string prompt) => JsonSerializer.Serialize(new
-    {
-        contents = new[] { new { parts = new[] { new { text = prompt } } } },
-        generationConfig = new
-        {
-            temperature = 0.1,
-            maxOutputTokens = 300,
-            responseMimeType = "application/json",
-        },
-        safetySettings = Array.ConvertAll(
-            SafetyCategories,
-            category => new { category, threshold = "BLOCK_NONE" }),
-    });
+    private static string BuildPayload(string prompt) =>
+        JsonSerializer.Serialize(
+            new
+            {
+                contents = new[] { new { parts = new[] { new { text = prompt } } } },
+                generationConfig = new
+                {
+                    temperature = 0.1,
+                    maxOutputTokens = 300,
+                    responseMimeType = "application/json",
+                },
+                safetySettings = Array.ConvertAll(
+                    SafetyCategories,
+                    category => new { category, threshold = "BLOCK_NONE" }
+                ),
+            }
+        );
 
     /// <summary>
     /// <c>candidates[0].content.parts[0].text</c>. Anything else - no candidates,
@@ -151,7 +162,8 @@ public sealed class GeminiTransport : ISmartCutTransport
         {
             using var document = JsonDocument.Parse(body);
 
-            if (document.RootElement.TryGetProperty("candidates", out var candidates)
+            if (
+                document.RootElement.TryGetProperty("candidates", out var candidates)
                 && candidates.ValueKind == JsonValueKind.Array
                 && candidates.GetArrayLength() > 0
                 && candidates[0].TryGetProperty("content", out var content)
@@ -159,7 +171,8 @@ public sealed class GeminiTransport : ISmartCutTransport
                 && parts.ValueKind == JsonValueKind.Array
                 && parts.GetArrayLength() > 0
                 && parts[0].TryGetProperty("text", out var text)
-                && text.GetString() is { } answer)
+                && text.GetString() is { } answer
+            )
             {
                 return answer.Trim();
             }

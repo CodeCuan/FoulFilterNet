@@ -40,18 +40,26 @@ internal sealed class PipelineHarness : IDisposable
 
         OutputPath = Path.Combine(_root.Path, "outputs", "censored_" + inputName);
         BadWordsPath = Path.Combine(_root.Path, "bad_words.txt");
-        File.WriteAllLines(BadWordsPath, ["# the list", string.Empty, "damn", "hell", "go to hell"]);
+        File.WriteAllLines(
+            BadWordsPath,
+            ["# the list", string.Empty, "damn", "hell", "go to hell"]
+        );
 
         TranscriptDirectory = Path.Combine(_root.Path, "transcripts");
         ScratchDirectory = Path.Combine(_root.Path, "scratch", "job1");
 
         Store = new TranscriptStore(TranscriptDirectory);
 
-        Prober.ProbeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        Prober
+            .ProbeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromResult(new MediaInfo(Kind, 30.0, 16000)));
 
-        AudioPreparer.ExtractAudioTrackAsync(
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        AudioPreparer
+            .ExtractAudioTrackAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(call =>
             {
                 var path = (string)call[1];
@@ -60,7 +68,8 @@ internal sealed class PipelineHarness : IDisposable
                 return Task.CompletedTask;
             });
 
-        Transcriber.TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        Transcriber
+            .TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 _engineCalls.Add(TranscribeCall);
@@ -70,61 +79,83 @@ internal sealed class PipelineHarness : IDisposable
         // CA2012: the ValueTask inside a When() is the call being described, not
         // work to be awaited - NSubstitute records the invocation and discards it.
 #pragma warning disable CA2012
-        Transcriber.When(transcriber => transcriber.ReleaseAsync()).Do(_ =>
-        {
-            _engineCalls.Add(ReleaseTranscriberCall);
-
-            if (ReleaseThrows)
+        Transcriber
+            .When(transcriber => transcriber.ReleaseAsync())
+            .Do(_ =>
             {
-                throw new NotSupportedException("The driver refused to unload the model.");
-            }
-        });
+                _engineCalls.Add(ReleaseTranscriberCall);
 
-        Aligner.When(aligner => aligner.ReleaseAsync()).Do(_ => _engineCalls.Add(ReleaseAlignerCall));
+                if (ReleaseThrows)
+                {
+                    throw new NotSupportedException("The driver refused to unload the model.");
+                }
+            });
+
+        Aligner
+            .When(aligner => aligner.ReleaseAsync())
+            .Do(_ => _engineCalls.Add(ReleaseAlignerCall));
 #pragma warning restore CA2012
 
-        Transcriber.TranscribeShiftedAsync(
-                Arg.Any<string>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
+        Transcriber
+            .TranscribeShiftedAsync(
+                Arg.Any<string>(),
+                Arg.Any<double>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(_ => Task.FromResult(new TranscriptionResult(RescanSegments, [])));
 
-        Aligner.AlignAsync(
+        Aligner
+            .AlignAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<Segment>>(),
                 Arg.Any<IReadOnlyList<Word>>(),
                 Arg.Any<IProgress<JobProgress>?>(),
-                Arg.Any<CancellationToken>())
+                Arg.Any<CancellationToken>()
+            )
             .Returns(_ => Task.FromResult(AlignedWords));
 
         Advisor.IsEnabled.Returns(_ => SmartCutEnabled);
-        Advisor.RefineAsync(
+        Advisor
+            .RefineAsync(
                 Arg.Any<IReadOnlyList<Word>>(),
                 Arg.Any<string>(),
                 Arg.Any<int>(),
                 Arg.Any<bool>(),
-                Arg.Any<CancellationToken>())
+                Arg.Any<CancellationToken>()
+            )
             .Returns(call =>
             {
-                Refinements.Add(new Refinement(
-                    (IReadOnlyList<Word>)call[0], (string)call[1], (int)call[2], (bool)call[3]));
+                Refinements.Add(
+                    new Refinement(
+                        (IReadOnlyList<Word>)call[0],
+                        (string)call[1],
+                        (int)call[2],
+                        (bool)call[3]
+                    )
+                );
 
                 OnRefine?.Invoke();
                 return Task.FromResult(Decide(Refinements.Count - 1));
             });
 
-        Editor.CensorAudioAsync(
+        Editor
+            .CensorAudioAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<Hit>>(),
                 Arg.Any<CensorMethod>(),
                 Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
+                Arg.Any<CancellationToken>()
+            )
             .Returns(call => WriteRendered((string)call[3]));
 
-        Editor.CensorVideoAsync(
+        Editor
+            .CensorVideoAsync(
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyList<Hit>>(),
                 Arg.Any<CensorMethod>(),
                 Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
+                Arg.Any<CancellationToken>()
+            )
             .Returns(call => WriteRendered((string)call[3]));
     }
 
@@ -207,35 +238,37 @@ internal sealed class PipelineHarness : IDisposable
     /// <summary>Which directories the pipeline asked for a transcript store over.</summary>
     public IReadOnlyList<string> StoreDirectories => _storeDirectories;
 
-    public JobRequest Request => new()
-    {
-        InputPath = InputPath,
-        OutputPath = OutputPath,
-        BadWordsPath = BadWordsPath,
-        TranscriptDirectory = TranscriptDirectory,
-        ScratchDirectory = ScratchDirectory,
-        CensorMethod = CensorMethod,
-        Debug = Debug,
-        Rescan = Rescan,
-        Render = Render,
-    };
-
-    public MediaPipeline Build() => new(
-        Prober,
-        AudioPreparer,
-        Transcriber,
-        Aligner,
-        Advisor,
-        Editor,
-        directory =>
+    public JobRequest Request =>
+        new()
         {
-            _storeDirectories.Add(directory);
-            return new TranscriptStore(directory);
-        });
+            InputPath = InputPath,
+            OutputPath = OutputPath,
+            BadWordsPath = BadWordsPath,
+            TranscriptDirectory = TranscriptDirectory,
+            ScratchDirectory = ScratchDirectory,
+            CensorMethod = CensorMethod,
+            Debug = Debug,
+            Rescan = Rescan,
+            Render = Render,
+        };
 
-    public JobSummary Run() => Build()
-        .RunAsync(Request, new Recorder(this), _cancellation.Token)
-        .GetAwaiter().GetResult();
+    public MediaPipeline Build() =>
+        new(
+            Prober,
+            AudioPreparer,
+            Transcriber,
+            Aligner,
+            Advisor,
+            Editor,
+            directory =>
+            {
+                _storeDirectories.Add(directory);
+                return new TranscriptStore(directory);
+            }
+        );
+
+    public JobSummary Run() =>
+        Build().RunAsync(Request, new Recorder(this), _cancellation.Token).GetAwaiter().GetResult();
 
     /// <summary>Runs and hands back whatever the job threw.</summary>
     public Exception RunExpectingFailure()
@@ -261,11 +294,18 @@ internal sealed class PipelineHarness : IDisposable
     public void CancelWhen(Func<JobProgress, bool> predicate) => CancelCondition = predicate;
 
     /// <summary>Put a transcript in the cache, keyed by the input file's real digest.</summary>
-    public Transcript SeedTranscript(IReadOnlyList<Segment>? segments = null, IReadOnlyList<Word>? words = null)
+    public Transcript SeedTranscript(
+        IReadOnlyList<Segment>? segments = null,
+        IReadOnlyList<Word>? words = null
+    )
     {
         var digest = Store.ComputeHashAsync(InputPath).GetAwaiter().GetResult();
         var transcript = new Transcript(
-            Transcript.CurrentVersion, digest, segments ?? Segments, words ?? AlignedWords);
+            Transcript.CurrentVersion,
+            digest,
+            segments ?? Segments,
+            words ?? AlignedWords
+        );
 
         Store.SaveAsync(transcript, "seed").GetAwaiter().GetResult();
         return transcript;
@@ -273,8 +313,10 @@ internal sealed class PipelineHarness : IDisposable
 
     /// <summary>Whatever the job left in the cache, read back through the store.</summary>
     public Transcript? SavedTranscript() =>
-        Store.FindAsync(Store.ComputeHashAsync(InputPath).GetAwaiter().GetResult())
-            .GetAwaiter().GetResult();
+        Store
+            .FindAsync(Store.ComputeHashAsync(InputPath).GetAwaiter().GetResult())
+            .GetAwaiter()
+            .GetResult();
 
     public void Dispose()
     {
@@ -285,7 +327,9 @@ internal sealed class PipelineHarness : IDisposable
     private Func<JobProgress, bool>? CancelCondition { get; set; }
 
     private SmartCutDecision Decide(int hitIndex) =>
-        Decisions.TryGetValue(hitIndex, out var decision) ? decision : SmartCutDecision.KeepOriginal;
+        Decisions.TryGetValue(hitIndex, out var decision)
+            ? decision
+            : SmartCutDecision.KeepOriginal;
 
     private Task WriteRendered(string outputPath)
     {
@@ -315,7 +359,8 @@ internal sealed class PipelineHarness : IDisposable
         IReadOnlyList<Word> ContextWindow,
         string Phrase,
         int CenterIndex,
-        bool AllowWidening);
+        bool AllowWidening
+    );
 
     private sealed class Recorder(PipelineHarness harness) : IProgress<JobProgress>
     {

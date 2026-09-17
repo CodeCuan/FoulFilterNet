@@ -55,7 +55,8 @@ public class WhenATranscriberReturnsWords
     {
         _result = new TranscriptionResult(
             [new Segment(0, 1, "hello")],
-            [new Word("hello", 0.1, 0.4)]);
+            [new Word("hello", 0.1, 0.4)]
+        );
 
         _result.Segments.ShouldNotBeEmpty();
     }

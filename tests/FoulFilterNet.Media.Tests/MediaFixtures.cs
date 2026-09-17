@@ -15,7 +15,12 @@ internal static class MediaFixtures
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var candidate = System.IO.Path.Combine(directory.FullName, "tests", "fixtures", "media");
+            var candidate = System.IO.Path.Combine(
+                directory.FullName,
+                "tests",
+                "fixtures",
+                "media"
+            );
             if (Directory.Exists(candidate))
             {
                 return candidate;
@@ -25,6 +30,7 @@ internal static class MediaFixtures
         }
 
         throw new DirectoryNotFoundException(
-            $"Could not find tests/fixtures/media above {AppContext.BaseDirectory}.");
+            $"Could not find tests/fixtures/media above {AppContext.BaseDirectory}."
+        );
     }
 }

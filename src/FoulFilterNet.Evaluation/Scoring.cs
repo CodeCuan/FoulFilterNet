@@ -10,7 +10,12 @@ namespace FoulFilterNet.Evaluation;
 public sealed record PlantedSpan(string Phrase, double Start, double End, bool IsProfanity = true);
 
 /// <summary>One fixture file and everything planted in it.</summary>
-public sealed record FixtureTruth(string File, string Kind, double Duration, IReadOnlyList<PlantedSpan> Spans);
+public sealed record FixtureTruth(
+    string File,
+    string Kind,
+    double Duration,
+    IReadOnlyList<PlantedSpan> Spans
+);
 
 /// <summary>How a list of reported spans is compared with the ground truth.</summary>
 public sealed record ScoringRules
@@ -36,10 +41,12 @@ public sealed record ScoringRules
     public double MatchWindowSeconds { get; init; } = 1.0;
 
     /// <summary>The transcriber's words, before padding and merging (what ADR-0006 measured).</summary>
-    public static ScoringRules RawWords { get; } = new() { PaddingStillToApply = HitPadding.Default };
+    public static ScoringRules RawWords { get; } =
+        new() { PaddingStillToApply = HitPadding.Default };
 
     /// <summary>The pipeline's padded and merged windows (what actually gets censored).</summary>
-    public static ScoringRules FinalHits { get; } = new() { PaddingStillToApply = new HitPadding(0, 0) };
+    public static ScoringRules FinalHits { get; } =
+        new() { PaddingStillToApply = new HitPadding(0, 0) };
 }
 
 /// <summary>
@@ -66,7 +73,8 @@ public sealed record SpanScore(
     double? StartMargin,
     double? EndMargin,
     bool StartWithinTolerance,
-    bool EndWithinTolerance)
+    bool EndWithinTolerance
+)
 {
     public bool Found => Reported is not null;
 
@@ -74,7 +82,8 @@ public sealed record SpanScore(
     public bool Covered => StartMargin >= 0 && EndMargin >= 0;
 
     /// <summary>The tighter of the two margins.</summary>
-    public double? Margin => StartMargin is { } start && EndMargin is { } end ? Math.Min(start, end) : null;
+    public double? Margin =>
+        StartMargin is { } start && EndMargin is { } end ? Math.Min(start, end) : null;
 }
 
 /// <summary>Every planted span of one fixture, scored, and the reports that matched none.</summary>
@@ -85,7 +94,8 @@ public sealed record FixtureScore(
     IReadOnlyList<SpanScore> Spans,
     IReadOnlyList<Hit> Reported,
     IReadOnlyList<Hit> FalsePositives,
-    IReadOnlyList<Hit> ExpectedFalsePositives);
+    IReadOnlyList<Hit> ExpectedFalsePositives
+);
 
 /// <summary>
 /// Compares a list of reported spans with a fixture's ground truth. Pure: no
@@ -109,7 +119,11 @@ public sealed record FixtureScore(
 /// </remarks>
 public static class BoundaryScorer
 {
-    public static FixtureScore Score(FixtureTruth fixture, IReadOnlyList<Hit> reported, ScoringRules rules)
+    public static FixtureScore Score(
+        FixtureTruth fixture,
+        IReadOnlyList<Hit> reported,
+        ScoringRules rules
+    )
     {
         ArgumentNullException.ThrowIfNull(fixture);
         ArgumentNullException.ThrowIfNull(reported);
@@ -124,9 +138,14 @@ public static class BoundaryScorer
             var phrase = Tokenizer.Normalize(spans[s].Phrase);
             for (var r = 0; r < reported.Count; r++)
             {
-                if (carried[r].ContainsKey(phrase) && Gap(spans[s], reported[r]) <= rules.MatchWindowSeconds)
+                if (
+                    carried[r].ContainsKey(phrase)
+                    && Gap(spans[s], reported[r]) <= rules.MatchWindowSeconds
+                )
                 {
-                    var distance = Math.Abs(reported[r].Start - spans[s].Start) + Math.Abs(reported[r].End - spans[s].End);
+                    var distance =
+                        Math.Abs(reported[r].Start - spans[s].Start)
+                        + Math.Abs(reported[r].End - spans[s].End);
                     pairs.Add((s, r, distance));
                 }
             }
@@ -135,7 +154,12 @@ public static class BoundaryScorer
         var pairedWith = new int?[spans.Count];
         var claimedBy = reported.Select(_ => new List<int>()).ToList();
 
-        foreach (var (s, r, _) in pairs.OrderBy(p => p.Distance).ThenBy(p => p.Span).ThenBy(p => p.Report))
+        foreach (
+            var (s, r, _) in pairs
+                .OrderBy(p => p.Distance)
+                .ThenBy(p => p.Span)
+                .ThenBy(p => p.Report)
+        )
         {
             var phrase = Tokenizer.Normalize(spans[s].Phrase);
             if (pairedWith[s] is not null || carried[r][phrase] == 0)
@@ -189,12 +213,14 @@ public static class BoundaryScorer
             StartMargin: Times.Round(planted.Start - (report.Start - padding.Pre)),
             EndMargin: Times.Round(report.End + padding.Post - planted.End),
             StartWithinTolerance: Math.Abs(startError) <= rules.Tolerance.Pre,
-            EndWithinTolerance: Math.Abs(endError) <= rules.Tolerance.Post);
+            EndWithinTolerance: Math.Abs(endError) <= rules.Tolerance.Post
+        );
     }
 
     /// <summary>How many times each phrase appears in a report, merged windows included.</summary>
     private static Dictionary<string, int> PhrasesCarried(Hit report) =>
-        report.Phrase.Split('+')
+        report
+            .Phrase.Split('+')
             .Select(Tokenizer.Normalize)
             .GroupBy(phrase => phrase, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);

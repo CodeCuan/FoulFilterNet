@@ -16,12 +16,20 @@ namespace FoulFilterNet.Evaluation;
 public static class GroundTruthManifest
 {
     /// <summary>Where the manifest sits relative to the repository root.</summary>
-    public static readonly string RelativePath = Path.Combine("tests", "fixtures", "media", "manifest.json");
+    public static readonly string RelativePath = Path.Combine(
+        "tests",
+        "fixtures",
+        "media",
+        "manifest.json"
+    );
 
     /// <summary>The fixture planted to be flagged wrongly: "hoe", a garden tool.</summary>
     public static IReadOnlyList<string> DefaultInnocentFixtures { get; } = ["false_positive.mp3"];
 
-    public static IReadOnlyList<FixtureTruth> Parse(string json, IEnumerable<string> innocentFixtures)
+    public static IReadOnlyList<FixtureTruth> Parse(
+        string json,
+        IEnumerable<string> innocentFixtures
+    )
     {
         ArgumentNullException.ThrowIfNull(json);
         ArgumentNullException.ThrowIfNull(innocentFixtures);
@@ -33,35 +41,53 @@ public static class GroundTruthManifest
 
         foreach (var fixture in document.RootElement.GetProperty("fixtures").EnumerateArray())
         {
-            var file = fixture.GetProperty("file").GetString()
+            var file =
+                fixture.GetProperty("file").GetString()
                 ?? throw new InvalidDataException("A fixture in the manifest has no file name.");
             var profane = !innocent.Contains(file);
 
             var spans = new List<PlantedSpan>();
-            if (fixture.TryGetProperty("hits", out var hits) && hits.ValueKind is JsonValueKind.Array)
+            if (
+                fixture.TryGetProperty("hits", out var hits)
+                && hits.ValueKind is JsonValueKind.Array
+            )
             {
                 foreach (var hit in hits.EnumerateArray())
                 {
-                    spans.Add(new PlantedSpan(
-                        Tokenizer.Normalize(hit.GetProperty("phrase").GetString() ?? string.Empty),
-                        hit.GetProperty("start").GetDouble(),
-                        hit.GetProperty("end").GetDouble(),
-                        profane));
+                    spans.Add(
+                        new PlantedSpan(
+                            Tokenizer.Normalize(
+                                hit.GetProperty("phrase").GetString() ?? string.Empty
+                            ),
+                            hit.GetProperty("start").GetDouble(),
+                            hit.GetProperty("end").GetDouble(),
+                            profane
+                        )
+                    );
                 }
             }
 
-            fixtures.Add(new FixtureTruth(
-                file,
-                fixture.TryGetProperty("kind", out var kind) ? kind.GetString() ?? string.Empty : string.Empty,
-                fixture.TryGetProperty("duration", out var duration) ? duration.GetDouble() : 0.0,
-                spans));
+            fixtures.Add(
+                new FixtureTruth(
+                    file,
+                    fixture.TryGetProperty("kind", out var kind)
+                        ? kind.GetString() ?? string.Empty
+                        : string.Empty,
+                    fixture.TryGetProperty("duration", out var duration)
+                        ? duration.GetDouble()
+                        : 0.0,
+                    spans
+                )
+            );
         }
 
         return fixtures;
     }
 
-    public static IReadOnlyList<FixtureTruth> Load(string path, IEnumerable<string> innocentFixtures) =>
-        Parse(File.ReadAllText(path), innocentFixtures);
+    public static IReadOnlyList<FixtureTruth> Load(
+        string path,
+        IEnumerable<string> innocentFixtures
+    ) => Parse(File.ReadAllText(path), innocentFixtures);
 
     /// <summary>
     /// The repository's manifest, found by walking up from
@@ -71,7 +97,11 @@ public static class GroundTruthManifest
     /// <exception cref="FileNotFoundException">No ancestor holds the manifest.</exception>
     public static string Locate(string startDirectory)
     {
-        for (var directory = new DirectoryInfo(startDirectory); directory is not null; directory = directory.Parent)
+        for (
+            var directory = new DirectoryInfo(startDirectory);
+            directory is not null;
+            directory = directory.Parent
+        )
         {
             var candidate = Path.Combine(directory.FullName, RelativePath);
             if (File.Exists(candidate))

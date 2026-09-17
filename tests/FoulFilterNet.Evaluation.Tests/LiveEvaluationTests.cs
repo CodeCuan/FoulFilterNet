@@ -24,10 +24,14 @@ namespace FoulFilterNet.Evaluation.Tests;
 /// </remarks>
 public sealed class TheRealPipelineAgainstTheFixtures
 {
-    private const string OptIn = "opt-in: set RUN_GPU_TESTS=1 with CUDA, FFmpeg and GGML weights installed";
+    private const string OptIn =
+        "opt-in: set RUN_GPU_TESTS=1 with CUDA, FFmpeg and GGML weights installed";
 
     public static bool GpuTestsEnabled =>
-        (Environment.GetEnvironmentVariable("RUN_GPU_TESTS") ?? string.Empty).ToLowerInvariant() is "1" or "true" or "yes";
+        (Environment.GetEnvironmentVariable("RUN_GPU_TESTS") ?? string.Empty).ToLowerInvariant()
+            is "1"
+                or "true"
+                or "yes";
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task DetectsEveryPlantedSpan() => (await Raw()).Detected.ShouldBe(11);
@@ -36,10 +40,12 @@ public sealed class TheRealPipelineAgainstTheFixtures
     public async Task FindsEveryProfanityInTheFinalHits() => (await Final()).Recall.ShouldBe(1.0);
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
-    public async Task CoversEveryPlantedSpanInTheFinalHits() => (await Final()).Covered.ShouldBe(11);
+    public async Task CoversEveryPlantedSpanInTheFinalHits() =>
+        (await Final()).Covered.ShouldBe(11);
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
-    public async Task ReproducesTheWorstAbsoluteStartError() => (await Raw()).StartError.MaxAbsolute.ShouldBe(0.242);
+    public async Task ReproducesTheWorstAbsoluteStartError() =>
+        (await Raw()).StartError.MaxAbsolute.ShouldBe(0.242);
 
     /// <remarks>
     /// ADR-0006's 0.107 was measured on the CPU, and the CPU reproduces it
@@ -52,10 +58,12 @@ public sealed class TheRealPipelineAgainstTheFixtures
         (await Raw()).StartError.MeanAbsolute!.Value.ShouldBe(0.107, 0.0025);
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
-    public async Task ReproducesTheMeanAbsoluteEndError() => (await Raw()).EndError.MeanAbsolute.ShouldBe(0.069);
+    public async Task ReproducesTheMeanAbsoluteEndError() =>
+        (await Raw()).EndError.MeanAbsolute.ShouldBe(0.069);
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
-    public async Task ReproducesTheWorstAbsoluteEndError() => (await Raw()).EndError.MaxAbsolute.ShouldBe(0.207);
+    public async Task ReproducesTheWorstAbsoluteEndError() =>
+        (await Raw()).EndError.MaxAbsolute.ShouldBe(0.207);
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task ReproducesTheWorstLateStart() => (await Raw()).WorstLateStart.ShouldBe(0.070);
@@ -64,11 +72,14 @@ public sealed class TheRealPipelineAgainstTheFixtures
     public async Task ReproducesTheWorstEarlyEnd() => (await Raw()).WorstEarlyEnd.ShouldBe(0.207);
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
-    public async Task ReproducesTheStartsInsideThePadding() => (await Raw()).StartsWithinTolerance.ShouldBe(10);
+    public async Task ReproducesTheStartsInsideThePadding() =>
+        (await Raw()).StartsWithinTolerance.ShouldBe(10);
 
-    private static async Task<ScoreCard> Raw() => (await LiveEvaluation.Report.Value).RawWords.Summary;
+    private static async Task<ScoreCard> Raw() =>
+        (await LiveEvaluation.Report.Value).RawWords.Summary;
 
-    private static async Task<ScoreCard> Final() => (await LiveEvaluation.Report.Value).FinalHits.Summary;
+    private static async Task<ScoreCard> Final() =>
+        (await LiveEvaluation.Report.Value).FinalHits.Summary;
 }
 
 /// <summary>One evaluation of the fixtures, shared by every opt-in fact above.</summary>
@@ -79,13 +90,17 @@ internal static class LiveEvaluation
     private static async Task<EvaluationReport> RunAsync()
     {
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Transcription:Model"] = Environment.GetEnvironmentVariable("FOULFILTER_TEST_MODEL") ?? "large-v3-turbo",
-                ["Transcription:Language"] = "en",
-                ["Transcription:ModelDirectory"] = ModelDirectory(),
-                ["SmartCut:Enabled"] = "false",
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Transcription:Model"] =
+                        Environment.GetEnvironmentVariable("FOULFILTER_TEST_MODEL")
+                        ?? "large-v3-turbo",
+                    ["Transcription:Language"] = "en",
+                    ["Transcription:ModelDirectory"] = ModelDirectory(),
+                    ["SmartCut:Enabled"] = "false",
+                }
+            )
             .Build();
 
         using var services = new ServiceCollection()
@@ -94,9 +109,15 @@ internal static class LiveEvaluation
             .BuildServiceProvider();
 
         var manifestPath = GroundTruthManifest.Locate(AppContext.BaseDirectory);
-        var fixtures = GroundTruthManifest.Load(manifestPath, GroundTruthManifest.DefaultInnocentFixtures);
+        var fixtures = GroundTruthManifest.Load(
+            manifestPath,
+            GroundTruthManifest.DefaultInnocentFixtures
+        );
 
-        var work = Path.Combine(Path.GetTempPath(), "foulfilter-eval-live-" + Guid.NewGuid().ToString("N"));
+        var work = Path.Combine(
+            Path.GetTempPath(),
+            "foulfilter-eval-live-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(work);
         var badWords = Path.Combine(work, "bad_words.txt");
         await File.WriteAllLinesAsync(badWords, GroundTruthManifest.Phrases(fixtures));
@@ -135,12 +156,18 @@ internal static class LiveEvaluation
 
     private static string ModelDirectory()
     {
-        if (Environment.GetEnvironmentVariable("FOULFILTER_MODEL_DIR") is { Length: > 0 } configured)
+        if (
+            Environment.GetEnvironmentVariable("FOULFILTER_MODEL_DIR") is { Length: > 0 } configured
+        )
         {
             return configured;
         }
 
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        for (
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            directory is not null;
+            directory = directory.Parent
+        )
         {
             var candidate = Path.Combine(directory.FullName, "models");
             if (Directory.Exists(candidate))
@@ -149,6 +176,8 @@ internal static class LiveEvaluation
             }
         }
 
-        throw new DirectoryNotFoundException($"Could not find models above {AppContext.BaseDirectory}.");
+        throw new DirectoryNotFoundException(
+            $"Could not find models above {AppContext.BaseDirectory}."
+        );
     }
 }

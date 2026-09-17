@@ -25,7 +25,8 @@ public sealed record FixtureRun(
     IReadOnlyList<Hit> RawHits,
     IReadOnlyList<Hit> FinalHits,
     bool UsedCachedTranscript,
-    double ElapsedSeconds);
+    double ElapsedSeconds
+);
 
 /// <summary>Runs one fixture through the real pipeline and collects what it reported at both levels.</summary>
 /// <remarks>
@@ -59,7 +60,8 @@ public sealed class FixtureEvaluator
     public async Task<FixtureRun> EvaluateAsync(
         FixtureTruth fixture,
         EvaluationSettings settings,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(fixture);
         ArgumentNullException.ThrowIfNull(settings);
@@ -84,11 +86,15 @@ public sealed class FixtureEvaluator
 
         var store = _stores(settings.TranscriptDirectory);
         var digest = await store.ComputeHashAsync(input, cancellationToken);
-        var transcript = await store.FindAsync(digest, cancellationToken)
+        var transcript =
+            await store.FindAsync(digest, cancellationToken)
             ?? throw new InvalidOperationException(
-                $"The pipeline did not persist a transcript for {fixture.File} in {settings.TranscriptDirectory}.");
+                $"The pipeline did not persist a transcript for {fixture.File} in {settings.TranscriptDirectory}."
+            );
 
-        var badWords = BadWordsList.FromLines(await File.ReadAllLinesAsync(settings.BadWordsPath, cancellationToken));
+        var badWords = BadWordsList.FromLines(
+            await File.ReadAllLinesAsync(settings.BadWordsPath, cancellationToken)
+        );
 
         return new FixtureRun(
             fixture,
@@ -96,6 +102,7 @@ public sealed class FixtureEvaluator
             PhraseMatcher.FindHits(transcript.Words, badWords),
             summary.Hits,
             summary.UsedCachedTranscript,
-            Times.Round(clock.Elapsed.TotalSeconds));
+            Times.Round(clock.Elapsed.TotalSeconds)
+        );
     }
 }

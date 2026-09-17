@@ -24,27 +24,32 @@ internal static class Program
     {
         var commandLine = new FoulFilterCommandLine();
 
-        commandLine.Command.SetAction((parseResult, cancellationToken) =>
-            RunAsync(commandLine, parseResult, cancellationToken));
+        commandLine.Command.SetAction(
+            (parseResult, cancellationToken) =>
+                RunAsync(commandLine, parseResult, cancellationToken)
+        );
 
         // JobRunner reports every job failure as one line and an exit code. The
         // default handler stays on only for what happens before it runs - a
         // host that cannot be built is a broken install, and a stack trace is
         // the useful report for that.
-        return await commandLine.Command.Parse(args).InvokeAsync(
-            new InvocationConfiguration { EnableDefaultExceptionHandler = true });
+        return await commandLine
+            .Command.Parse(args)
+            .InvokeAsync(new InvocationConfiguration { EnableDefaultExceptionHandler = true });
     }
 
     private static async Task<int> RunAsync(
         FoulFilterCommandLine commandLine,
         ParseResult parsed,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         // Web's appsettings.json is copied beside the executable, and the host
         // reads it from there rather than from the working directory: one file
         // configures both hosts, wherever the terminal happens to be.
         var builder = Host.CreateApplicationBuilder(
-            new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory });
+            new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory }
+        );
 
         // DATA_DIR, TRANSCRIPT_DIR, CENSOR_METHOD, WHISPER_MODEL and the rest,
         // through the translator Web uses too.
@@ -54,9 +59,12 @@ internal static class Program
         // alongside its own output. Here progress is the terminal's job, so the
         // engines stay quiet unless --debug asks for them.
         builder.Logging.SetMinimumLevel(
-            parsed.GetValue(commandLine.Debug) ? LogLevel.Information : LogLevel.Warning);
+            parsed.GetValue(commandLine.Debug) ? LogLevel.Information : LogLevel.Warning
+        );
 
-        builder.Services.Configure<TranscriptionOptions>(builder.Configuration.GetSection("Transcription"));
+        builder.Services.Configure<TranscriptionOptions>(
+            builder.Configuration.GetSection("Transcription")
+        );
         builder.Services.AddSmartCut(builder.Configuration);
 
         builder.Services.AddSingleton<IFFmpegRunner, FFmpegRunner>();
@@ -70,12 +78,15 @@ internal static class Program
         builder.Services.AddSingleton<IWhisperEngine>(provider => new WhisperNetEngine(
             provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
             new WhisperModelSource(
-                provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value.ModelDirectory),
-            provider.GetRequiredService<ILogger<WhisperNetEngine>>()));
+                provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value.ModelDirectory
+            ),
+            provider.GetRequiredService<ILogger<WhisperNetEngine>>()
+        ));
 
         builder.Services.AddSingleton<WhisperTranscriber>(provider => new WhisperTranscriber(
             provider.GetRequiredService<IWhisperEngine>(),
-            provider.GetRequiredService<IAudioPreparer>()));
+            provider.GetRequiredService<IAudioPreparer>()
+        ));
 
         builder.Services.AddSingleton<IAligner, PassThroughAligner>();
 
@@ -83,17 +94,22 @@ internal static class Program
         // pipeline, so the bare transcriber is never registered on its own.
         builder.Services.AddSingleton<ITranscriber>(provider => new ReleasePolicyTranscriber(
             provider.GetRequiredService<WhisperTranscriber>(),
-            provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value));
+            provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value
+        ));
 
-        builder.Services.AddSingleton<TranscriptStoreFactory>(_ => directory => new TranscriptStore(directory));
-        builder.Services.AddSingleton(
-            provider => provider.GetRequiredService<IOptions<SmartCutOptions>>().Value);
+        builder.Services.AddSingleton<TranscriptStoreFactory>(_ =>
+            directory => new TranscriptStore(directory)
+        );
+        builder.Services.AddSingleton(provider =>
+            provider.GetRequiredService<IOptions<SmartCutOptions>>().Value
+        );
         builder.Services.AddSingleton<IMediaPipeline, MediaPipeline>();
 
         using var host = builder.Build();
 
         LegacyEnvironmentVariables.WarnAboutRetiredVariables(
-            host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("foulfilter"));
+            host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("foulfilter")
+        );
 
         var request = commandLine.ToRequest(parsed, key => builder.Configuration[key]);
 
@@ -102,7 +118,8 @@ internal static class Program
             host.Services.GetRequiredService<IMediaPipeline>(),
             Console.Out,
             Console.Error,
-            interactive: !Console.IsOutputRedirected);
+            interactive: !Console.IsOutputRedirected
+        );
 
         return await runner.RunAsync(request, cancellationToken);
     }

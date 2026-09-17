@@ -48,7 +48,8 @@ public sealed class JobWorker(JobManager jobs, IMediaPipeline pipeline, ILogger<
             var summary = await pipeline.RunAsync(record.Request, progress, linked.Token);
             jobs.MarkCompleted(id, summary);
         }
-        catch (Exception exception) when (exception is JobCancelledException or OperationCanceledException)
+        catch (Exception exception)
+            when (exception is JobCancelledException or OperationCanceledException)
         {
             if (logger.IsEnabled(LogLevel.Information))
             {

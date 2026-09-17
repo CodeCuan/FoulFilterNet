@@ -117,12 +117,14 @@ public sealed class JobSubscription : IDisposable
     {
         _fanOut = fanOut;
         Snapshot = snapshot;
-        _channel = Channel.CreateBounded<JobRecord>(new BoundedChannelOptions(capacity)
-        {
-            FullMode = BoundedChannelFullMode.DropOldest,
-            SingleReader = true,
-            SingleWriter = false,
-        });
+        _channel = Channel.CreateBounded<JobRecord>(
+            new BoundedChannelOptions(capacity)
+            {
+                FullMode = BoundedChannelFullMode.DropOldest,
+                SingleReader = true,
+                SingleWriter = false,
+            }
+        );
     }
 
     /// <summary>Every job as it stood at the moment this listener connected.</summary>

@@ -13,7 +13,12 @@ public readonly record struct Word(string Text, double Start, double End);
 /// A token position whose normalized text matches the Bad Words List. Times are
 /// interpolated across the segment and stay approximate until alignment.
 /// </summary>
-public sealed record Candidate(string Phrase, int SegmentIndex, double ApproxStart, double ApproxEnd);
+public sealed record Candidate(
+    string Phrase,
+    int SegmentIndex,
+    double ApproxStart,
+    double ApproxEnd
+);
 
 /// <summary>
 /// A confirmed edit window. <paramref name="WordIndex"/> is set when the hit came
@@ -33,7 +38,8 @@ public sealed record Transcript(
     int Version,
     string FileHash,
     IReadOnlyList<Segment> Segments,
-    IReadOnlyList<Word> Words)
+    IReadOnlyList<Word> Words
+)
 {
     /// <summary>
     /// Schema version of persisted transcripts. A cached transcript carrying a

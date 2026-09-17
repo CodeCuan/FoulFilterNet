@@ -36,7 +36,8 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     public WhisperNetEngine(
         TranscriptionOptions options,
         WhisperModelSource models,
-        ILogger<WhisperNetEngine> logger)
+        ILogger<WhisperNetEngine> logger
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(models);
@@ -56,7 +57,8 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     /// <inheritdoc />
     public async Task<TranscriptionResult> TranscribeWavAsync(
         string wavPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(wavPath);
 
@@ -68,13 +70,20 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         var segments = new List<Segment>();
         var tokens = new List<WhisperToken>();
 
-        await foreach (var heard in processor.ProcessAsync(audio, cancellationToken).ConfigureAwait(false))
+        await foreach (
+            var heard in processor.ProcessAsync(audio, cancellationToken).ConfigureAwait(false)
+        )
         {
             var text = (heard.Text ?? string.Empty).Trim();
             if (text.Length > 0 && heard.End > heard.Start)
             {
-                segments.Add(new Segment(
-                    Times.Round(heard.Start.TotalSeconds), Times.Round(heard.End.TotalSeconds), text));
+                segments.Add(
+                    new Segment(
+                        Times.Round(heard.Start.TotalSeconds),
+                        Times.Round(heard.End.TotalSeconds),
+                        text
+                    )
+                );
             }
 
             if (heard.Tokens is { Length: > 0 } spoken)
@@ -149,7 +158,9 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
                 return _factory;
             }
 
-            var path = await _models.ResolveAsync(_options.Model, cancellationToken).ConfigureAwait(false);
+            var path = await _models
+                .ResolveAsync(_options.Model, cancellationToken)
+                .ConfigureAwait(false);
 
             // Whisper.net picks the first native runtime it can load from this
             // global order, and only reads it while the first factory loads.
@@ -193,24 +204,35 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Loading transcription model {Model} from {Path}, device preference {Device}, alignment heads {Heads}")]
+        Message = "Loading transcription model {Model} from {Path}, device preference {Device}, alignment heads {Heads}"
+    )]
     private partial void LogLoading(
         string model,
         string path,
         TranscriptionDevice device,
-        WhisperAlignmentHeadsPreset? heads);
+        WhisperAlignmentHeadsPreset? heads
+    );
 
     /// <remarks>
     /// The loaded runtime is the one fact that says whether this machine is
     /// transcribing on its card or quietly on its CPU. Logged as the enum rather
     /// than as a string so nothing is formatted when logging is off (CA1873).
     /// </remarks>
-    [LoggerMessage(Level = LogLevel.Information, Message = "Transcription model ready on the {Runtime} runtime")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Transcription model ready on the {Runtime} runtime"
+    )]
     private partial void LogLoaded(RuntimeLibrary? runtime);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Transcribed {Segments} segment(s), {Words} word(s)")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Transcribed {Segments} segment(s), {Words} word(s)"
+    )]
     private partial void LogTranscribed(int segments, int words);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Transcription model released; VRAM handed back")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Transcription model released; VRAM handed back"
+    )]
     private partial void LogReleased();
 }

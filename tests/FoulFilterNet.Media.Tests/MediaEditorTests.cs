@@ -14,10 +14,14 @@ internal static class EditorFixture
 
     public static IReadOnlyList<Hit> OneHit { get; } = [new Hit("damn", 1.0, 2.0)];
 
-    public static IMediaProber Prober(MediaKind kind = MediaKind.Audio, double duration = SourceDurationSeconds)
+    public static IMediaProber Prober(
+        MediaKind kind = MediaKind.Audio,
+        double duration = SourceDurationSeconds
+    )
     {
         var prober = Substitute.For<IMediaProber>();
-        prober.ProbeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        prober
+            .ProbeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new MediaInfo(kind, duration, 16000)));
         return prober;
     }
@@ -32,7 +36,8 @@ public class WhenSilencingHitsInAnAudioFile
     {
         new MediaEditor(_runner, EditorFixture.Prober())
             .CensorAudioAsync("in.mp3", EditorFixture.OneHit, CensorMethod.Silence, "out.mp3")
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -41,12 +46,17 @@ public class WhenSilencingHitsInAnAudioFile
     }
 
     [Fact]
-    public void RunsTheWholeCommandTheLegacyRendererRan() => _arguments.ShouldBe(
-        [
-            "-y", "-loglevel", "error",
-            "-i", "in.mp3",
-            "-filter_complex", "[0:a]volume=enable='between(t,1.0,2.0)':volume=0[aout]",
-            "-map", "[aout]",
+    public void RunsTheWholeCommandTheLegacyRendererRan() =>
+        _arguments.ShouldBe([
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            "in.mp3",
+            "-filter_complex",
+            "[0:a]volume=enable='between(t,1.0,2.0)':volume=0[aout]",
+            "-map",
+            "[aout]",
             "out.mp3",
         ]);
 
@@ -56,7 +66,9 @@ public class WhenSilencingHitsInAnAudioFile
 
     [Fact]
     public void WrapsTheUnlabelledChainSoItReadsTheFilesAudioStream() =>
-        _arguments.ShouldContain(argument => argument.StartsWith("[0:a]", StringComparison.Ordinal));
+        _arguments.ShouldContain(argument =>
+            argument.StartsWith("[0:a]", StringComparison.Ordinal)
+        );
 
     [Fact]
     public void NeverProbesBecauseSilenceNeedsNoDuration() => _runner.FFprobeCalls.ShouldBeEmpty();
@@ -71,7 +83,8 @@ public class WhenBleepingHitsInAnAudioFile
     {
         new MediaEditor(_runner, EditorFixture.Prober())
             .CensorAudioAsync("in.mp3", EditorFixture.OneHit, CensorMethod.Bleep, "out.mp3")
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -80,12 +93,17 @@ public class WhenBleepingHitsInAnAudioFile
     }
 
     [Fact]
-    public void RunsTheWholeCommandTheLegacyRendererRan() => _arguments.ShouldBe(
-        [
-            "-y", "-loglevel", "error",
-            "-i", "in.mp3",
-            "-filter_complex", FilterGraph.Bleep(EditorFixture.OneHit),
-            "-map", "[out]",
+    public void RunsTheWholeCommandTheLegacyRendererRan() =>
+        _arguments.ShouldBe([
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            "in.mp3",
+            "-filter_complex",
+            FilterGraph.Bleep(EditorFixture.OneHit),
+            "-map",
+            "[out]",
             "out.mp3",
         ]);
 
@@ -94,7 +112,8 @@ public class WhenBleepingHitsInAnAudioFile
         _arguments.SkipWhile(argument => argument != "-map").Skip(1).First().ShouldBe("[out]");
 
     [Fact]
-    public void RendersInOnePassWithNoIntermediateTrack() => _runner.FFmpegCalls.ShouldHaveSingleItem();
+    public void RendersInOnePassWithNoIntermediateTrack() =>
+        _runner.FFmpegCalls.ShouldHaveSingleItem();
 }
 
 public class WhenRemovingHitsFromAnAudioFile
@@ -107,7 +126,8 @@ public class WhenRemovingHitsFromAnAudioFile
     {
         new MediaEditor(_runner, _prober)
             .CensorAudioAsync("in.mp3", EditorFixture.OneHit, CensorMethod.Remove, "out.mp3")
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -116,12 +136,17 @@ public class WhenRemovingHitsFromAnAudioFile
     }
 
     [Fact]
-    public void RunsTheWholeCommandTheLegacyRendererRan() => _arguments.ShouldBe(
-        [
-            "-y", "-loglevel", "error",
-            "-i", "in.mp3",
-            "-filter_complex", FilterGraph.Remove(EditorFixture.OneHit, EditorFixture.SourceDurationSeconds),
-            "-map", "[out]",
+    public void RunsTheWholeCommandTheLegacyRendererRan() =>
+        _arguments.ShouldBe([
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            "in.mp3",
+            "-filter_complex",
+            FilterGraph.Remove(EditorFixture.OneHit, EditorFixture.SourceDurationSeconds),
+            "-map",
+            "[out]",
             "out.mp3",
         ]);
 
@@ -135,7 +160,9 @@ public class WhenRemovingHitsFromAnAudioFile
 
     [Fact]
     public void KeepsTheSpansEitherSideOfTheHit() =>
-        _arguments.ShouldContain(argument => argument.Contains("concat=n=2", StringComparison.Ordinal));
+        _arguments.ShouldContain(argument =>
+            argument.Contains("concat=n=2", StringComparison.Ordinal)
+        );
 }
 
 /// <summary>
@@ -152,7 +179,8 @@ public class WhenRemovingHitsFromAFileOfUnknowableLength
     {
         new MediaEditor(_runner, EditorFixture.Prober(duration: 0))
             .CensorAudioAsync("live.mp3", EditorFixture.OneHit, CensorMethod.Remove, "out.mp3")
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -161,7 +189,9 @@ public class WhenRemovingHitsFromAFileOfUnknowableLength
 
     [Fact]
     public void StillKeepsAnOpenEndedTail() =>
-        _arguments.ShouldContain(argument => argument.Contains("atrim=start=2.000,", StringComparison.Ordinal));
+        _arguments.ShouldContain(argument =>
+            argument.Contains("atrim=start=2.000,", StringComparison.Ordinal)
+        );
 
     [Fact]
     public void BuildsTheSameGraphAsAnUnknownDurationWould() =>
@@ -177,7 +207,8 @@ public class WhenSilencingHitsInAVideo
     {
         new MediaEditor(_runner, EditorFixture.Prober(MediaKind.Video))
             .CensorVideoAsync("in.mp4", EditorFixture.OneHit, CensorMethod.Silence, "out.mp4")
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -186,13 +217,21 @@ public class WhenSilencingHitsInAVideo
     }
 
     [Fact]
-    public void RunsTheWholeCommandTheLegacyRendererRan() => _arguments.ShouldBe(
-        [
-            "-y", "-loglevel", "error",
-            "-i", "in.mp4",
-            "-filter_complex", "[0:a]volume=enable='between(t,1.0,2.0)':volume=0[aout]",
-            "-map", "0:v", "-map", "[aout]",
-            "-c:v", "copy",
+    public void RunsTheWholeCommandTheLegacyRendererRan() =>
+        _arguments.ShouldBe([
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            "in.mp4",
+            "-filter_complex",
+            "[0:a]volume=enable='between(t,1.0,2.0)':volume=0[aout]",
+            "-map",
+            "0:v",
+            "-map",
+            "[aout]",
+            "-c:v",
+            "copy",
             "out.mp4",
         ]);
 
@@ -218,7 +257,8 @@ public class WhenAskedToRemoveHitsFromAVideo
     {
         new MediaEditor(_runner, EditorFixture.Prober(MediaKind.Video))
             .CensorVideoAsync("in.mp4", EditorFixture.OneHit, CensorMethod.Remove, "out.mp4")
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -231,7 +271,9 @@ public class WhenAskedToRemoveHitsFromAVideo
 
     [Fact]
     public void NeverCutsTheAudioOut() =>
-        _arguments.ShouldNotContain(argument => argument.Contains("atrim", StringComparison.Ordinal));
+        _arguments.ShouldNotContain(argument =>
+            argument.Contains("atrim", StringComparison.Ordinal)
+        );
 
     [Fact]
     public void StillStreamCopiesThePicture() => _arguments.ShouldContain("copy");
@@ -252,7 +294,8 @@ public sealed class WhenBleepingHitsInAVideo : IDisposable
 
         new MediaEditor(_runner, EditorFixture.Prober(MediaKind.Video))
             .CensorVideoAsync("in.mp4", EditorFixture.OneHit, CensorMethod.Bleep, _outputPath)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _runner.FFmpegCalls.Count.ShouldBe(2);
     }
@@ -261,24 +304,40 @@ public sealed class WhenBleepingHitsInAVideo : IDisposable
 
     [Fact]
     public void RendersTheCensoredTrackFirstBecauseBleepNeedsGeneratedSources() =>
-        _runner.FFmpegCalls[0].ShouldBe(
-            [
-                "-y", "-loglevel", "error",
-                "-i", "in.mp4", "-vn",
-                "-filter_complex", FilterGraph.Bleep(EditorFixture.OneHit),
-                "-map", "[out]",
+        _runner
+            .FFmpegCalls[0]
+            .ShouldBe([
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                "in.mp4",
+                "-vn",
+                "-filter_complex",
+                FilterGraph.Bleep(EditorFixture.OneHit),
+                "-map",
+                "[out]",
                 _temporaryTrack,
             ]);
 
     [Fact]
     public void MuxesTheTrackBackOverTheUntouchedPicture() =>
-        _runner.FFmpegCalls[1].ShouldBe(
-            [
-                "-y", "-loglevel", "error",
-                "-i", "in.mp4",
-                "-i", _temporaryTrack,
-                "-map", "0:v", "-map", "1:a",
-                "-c:v", "copy",
+        _runner
+            .FFmpegCalls[1]
+            .ShouldBe([
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                "in.mp4",
+                "-i",
+                _temporaryTrack,
+                "-map",
+                "0:v",
+                "-map",
+                "1:a",
+                "-c:v",
+                "copy",
                 _outputPath,
             ]);
 
@@ -317,8 +376,14 @@ public sealed class WhenTheMuxFailsAfterBleepingAVideo : IDisposable
 
     public void Dispose() => _scratch.Dispose();
 
-    private Task Bleep() => _editor.CensorVideoAsync(
-        "in.mp4", EditorFixture.OneHit, CensorMethod.Bleep, _outputPath, TestContext.Current.CancellationToken);
+    private Task Bleep() =>
+        _editor.CensorVideoAsync(
+            "in.mp4",
+            EditorFixture.OneHit,
+            CensorMethod.Bleep,
+            _outputPath,
+            TestContext.Current.CancellationToken
+        );
 
     [Fact]
     public async Task SurfacesTheFailure() => await Should.ThrowAsync<FFmpegException>(Bleep);
@@ -340,8 +405,14 @@ public sealed class WhenNoOutputPathIsSupplied : IDisposable
     public WhenNoOutputPathIsSupplied()
     {
         new MediaEditor(_runner, EditorFixture.Prober())
-            .CensorAudioAsync(_scratch.File("podcast.mp3"), EditorFixture.OneHit, CensorMethod.Silence, null!)
-            .GetAwaiter().GetResult();
+            .CensorAudioAsync(
+                _scratch.File("podcast.mp3"),
+                EditorFixture.OneHit,
+                CensorMethod.Silence,
+                null!
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _runner.FFmpegCalls.ShouldHaveSingleItem();
     }
@@ -394,8 +465,14 @@ public sealed class WhenRenderingTheRealSampleVideo : IDisposable
         File.Exists(_source).ShouldBeTrue();
 
         new MediaEditor(_runner, _prober)
-            .CensorVideoAsync(_source, [new Hit("damn", 1.0, 2.0)], CensorMethod.Silence, _outputPath)
-            .GetAwaiter().GetResult();
+            .CensorVideoAsync(
+                _source,
+                [new Hit("damn", 1.0, 2.0)],
+                CensorMethod.Silence,
+                _outputPath
+            )
+            .GetAwaiter()
+            .GetResult();
 
         File.Exists(_outputPath).ShouldBeTrue();
     }
@@ -404,19 +481,24 @@ public sealed class WhenRenderingTheRealSampleVideo : IDisposable
 
     /// <summary>The checksum of a file's video stream, copied rather than re-encoded.</summary>
     private async Task<string> VideoStreamDigest(string path) =>
-        (await _runner.RunFFmpegAsync(
-            ["-v", "error", "-i", path, "-map", "0:v", "-c", "copy", "-f", "md5", "-"],
-            TestContext.Current.CancellationToken)).StandardOutput.Trim();
+        (
+            await _runner.RunFFmpegAsync(
+                ["-v", "error", "-i", path, "-map", "0:v", "-c", "copy", "-f", "md5", "-"],
+                TestContext.Current.CancellationToken
+            )
+        ).StandardOutput.Trim();
 
     [Fact]
     public async Task ProducesAFileFFprobeStillCallsAVideo() =>
-        (await _prober.ProbeAsync(_outputPath, TestContext.Current.CancellationToken))
-            .Kind.ShouldBe(MediaKind.Video);
+        (
+            await _prober.ProbeAsync(_outputPath, TestContext.Current.CancellationToken)
+        ).Kind.ShouldBe(MediaKind.Video);
 
     [Fact]
     public async Task KeepsTheRunningTime() =>
-        (await _prober.ProbeAsync(_outputPath, TestContext.Current.CancellationToken))
-            .DurationSeconds.ShouldBe(5.649, 0.1);
+        (
+            await _prober.ProbeAsync(_outputPath, TestContext.Current.CancellationToken)
+        ).DurationSeconds.ShouldBe(5.649, 0.1);
 
     [Fact]
     public async Task LeavesEveryVideoFrameBitIdentical() =>

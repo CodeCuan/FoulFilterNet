@@ -17,7 +17,9 @@ public sealed class WhenNamingTheWeightsFileForAModel
 
     [Fact]
     public void NamesTheTurboModelsFile() =>
-        WhisperModelFiles.FileName("openai/whisper-large-v3-turbo").ShouldBe("ggml-large-v3-turbo.bin");
+        WhisperModelFiles
+            .FileName("openai/whisper-large-v3-turbo")
+            .ShouldBe("ggml-large-v3-turbo.bin");
 
     [Fact]
     public void KeepsTheEnglishOnlyVariantDistinct() =>
@@ -29,7 +31,9 @@ public sealed class WhenNamingTheWeightsFileForAModel
 
     [Fact]
     public void NamesAThirdPartyRepositorysFileAfterItsModel() =>
-        WhisperModelFiles.FileName("distil-whisper/distil-large-v3").ShouldBe("ggml-distil-large-v3.bin");
+        WhisperModelFiles
+            .FileName("distil-whisper/distil-large-v3")
+            .ShouldBe("ggml-distil-large-v3.bin");
 
     [Fact]
     public void RefusesAMissingModelName() =>
@@ -48,7 +52,9 @@ public sealed class WhenAskingWhichGgmlModelAConfiguredNameIs
 
     [Fact]
     public void RecognisesTheTurboModel() =>
-        WhisperModelFiles.GgmlTypeFor("openai/whisper-large-v3-turbo").ShouldBe(GgmlType.LargeV3Turbo);
+        WhisperModelFiles
+            .GgmlTypeFor("openai/whisper-large-v3-turbo")
+            .ShouldBe(GgmlType.LargeV3Turbo);
 
     [Fact]
     public void RecognisesAnEnglishOnlyVariant() =>
@@ -73,17 +79,20 @@ public sealed class WhenAskingWhichAlignmentHeadsAModelHas
 {
     [Fact]
     public void KnowsTheDefaultModelsHeads() =>
-        WhisperModelFiles.AlignmentHeadsFor(ModelNames.Default)
+        WhisperModelFiles
+            .AlignmentHeadsFor(ModelNames.Default)
             .ShouldBe(WhisperAlignmentHeadsPreset.Base);
 
     [Fact]
     public void KnowsTheTurboModelsHeads() =>
-        WhisperModelFiles.AlignmentHeadsFor("openai/whisper-large-v3-turbo")
+        WhisperModelFiles
+            .AlignmentHeadsFor("openai/whisper-large-v3-turbo")
             .ShouldBe(WhisperAlignmentHeadsPreset.LargeV3Turbo);
 
     [Fact]
     public void KnowsAnEnglishOnlyVariantsHeads() =>
-        WhisperModelFiles.AlignmentHeadsFor("openai/whisper-small.en")
+        WhisperModelFiles
+            .AlignmentHeadsFor("openai/whisper-small.en")
             .ShouldBe(WhisperAlignmentHeadsPreset.SmallEn);
 
     [Fact]

@@ -39,7 +39,11 @@ public class WhenSomeHitsAreInvertedOrOutOfOrder
     public WhenSomeHitsAreInvertedOrOutOfOrder()
     {
         var sut = new HitMerger(HitPadding.Default);
-        _merged = sut.Merge([new Hit("x", 5.0, 5.2), new Hit("x", 9.0, 9.0), new Hit("x", 3.0, 3.6)]);
+        _merged = sut.Merge([
+            new Hit("x", 5.0, 5.2),
+            new Hit("x", 9.0, 9.0),
+            new Hit("x", 3.0, 3.6),
+        ]);
 
         _merged.ShouldNotBeNull();
         _merged.ShouldAllBe(h => h.End > h.Start);

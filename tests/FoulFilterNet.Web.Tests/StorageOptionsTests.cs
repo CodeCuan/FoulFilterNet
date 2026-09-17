@@ -18,7 +18,9 @@ public class WhenStorageIsLeftAtItsDefaults
 
     [Fact]
     public void PutsTranscriptsUnderTheDataDirectory() =>
-        _options.ResolvedTranscriptDirectory.ShouldBe(Path.Combine(_options.DataDirectory, "transcripts"));
+        _options.ResolvedTranscriptDirectory.ShouldBe(
+            Path.Combine(_options.DataDirectory, "transcripts")
+        );
 
     /// <summary>
     /// Not the Python's <c>/data</c>, which on native Windows is the root of the
@@ -54,7 +56,9 @@ public class WhenStorageIsConfiguredBlank
 
     [Fact]
     public void UsesTheDefaultBadWordsList() =>
-        _options.BadWordsPath.ShouldBe(Path.Combine(Pipeline.DataLocations.DefaultDataDirectory, "bad_words.txt"));
+        _options.BadWordsPath.ShouldBe(
+            Path.Combine(Pipeline.DataLocations.DefaultDataDirectory, "bad_words.txt")
+        );
 }
 
 /// <summary>
@@ -91,7 +95,8 @@ public class WhenTranscriptsAreGivenTheirOwnLocation
     }
 
     [Fact]
-    public void UsesIt() => _options.ResolvedTranscriptDirectory.ShouldBe(Path.Combine("y", "cache"));
+    public void UsesIt() =>
+        _options.ResolvedTranscriptDirectory.ShouldBe(Path.Combine("y", "cache"));
 
     [Fact]
     public void LeavesTheJobDirectoriesUnderTheDataRoot() =>

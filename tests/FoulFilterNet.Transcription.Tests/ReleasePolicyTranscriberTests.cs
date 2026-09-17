@@ -15,7 +15,10 @@ public sealed class WhenUnloadingAfterEveryJobIsRequested
 
     public WhenUnloadingAfterEveryJobIsRequested()
     {
-        _sut = new ReleasePolicyTranscriber(_engine, new TranscriptionOptions { UnloadAfterJob = true });
+        _sut = new ReleasePolicyTranscriber(
+            _engine,
+            new TranscriptionOptions { UnloadAfterJob = true }
+        );
         _sut.ReleaseAsync().AsTask().GetAwaiter().GetResult();
     }
 
@@ -69,20 +72,27 @@ public sealed class WhenTheModelIsMeantToStayResident
 public sealed class WhenTranscribingThroughTheReleasePolicy
 {
     private readonly ITranscriber _engine = Substitute.For<ITranscriber>();
-    private readonly TranscriptionResult _heard =
-        new([new Segment(1.0, 1.5, "damn")], [new Word("damn", 1.0, 1.5)]);
+    private readonly TranscriptionResult _heard = new(
+        [new Segment(1.0, 1.5, "damn")],
+        [new Word("damn", 1.0, 1.5)]
+    );
 
     private readonly ReleasePolicyTranscriber _sut;
     private readonly TranscriptionResult _returned;
 
     public WhenTranscribingThroughTheReleasePolicy()
     {
-        _engine.TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _engine
+            .TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(_heard));
 
-        _sut = new ReleasePolicyTranscriber(_engine, new TranscriptionOptions { UnloadAfterJob = true });
+        _sut = new ReleasePolicyTranscriber(
+            _engine,
+            new TranscriptionOptions { UnloadAfterJob = true }
+        );
         _returned = _sut.TranscribeAsync("book.wav", TestContext.Current.CancellationToken)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _returned.ShouldNotBeNull();
     }
@@ -109,13 +119,22 @@ public sealed class WhenRescanningThroughTheReleasePolicy
 
     public WhenRescanningThroughTheReleasePolicy()
     {
-        _engine.TranscribeShiftedAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
+        _engine
+            .TranscribeShiftedAsync(
+                Arg.Any<string>(),
+                Arg.Any<double>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Task.FromResult(_heard));
 
         _sut = new ReleasePolicyTranscriber(_engine, new TranscriptionOptions());
-        _returned = _sut
-            .TranscribeShiftedAsync("book.wav", RescanPass.DefaultOffsetSeconds, TestContext.Current.CancellationToken)
-            .GetAwaiter().GetResult();
+        _returned = _sut.TranscribeShiftedAsync(
+                "book.wav",
+                RescanPass.DefaultOffsetSeconds,
+                TestContext.Current.CancellationToken
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _returned.ShouldNotBeNull();
     }
@@ -125,8 +144,13 @@ public sealed class WhenRescanningThroughTheReleasePolicy
 
     [Fact]
     public async Task PassesTheOffsetThroughUntouched() =>
-        await _engine.Received(1).TranscribeShiftedAsync(
-            "book.wav", RescanPass.DefaultOffsetSeconds, Arg.Any<CancellationToken>());
+        await _engine
+            .Received(1)
+            .TranscribeShiftedAsync(
+                "book.wav",
+                RescanPass.DefaultOffsetSeconds,
+                Arg.Any<CancellationToken>()
+            );
 }
 
 public sealed class WhenTheReleasePolicyIsBuiltWithoutCollaborators
@@ -135,7 +159,9 @@ public sealed class WhenTheReleasePolicyIsBuiltWithoutCollaborators
 
     [Fact]
     public void RefusesToWrapNothing() =>
-        Should.Throw<ArgumentNullException>(() => new ReleasePolicyTranscriber(null!, new TranscriptionOptions()));
+        Should.Throw<ArgumentNullException>(() =>
+            new ReleasePolicyTranscriber(null!, new TranscriptionOptions())
+        );
 
     [Fact]
     public void RefusesToGuessThePolicy() =>

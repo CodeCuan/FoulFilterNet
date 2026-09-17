@@ -19,7 +19,8 @@ public class WhenSanitizingAnAwkwardUploadName
     }
 
     [Fact]
-    public void RewritesTheWholeNameTheWayThePythonDid() => _sanitized.ShouldBe("book - chapter 1.mp3");
+    public void RewritesTheWholeNameTheWayThePythonDid() =>
+        _sanitized.ShouldBe("book - chapter 1.mp3");
 
     [Fact]
     public void TurnsAColonIntoASpacedDash() =>
@@ -34,13 +35,16 @@ public class WhenSanitizingAnAwkwardUploadName
         UploadFileName.Sanitize("  spaced  .mp3").ShouldBe("spaced.mp3");
 
     [Fact]
-    public void TrimsSurroundingDots() => UploadFileName.Sanitize("...odd....mp3").ShouldBe("odd.mp3");
+    public void TrimsSurroundingDots() =>
+        UploadFileName.Sanitize("...odd....mp3").ShouldBe("odd.mp3");
 
     [Fact]
-    public void LowercasesTheExtension() => UploadFileName.Sanitize("Book.MP3").ShouldBe("Book.mp3");
+    public void LowercasesTheExtension() =>
+        UploadFileName.Sanitize("Book.MP3").ShouldBe("Book.mp3");
 
     [Fact]
-    public void LeavesTheRestOfTheCaseAlone() => UploadFileName.Sanitize("Book.mp3").ShouldBe("Book.mp3");
+    public void LeavesTheRestOfTheCaseAlone() =>
+        UploadFileName.Sanitize("Book.mp3").ShouldBe("Book.mp3");
 }
 
 public class WhenSanitizingAnUploadNameThatIsAPath
@@ -107,7 +111,8 @@ public class WhenCheckingAnUploadsExtension
     public void AcceptsAnAudioFile() => _allowed.ShouldBeTrue();
 
     [Fact]
-    public void AcceptsAnAudiobook() => UploadFileName.IsAllowedExtension("book.m4b").ShouldBeTrue();
+    public void AcceptsAnAudiobook() =>
+        UploadFileName.IsAllowedExtension("book.m4b").ShouldBeTrue();
 
     [Fact]
     public void AcceptsAVideoFile() => UploadFileName.IsAllowedExtension("clip.mkv").ShouldBeTrue();

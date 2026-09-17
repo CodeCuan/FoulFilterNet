@@ -30,22 +30,23 @@ public static class WhisperModelFiles
     /// The model as Whisper.net's downloader names it, or null when it is not a
     /// model Whisper.net can fetch.
     /// </summary>
-    public static GgmlType? GgmlTypeFor(string model) => Size(model) switch
-    {
-        "tiny" => GgmlType.Tiny,
-        "tiny.en" => GgmlType.TinyEn,
-        "base" => GgmlType.Base,
-        "base.en" => GgmlType.BaseEn,
-        "small" => GgmlType.Small,
-        "small.en" => GgmlType.SmallEn,
-        "medium" => GgmlType.Medium,
-        "medium.en" => GgmlType.MediumEn,
-        "large-v1" => GgmlType.LargeV1,
-        "large-v2" => GgmlType.LargeV2,
-        "large-v3" => GgmlType.LargeV3,
-        "large-v3-turbo" => GgmlType.LargeV3Turbo,
-        _ => null,
-    };
+    public static GgmlType? GgmlTypeFor(string model) =>
+        Size(model) switch
+        {
+            "tiny" => GgmlType.Tiny,
+            "tiny.en" => GgmlType.TinyEn,
+            "base" => GgmlType.Base,
+            "base.en" => GgmlType.BaseEn,
+            "small" => GgmlType.Small,
+            "small.en" => GgmlType.SmallEn,
+            "medium" => GgmlType.Medium,
+            "medium.en" => GgmlType.MediumEn,
+            "large-v1" => GgmlType.LargeV1,
+            "large-v2" => GgmlType.LargeV2,
+            "large-v3" => GgmlType.LargeV3,
+            "large-v3-turbo" => GgmlType.LargeV3Turbo,
+            _ => null,
+        };
 
     /// <summary>
     /// The attention heads whisper.cpp aligns against to produce DTW word
@@ -56,22 +57,23 @@ public static class WhisperModelFiles
     /// DTW timestamps are the ones worth having: ADR-0006 measured them at a
     /// third of the boundary error of the plain token-timestamp heuristic.
     /// </remarks>
-    public static WhisperAlignmentHeadsPreset? AlignmentHeadsFor(string model) => Size(model) switch
-    {
-        "tiny" => WhisperAlignmentHeadsPreset.Tiny,
-        "tiny.en" => WhisperAlignmentHeadsPreset.TinyEn,
-        "base" => WhisperAlignmentHeadsPreset.Base,
-        "base.en" => WhisperAlignmentHeadsPreset.BaseEn,
-        "small" => WhisperAlignmentHeadsPreset.Small,
-        "small.en" => WhisperAlignmentHeadsPreset.SmallEn,
-        "medium" => WhisperAlignmentHeadsPreset.Medium,
-        "medium.en" => WhisperAlignmentHeadsPreset.MediumEn,
-        "large-v1" => WhisperAlignmentHeadsPreset.LargeV1,
-        "large-v2" => WhisperAlignmentHeadsPreset.LargeV2,
-        "large-v3" => WhisperAlignmentHeadsPreset.LargeV3,
-        "large-v3-turbo" => WhisperAlignmentHeadsPreset.LargeV3Turbo,
-        _ => null,
-    };
+    public static WhisperAlignmentHeadsPreset? AlignmentHeadsFor(string model) =>
+        Size(model) switch
+        {
+            "tiny" => WhisperAlignmentHeadsPreset.Tiny,
+            "tiny.en" => WhisperAlignmentHeadsPreset.TinyEn,
+            "base" => WhisperAlignmentHeadsPreset.Base,
+            "base.en" => WhisperAlignmentHeadsPreset.BaseEn,
+            "small" => WhisperAlignmentHeadsPreset.Small,
+            "small.en" => WhisperAlignmentHeadsPreset.SmallEn,
+            "medium" => WhisperAlignmentHeadsPreset.Medium,
+            "medium.en" => WhisperAlignmentHeadsPreset.MediumEn,
+            "large-v1" => WhisperAlignmentHeadsPreset.LargeV1,
+            "large-v2" => WhisperAlignmentHeadsPreset.LargeV2,
+            "large-v3" => WhisperAlignmentHeadsPreset.LargeV3,
+            "large-v3-turbo" => WhisperAlignmentHeadsPreset.LargeV3Turbo,
+            _ => null,
+        };
 
     /// <summary>The size half of a model name: <c>openai/whisper-base</c> is <c>base</c>.</summary>
     private static string Size(string model)

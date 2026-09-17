@@ -15,7 +15,8 @@ public class WhenTwoFilesAreUploaded : IDisposable
         _client = _app.CreateClient();
 
         using var response = Api.UploadAsync(_client, ["book: [one].MP3", "two.wav"])
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
         _body = Api.ReadAsync(response).GetAwaiter().GetResult();
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -42,7 +43,8 @@ public class WhenTwoFilesAreUploaded : IDisposable
 
     [Fact]
     public void NamesEachUploadAfterItsJobSoTwoBooksCannotCollide() =>
-        Directory.GetFiles(_app.UploadDirectory)
+        Directory
+            .GetFiles(_app.UploadDirectory)
             .ShouldAllBe(path => Path.GetFileName(path).Contains("__", StringComparison.Ordinal));
 
     public void Dispose()
@@ -79,14 +81,20 @@ public class WhenAnUploadIsRejected : IDisposable
         using var response = await Api.UploadAsync(_client, ["notes.txt"]);
         var body = await Api.ReadAsync(response);
 
-        body.GetProperty("detail").GetString().ShouldNotBeNull()
+        body.GetProperty("detail")
+            .GetString()
+            .ShouldNotBeNull()
             .ShouldContain("Unsupported file type");
     }
 
     [Fact]
     public async Task RefusesACensorMethodThatIsNotOneOfTheThree()
     {
-        using var response = await Api.UploadAsync(_client, ["book.mp3"], censorMethod: "obliterate");
+        using var response = await Api.UploadAsync(
+            _client,
+            ["book.mp3"],
+            censorMethod: "obliterate"
+        );
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -94,7 +102,11 @@ public class WhenAnUploadIsRejected : IDisposable
     [Fact]
     public async Task LeavesNoUploadBehindWhenTheOptionsAreWrong()
     {
-        using var response = await Api.UploadAsync(_client, ["book.mp3"], censorMethod: "obliterate");
+        using var response = await Api.UploadAsync(
+            _client,
+            ["book.mp3"],
+            censorMethod: "obliterate"
+        );
 
         Directory.GetFiles(_app.UploadDirectory).ShouldBeEmpty();
     }
@@ -143,7 +155,8 @@ public class WhenAnUploadIsTooBig : IDisposable
         _client = _app.CreateClient();
 
         using var response = Api.UploadAsync(_client, ["huge.mp3"], sizeBytes: 3 * 1024 * 1024)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
         _status = response.StatusCode;
     }
 
@@ -151,7 +164,8 @@ public class WhenAnUploadIsTooBig : IDisposable
     public void AnswersPayloadTooLarge() => _status.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
 
     [Fact]
-    public void RemovesThePartialUpload() => Directory.GetFiles(_app.UploadDirectory).ShouldBeEmpty();
+    public void RemovesThePartialUpload() =>
+        Directory.GetFiles(_app.UploadDirectory).ShouldBeEmpty();
 
     [Fact]
     public async Task QueuesNothing()
@@ -180,7 +194,8 @@ public class WhenAJobRunsThroughTheApi : IDisposable
     {
         _client = _app.CreateClient();
         _jobId = Api.UploadOneAsync(_client, censorMethod: "bleep", rescan: true)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
         _completed = Api.WaitForStatusAsync(_client, _jobId, "completed").GetAwaiter().GetResult();
 
         _completed.GetProperty("id").GetString().ShouldBe(_jobId);
@@ -210,7 +225,9 @@ public class WhenAJobRunsThroughTheApi : IDisposable
     public async Task ServesTheCensoredFile()
     {
         using var download = await _client.GetAsync(
-            new Uri($"/download/{_jobId}", UriKind.Relative), Api.Token);
+            new Uri($"/download/{_jobId}", UriKind.Relative),
+            Api.Token
+        );
 
         download.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -219,9 +236,12 @@ public class WhenAJobRunsThroughTheApi : IDisposable
     public async Task NamesTheDownloadAfterTheCensoredOutput()
     {
         using var download = await _client.GetAsync(
-            new Uri($"/download/{_jobId}", UriKind.Relative), Api.Token);
+            new Uri($"/download/{_jobId}", UriKind.Relative),
+            Api.Token
+        );
 
-        download.Content.Headers.ContentDisposition!.FileName.ShouldNotBeNull()
+        download
+            .Content.Headers.ContentDisposition!.FileName.ShouldNotBeNull()
             .ShouldContain("censored_book.mp3");
     }
 
@@ -241,7 +261,8 @@ public class WhenAJobFailsInThePipeline : IDisposable
 
     public WhenAJobFailsInThePipeline()
     {
-        _app.Pipeline.Behaviour = (_, _, _) => throw new InvalidOperationException("ffmpeg said no");
+        _app.Pipeline.Behaviour = (_, _, _) =>
+            throw new InvalidOperationException("ffmpeg said no");
         _client = _app.CreateClient();
 
         var jobId = Api.UploadOneAsync(_client).GetAwaiter().GetResult();
@@ -249,7 +270,8 @@ public class WhenAJobFailsInThePipeline : IDisposable
     }
 
     [Fact]
-    public void TellsTheUiWhy() => _failed.GetProperty("detail").GetString().ShouldBe("ffmpeg said no");
+    public void TellsTheUiWhy() =>
+        _failed.GetProperty("detail").GetString().ShouldBe("ffmpeg said no");
 
     [Fact]
     public void OffersNoDownload() =>
@@ -260,7 +282,9 @@ public class WhenAJobFailsInThePipeline : IDisposable
     {
         var jobId = _failed.GetProperty("id").GetString();
         using var response = await _client.GetAsync(
-            new Uri($"/download/{jobId}", UriKind.Relative), Api.Token);
+            new Uri($"/download/{jobId}", UriKind.Relative),
+            Api.Token
+        );
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -291,15 +315,16 @@ public class WhenReadingJobsBackOverHttp : IDisposable
         var jobId = Api.UploadOneAsync(_client).GetAwaiter().GetResult();
         Api.WaitForStatusAsync(_client, jobId, "completed").GetAwaiter().GetResult();
 
-        _payload = _client.GetStringAsync(new Uri("/jobs", UriKind.Relative), Api.Token)
-            .GetAwaiter().GetResult();
+        _payload = _client
+            .GetStringAsync(new Uri("/jobs", UriKind.Relative), Api.Token)
+            .GetAwaiter()
+            .GetResult();
 
         _payload.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void CarriesNoPathFieldAtAll() =>
-        _payload.ShouldNotContain("path", Case.Insensitive);
+    public void CarriesNoPathFieldAtAll() => _payload.ShouldNotContain("path", Case.Insensitive);
 
     [Fact]
     public void NeverNamesTheUploadDirectory() =>
@@ -324,7 +349,9 @@ public class WhenReadingJobsBackOverHttp : IDisposable
     public async Task AnswersAStatusRequestForAJobThatIsNotThereWithA404()
     {
         using var response = await _client.GetAsync(
-            new Uri("/status/nosuchjob", UriKind.Relative), Api.Token);
+            new Uri("/status/nosuchjob", UriKind.Relative),
+            Api.Token
+        );
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -333,7 +360,9 @@ public class WhenReadingJobsBackOverHttp : IDisposable
     public async Task AnswersADownloadRequestForAJobThatIsNotThereWithA404()
     {
         using var response = await _client.GetAsync(
-            new Uri("/download/nosuchjob", UriKind.Relative), Api.Token);
+            new Uri("/download/nosuchjob", UriKind.Relative),
+            Api.Token
+        );
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -366,7 +395,9 @@ public class WhenDeletingAJobOverHttp : IDisposable
         var queued = (await Api.ReadAsync(upload)).GetProperty("job_ids")[1].GetString();
 
         using var response = await _client.DeleteAsync(
-            new Uri($"/jobs/{queued}", UriKind.Relative), Api.Token);
+            new Uri($"/jobs/{queued}", UriKind.Relative),
+            Api.Token
+        );
 
         (await Api.ReadAsync(response)).GetProperty("cancelled").GetBoolean().ShouldBeTrue();
     }
@@ -375,7 +406,9 @@ public class WhenDeletingAJobOverHttp : IDisposable
     public async Task AnswersA404ForAJobThatIsNotThere()
     {
         using var response = await _client.DeleteAsync(
-            new Uri("/jobs/nosuchjob", UriKind.Relative), Api.Token);
+            new Uri("/jobs/nosuchjob", UriKind.Relative),
+            Api.Token
+        );
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -388,7 +421,9 @@ public class WhenDeletingAJobOverHttp : IDisposable
         await Api.WaitForStatusAsync(_client, jobId, "completed");
 
         using var response = await _client.DeleteAsync(
-            new Uri($"/jobs/{jobId}", UriKind.Relative), Api.Token);
+            new Uri($"/jobs/{jobId}", UriKind.Relative),
+            Api.Token
+        );
 
         (await Api.ReadAsync(response)).GetProperty("cancelled").GetBoolean().ShouldBeFalse();
     }

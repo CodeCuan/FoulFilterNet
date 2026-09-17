@@ -9,11 +9,15 @@ public class WhenTheWorkerRunsAJobToCompletion : IDisposable
 
     public WhenTheWorkerRunsAJobToCompletion()
     {
-        _harness.Pipeline.Behaviour = (_, _, _) => Task.FromResult(StubMediaPipeline.Completed(hits: 2));
+        _harness.Pipeline.Behaviour = (_, _, _) =>
+            Task.FromResult(StubMediaPipeline.Completed(hits: 2));
         _harness.StartAsync().GetAwaiter().GetResult();
 
         var queued = _harness.Enqueue("book.mp3");
-        _record = _harness.WaitForStatusAsync(queued.Id, JobStatus.Completed).GetAwaiter().GetResult();
+        _record = _harness
+            .WaitForStatusAsync(queued.Id, JobStatus.Completed)
+            .GetAwaiter()
+            .GetResult();
 
         _record.Status.ShouldBe(JobStatus.Completed);
     }
@@ -57,7 +61,10 @@ public class WhenACompletedJobWasRescanned : IDisposable
         _harness.StartAsync().GetAwaiter().GetResult();
 
         var queued = _harness.Enqueue("book.mp3");
-        _record = _harness.WaitForStatusAsync(queued.Id, JobStatus.Completed).GetAwaiter().GetResult();
+        _record = _harness
+            .WaitForStatusAsync(queued.Id, JobStatus.Completed)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -87,7 +94,10 @@ public class WhileAJobIsRunning : IDisposable
         _harness.StartAsync().GetAwaiter().GetResult();
 
         var queued = _harness.Enqueue("book.mp3");
-        _record = _harness.WaitForAsync(queued.Id, job => job.Progress == 40).GetAwaiter().GetResult();
+        _record = _harness
+            .WaitForAsync(queued.Id, job => job.Progress == 40)
+            .GetAwaiter()
+            .GetResult();
 
         _record.ShouldNotBeNull();
     }
@@ -96,7 +106,8 @@ public class WhileAJobIsRunning : IDisposable
     public void ShowsTheStageThePipelineReported() => _record.Stage.ShouldBe("transcribing");
 
     [Fact]
-    public void ShowsTheDetailThePipelineReported() => _record.Detail.ShouldBe("Transcribing audio");
+    public void ShowsTheDetailThePipelineReported() =>
+        _record.Detail.ShouldBe("Transcribing audio");
 
     [Fact]
     public void StaysInTheProcessingStatus() => _record.Status.ShouldBe(JobStatus.Processing);
@@ -126,13 +137,19 @@ public class WhenJobsAreEnqueuedConcurrently : IDisposable
         };
         _harness.StartAsync().GetAwaiter().GetResult();
 
-        var ids = Task.WhenAll(Enumerable.Range(0, 6)
-                .Select(i => Task.Run(() => _harness.Enqueue($"book{i}.mp3").Id)))
-            .GetAwaiter().GetResult();
+        var ids = Task.WhenAll(
+                Enumerable
+                    .Range(0, 6)
+                    .Select(i => Task.Run(() => _harness.Enqueue($"book{i}.mp3").Id))
+            )
+            .GetAwaiter()
+            .GetResult();
 
         foreach (var id in ids)
         {
-            _finished.Add(_harness.WaitForStatusAsync(id, JobStatus.Completed).GetAwaiter().GetResult());
+            _finished.Add(
+                _harness.WaitForStatusAsync(id, JobStatus.Completed).GetAwaiter().GetResult()
+            );
         }
 
         _finished.Count.ShouldBe(6);
@@ -180,7 +197,10 @@ public class WhenAJobThrows : IDisposable
         var healthy = _harness.Enqueue("good.mp3");
 
         _failed = _harness.WaitForStatusAsync(doomed.Id, JobStatus.Failed).GetAwaiter().GetResult();
-        _next = _harness.WaitForStatusAsync(healthy.Id, JobStatus.Completed).GetAwaiter().GetResult();
+        _next = _harness
+            .WaitForStatusAsync(healthy.Id, JobStatus.Completed)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -213,7 +233,8 @@ public class WhenAJobThrowsAVeryLongMessage : IDisposable
 
     public WhenAJobThrowsAVeryLongMessage()
     {
-        _harness.Pipeline.Behaviour = (_, _, _) => throw new InvalidOperationException(new string('x', 900));
+        _harness.Pipeline.Behaviour = (_, _, _) =>
+            throw new InvalidOperationException(new string('x', 900));
         _harness.StartAsync().GetAwaiter().GetResult();
 
         var doomed = _harness.Enqueue("bad.mp3");

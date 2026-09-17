@@ -18,7 +18,8 @@ public sealed class WhenAJobEndsWithoutTheEngineEverLoadingAModel : IDisposable
         _sut = new WhisperNetEngine(
             new TranscriptionOptions(),
             new WhisperModelSource(_directory.Path),
-            NullLogger<WhisperNetEngine>.Instance);
+            NullLogger<WhisperNetEngine>.Instance
+        );
 
         _sut.ReleaseAsync().AsTask().GetAwaiter().GetResult();
     }
@@ -60,11 +61,15 @@ public sealed class WhenTheConfiguredModelIsNotInstalled : IDisposable
         var sut = new WhisperNetEngine(
             new TranscriptionOptions { Model = "base" },
             new WhisperModelSource(_directory.Path),
-            NullLogger<WhisperNetEngine>.Instance);
+            NullLogger<WhisperNetEngine>.Instance
+        );
 
-        _thrown = Should.ThrowAsync<FileNotFoundException>(
-            () => sut.TranscribeWavAsync("analysis.wav", TestContext.Current.CancellationToken))
-            .GetAwaiter().GetResult();
+        _thrown = Should
+            .ThrowAsync<FileNotFoundException>(() =>
+                sut.TranscribeWavAsync("analysis.wav", TestContext.Current.CancellationToken)
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _thrown.ShouldNotBeNull();
     }
@@ -92,12 +97,14 @@ public sealed class WhenAJobIsCancelledBeforeTranscriptionBegins : IDisposable
         var sut = new WhisperNetEngine(
             new TranscriptionOptions(),
             new WhisperModelSource(_directory.Path),
-            NullLogger<WhisperNetEngine>.Instance);
+            NullLogger<WhisperNetEngine>.Instance
+        );
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
 
-        await Should.ThrowAsync<OperationCanceledException>(
-            () => sut.TranscribeWavAsync("analysis.wav", cancelled.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            sut.TranscribeWavAsync("analysis.wav", cancelled.Token)
+        );
 
         sut.IsModelLoaded.ShouldBeFalse();
     }
@@ -107,11 +114,21 @@ public sealed class WhenAnEngineIsBuiltWithoutCollaborators
 {
     [Fact]
     public void RefusesMissingOptions() =>
-        Should.Throw<ArgumentNullException>(() => new WhisperNetEngine(
-            null!, new WhisperModelSource(Path.GetTempPath()), NullLogger<WhisperNetEngine>.Instance));
+        Should.Throw<ArgumentNullException>(() =>
+            new WhisperNetEngine(
+                null!,
+                new WhisperModelSource(Path.GetTempPath()),
+                NullLogger<WhisperNetEngine>.Instance
+            )
+        );
 
     [Fact]
     public void RefusesNowhereToFindWeights() =>
-        Should.Throw<ArgumentNullException>(() => new WhisperNetEngine(
-            new TranscriptionOptions(), null!, NullLogger<WhisperNetEngine>.Instance));
+        Should.Throw<ArgumentNullException>(() =>
+            new WhisperNetEngine(
+                new TranscriptionOptions(),
+                null!,
+                NullLogger<WhisperNetEngine>.Instance
+            )
+        );
 }

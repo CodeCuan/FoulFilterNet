@@ -179,7 +179,8 @@ public sealed class WhenATokensTimestampsCollapse
     public WhenATokensTimestampsCollapse() => _words.ShouldNotBeNull();
 
     [Fact]
-    public void KeepsTheWordRatherThanLosingTheHit() => _words.ShouldHaveSingleItem().Text.ShouldBe("damn");
+    public void KeepsTheWordRatherThanLosingTheHit() =>
+        _words.ShouldHaveSingleItem().Text.ShouldBe("damn");
 
     [Fact]
     public void PlacesItWhereTheTokenSaidItWas() => _words[0].Start.ShouldBe(3.0, 0.001);
@@ -189,7 +190,10 @@ public sealed class WhenATokensTimestampsCollapse
 
     [Fact]
     public void KeepsEvenAWordWhoseEndPrecedesItsStart() =>
-        WhisperWords.Join([Tokens.At(" damn", 300, 280)]).ShouldHaveSingleItem().Text.ShouldBe("damn");
+        WhisperWords
+            .Join([Tokens.At(" damn", 300, 280)])
+            .ShouldHaveSingleItem()
+            .Text.ShouldBe("damn");
 
     [Fact]
     public void HearsNoWordsInNoTokens() => WhisperWords.Join([]).ShouldBeEmpty();
@@ -233,7 +237,8 @@ public sealed class WhenTheModelSuppliesDtwTimestamps
     public void LeavesNoGapBetweenOneWordAndTheNext() => _words[2].Start.ShouldBe(_words[1].End);
 
     [Fact]
-    public void FallsBackToTheRawStartForTheVeryFirstWord() => _words[0].Start.ShouldBe(3.03, 0.001);
+    public void FallsBackToTheRawStartForTheVeryFirstWord() =>
+        _words[0].Start.ShouldBe(3.03, 0.001);
 
     [Fact]
     public void StillSpellsTheWordsTheSameWay() =>
@@ -305,9 +310,21 @@ internal static class Tokens
     /// alignment-heads preset reports.
     /// </summary>
     public static WhisperToken At(string text, long start, long end) =>
-        new() { Text = text, Start = start, End = end, DtwTimestamp = -1 };
+        new()
+        {
+            Text = text,
+            Start = start,
+            End = end,
+            DtwTimestamp = -1,
+        };
 
     /// <summary>The same, with the DTW instant a model with alignment heads adds.</summary>
     public static WhisperToken Dtw(string text, long start, long end, long dtw) =>
-        new() { Text = text, Start = start, End = end, DtwTimestamp = dtw };
+        new()
+        {
+            Text = text,
+            Start = start,
+            End = end,
+            DtwTimestamp = dtw,
+        };
 }

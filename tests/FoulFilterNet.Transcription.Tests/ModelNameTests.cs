@@ -39,12 +39,13 @@ public class WhenNormalizingASlashQualifiedModelName
     }
 
     [Fact]
-    public void PassesItThroughUntouched() =>
-        _normalized.ShouldBe("openai/whisper-large-v3-turbo");
+    public void PassesItThroughUntouched() => _normalized.ShouldBe("openai/whisper-large-v3-turbo");
 
     [Fact]
     public void DoesNotPrefixAThirdPartyRepository() =>
-        ModelNames.Normalize("distil-whisper/distil-large-v3").ShouldBe("distil-whisper/distil-large-v3");
+        ModelNames
+            .Normalize("distil-whisper/distil-large-v3")
+            .ShouldBe("distil-whisper/distil-large-v3");
 
     [Fact]
     public void StillTrimsWhitespace() =>

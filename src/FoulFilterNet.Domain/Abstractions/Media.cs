@@ -14,19 +14,32 @@ public interface IMediaProber
 public interface IAudioPreparer
 {
     /// <summary>Extract a video's audio track so it can be transcribed.</summary>
-    Task ExtractAudioTrackAsync(string videoPath, string outputPath, CancellationToken cancellationToken = default);
+    Task ExtractAudioTrackAsync(
+        string videoPath,
+        string outputPath,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// Prepend silence, shifting every chunk boundary for the Rescan Pass.
     /// Returns the path of a temporary file the caller owns and must delete.
     /// </summary>
-    Task<string> PadStartAsync(string audioPath, double offsetSeconds, CancellationToken cancellationToken = default);
+    Task<string> PadStartAsync(
+        string audioPath,
+        double offsetSeconds,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// Extract a mono 16 kHz span. Returns the path of a temporary file the
     /// caller owns and must delete.
     /// </summary>
-    Task<string> CropAsync(string audioPath, double offsetSeconds, double durationSeconds, CancellationToken cancellationToken = default);
+    Task<string> CropAsync(
+        string audioPath,
+        double offsetSeconds,
+        double durationSeconds,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>Renders the Censor Method onto a media file.</summary>
@@ -37,7 +50,8 @@ public interface IMediaEditor
         IReadOnlyList<Hit> hits,
         CensorMethod method,
         string outputPath,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// Censor a video's audio while stream-copying its frames. Implementations
@@ -50,5 +64,6 @@ public interface IMediaEditor
         IReadOnlyList<Hit> hits,
         CensorMethod method,
         string outputPath,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 }

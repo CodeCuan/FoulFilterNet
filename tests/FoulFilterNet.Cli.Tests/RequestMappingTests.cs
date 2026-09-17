@@ -24,7 +24,8 @@ public sealed class WhenMappingAMinimalCommandLineToAJobRequest
     }
 
     [Fact]
-    public void KeepsTheInputPath() => _request.InputPath.ShouldBe(Path.Combine("media", "clip.mp3"));
+    public void KeepsTheInputPath() =>
+        _request.InputPath.ShouldBe(Path.Combine("media", "clip.mp3"));
 
     [Fact]
     public void KeepsTheBadWordsPath() => _request.BadWordsPath.ShouldBe("words.txt");
@@ -43,7 +44,9 @@ public sealed class WhenMappingAMinimalCommandLineToAJobRequest
     /// </summary>
     [Fact]
     public void SharesWebsDefaultTranscriptDirectory() =>
-        _request.TranscriptDirectory.ShouldBe(Path.Combine(DataLocations.DefaultDataDirectory, "transcripts"));
+        _request.TranscriptDirectory.ShouldBe(
+            Path.Combine(DataLocations.DefaultDataDirectory, "transcripts")
+        );
 
     [Fact]
     public void SilencesByDefault() => _request.CensorMethod.ShouldBe(CensorMethod.Silence);
@@ -95,8 +98,10 @@ public sealed class WhenAnExplicitOutputIsGiven
                 Path.Combine("media", "clip.mp3"),
                 "words.txt",
                 "--output",
-                Path.Combine("elsewhere", "clean.mp3")),
-            _ => null);
+                Path.Combine("elsewhere", "clean.mp3")
+            ),
+            _ => null
+        );
     }
 
     [Fact]
@@ -117,12 +122,14 @@ public sealed class WhenTheTranscriptDirectoryIsConfigured
         var commandLine = new FoulFilterCommandLine();
         _request = commandLine.ToRequest(
             commandLine.Parse("clip.mp3", "words.txt"),
-            key => key switch
-            {
-                ConfigurationKeys.TranscriptDirectory => "cache",
-                ConfigurationKeys.DataDirectory => "data",
-                _ => null,
-            });
+            key =>
+                key switch
+                {
+                    ConfigurationKeys.TranscriptDirectory => "cache",
+                    ConfigurationKeys.DataDirectory => "data",
+                    _ => null,
+                }
+        );
     }
 
     [Fact]
@@ -139,7 +146,8 @@ public sealed class WhenOnlyTheDataDirectoryIsConfigured
         var commandLine = new FoulFilterCommandLine();
         _request = commandLine.ToRequest(
             commandLine.Parse("clip.mp3", "words.txt"),
-            key => key == ConfigurationKeys.DataDirectory ? "data" : null);
+            key => key == ConfigurationKeys.DataDirectory ? "data" : null
+        );
     }
 
     [Fact]
@@ -158,15 +166,20 @@ public sealed class WhenALegacyEnvironmentDrivesTheCommandLine
     public WhenALegacyEnvironmentDrivesTheCommandLine()
     {
         var configuration = new ConfigurationBuilder()
-            .AddLegacyEnvironmentVariables(new Dictionary<string, string>
-            {
-                ["TRANSCRIPT_DIR"] = "cache",
-                ["CENSOR_METHOD"] = "delete",
-            })
+            .AddLegacyEnvironmentVariables(
+                new Dictionary<string, string>
+                {
+                    ["TRANSCRIPT_DIR"] = "cache",
+                    ["CENSOR_METHOD"] = "delete",
+                }
+            )
             .Build();
 
         var commandLine = new FoulFilterCommandLine();
-        _request = commandLine.ToRequest(commandLine.Parse("clip.mp3", "words.txt"), key => configuration[key]);
+        _request = commandLine.ToRequest(
+            commandLine.Parse("clip.mp3", "words.txt"),
+            key => configuration[key]
+        );
     }
 
     [Fact]
@@ -184,7 +197,14 @@ public sealed class WhenEveryAnalysisFlagIsGiven
     public WhenEveryAnalysisFlagIsGiven()
     {
         var commandLine = new FoulFilterCommandLine();
-        var parsed = commandLine.Parse("clip.mp3", "words.txt", "--debug", "--rescan", "--no_edit", "--bleep");
+        var parsed = commandLine.Parse(
+            "clip.mp3",
+            "words.txt",
+            "--debug",
+            "--rescan",
+            "--no_edit",
+            "--bleep"
+        );
 
         parsed.Errors.ShouldBeEmpty();
 
@@ -198,10 +218,12 @@ public sealed class WhenEveryAnalysisFlagIsGiven
     public void RescansWithShiftedBoundaries() => _request.Rescan.ShouldBeTrue();
 
     [Fact]
-    public void SuppressesTheRenderRatherThanAddingAParallelFlag() => _request.Render.ShouldBeFalse();
+    public void SuppressesTheRenderRatherThanAddingAParallelFlag() =>
+        _request.Render.ShouldBeFalse();
 
     [Fact]
-    public void StillResolvesTheCensorMethod() => _request.CensorMethod.ShouldBe(CensorMethod.Bleep);
+    public void StillResolvesTheCensorMethod() =>
+        _request.CensorMethod.ShouldBe(CensorMethod.Bleep);
 }
 
 /// <summary>The parser rejects what the Python's <c>choices</c> rejected.</summary>
@@ -212,15 +234,20 @@ public sealed class WhenCensorMethodIsNotAMethod
     public WhenCensorMethodIsNotAMethod()
     {
         var commandLine = new FoulFilterCommandLine();
-        _errors = [.. commandLine.Parse("clip.mp3", "words.txt", "--censor_method", "obliterate")
-            .Errors.Select(error => error.Message)];
+        _errors =
+        [
+            .. commandLine
+                .Parse("clip.mp3", "words.txt", "--censor_method", "obliterate")
+                .Errors.Select(error => error.Message),
+        ];
     }
 
     [Fact]
     public void FailsToParse() => _errors.ShouldNotBeEmpty();
 
     [Fact]
-    public void SaysWhichValueWasWrong() => _errors.ShouldContain(message => message.Contains("obliterate", StringComparison.Ordinal));
+    public void SaysWhichValueWasWrong() =>
+        _errors.ShouldContain(message => message.Contains("obliterate", StringComparison.Ordinal));
 }
 
 /// <summary>Both positional arguments are required, as argparse made them.</summary>

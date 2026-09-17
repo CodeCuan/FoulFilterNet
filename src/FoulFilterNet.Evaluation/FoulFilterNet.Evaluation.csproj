@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>foulfilter-eval</AssemblyName>
@@ -14,10 +13,12 @@
   <ItemGroup>
     <!-- The same configuration file the CLI and Web read, so an evaluation
          transcribes with exactly the model and settings a real job would. -->
-    <None Include="../FoulFilterNet.Web/appsettings.json"
-          Link="appsettings.json"
-          CopyToOutputDirectory="PreserveNewest"
-          CopyToPublishDirectory="PreserveNewest" />
+    <None
+      Include="../FoulFilterNet.Web/appsettings.json"
+      Link="appsettings.json"
+      CopyToOutputDirectory="PreserveNewest"
+      CopyToPublishDirectory="PreserveNewest"
+    />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,5 +28,4 @@
     <ProjectReference Include="../FoulFilterNet.SmartCut/FoulFilterNet.SmartCut.csproj" />
     <ProjectReference Include="../FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
   </ItemGroup>
-
 </Project>

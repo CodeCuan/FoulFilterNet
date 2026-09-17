@@ -41,11 +41,15 @@ public class WhenAligningATranscriptThatAlreadyHasWords
         // The audio is deliberately absent: a pass-through must never open it.
         File.Exists(NoSuchAudio).ShouldBeFalse();
 
-        _aligned = aligner.AlignAsync(
-            NoSuchAudio,
-            [new Segment(3.1, 4.12, "well damn that")],
-            _transcribed,
-            _progress).GetAwaiter().GetResult();
+        _aligned = aligner
+            .AlignAsync(
+                NoSuchAudio,
+                [new Segment(3.1, 4.12, "well damn that")],
+                _transcribed,
+                _progress
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _aligned.ShouldNotBeNull();
         _aligned.ShouldNotBeEmpty();
@@ -87,10 +91,14 @@ public class WhenAligningATranscriptWithNoWords
 
         File.Exists(NoSuchAudio).ShouldBeFalse();
 
-        _aligned = aligner.AlignAsync(
-            NoSuchAudio,
-            [new Segment(0.0, 2.0, "a segment no engine gave words for")],
-            []).GetAwaiter().GetResult();
+        _aligned = aligner
+            .AlignAsync(
+                NoSuchAudio,
+                [new Segment(0.0, 2.0, "a segment no engine gave words for")],
+                []
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _aligned.ShouldNotBeNull();
     }
@@ -111,13 +119,15 @@ public class WhenThePassThroughAlignerIsCancelled
 
     [Fact]
     public async Task ObservesTheTokenLikeAnyOtherStage() =>
-        await Should.ThrowAsync<OperationCanceledException>(
-            async () => await _aligner.AlignAsync(
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await _aligner.AlignAsync(
                 "no-such-audio.wav",
                 [],
                 _words,
                 progress: null,
-                new CancellationToken(canceled: true)));
+                new CancellationToken(canceled: true)
+            )
+        );
 
     [Fact]
     public async Task RunsNormallyWhileTheTokenIsLive()
@@ -127,7 +137,8 @@ public class WhenThePassThroughAlignerIsCancelled
             [],
             _words,
             progress: null,
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
         aligned.ShouldBeSameAs(_words);
     }
@@ -157,7 +168,8 @@ public class WhenReleasingThePassThroughAligner
             [],
             [new Word("damn", 1.0, 1.4)],
             progress: null,
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
         aligned.ShouldHaveSingleItem();
     }

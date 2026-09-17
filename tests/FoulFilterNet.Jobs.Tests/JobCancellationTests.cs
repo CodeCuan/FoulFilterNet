@@ -40,7 +40,10 @@ public class WhenARunningJobIsCancelled : IDisposable
         _started.Entered.GetAwaiter().GetResult();
 
         _outcome = _harness.Jobs.Cancel(queued.Id);
-        _record = _harness.WaitForStatusAsync(queued.Id, JobStatus.Cancelled).GetAwaiter().GetResult();
+        _record = _harness
+            .WaitForStatusAsync(queued.Id, JobStatus.Cancelled)
+            .GetAwaiter()
+            .GetResult();
         _pipelineSawTheCancellation = observed;
 
         _record.ShouldNotBeNull();
@@ -50,7 +53,8 @@ public class WhenARunningJobIsCancelled : IDisposable
     public void ReportsThatItWasCancelled() => _outcome.ShouldBe(JobCancelOutcome.Cancelled);
 
     [Fact]
-    public void ReachesThePipelineThroughItsOwnToken() => _pipelineSawTheCancellation.ShouldBeTrue();
+    public void ReachesThePipelineThroughItsOwnToken() =>
+        _pipelineSawTheCancellation.ShouldBeTrue();
 
     [Fact]
     public void SaysWhoCancelledIt() => _record.Detail.ShouldBe("Cancelled by user");
@@ -69,8 +73,9 @@ public class WhenARunningJobIsCancelled : IDisposable
 
         var next = _harness.Enqueue("next.mp3");
 
-        (await _harness.WaitForStatusAsync(next.Id, JobStatus.Completed)).Status
-            .ShouldBe(JobStatus.Completed);
+        (await _harness.WaitForStatusAsync(next.Id, JobStatus.Completed)).Status.ShouldBe(
+            JobStatus.Completed
+        );
     }
 
     public void Dispose()
@@ -104,7 +109,10 @@ public class WhenARunningJobSurfacesARawCancellation : IDisposable
         _started.Entered.GetAwaiter().GetResult();
         _harness.Jobs.Cancel(queued.Id);
 
-        _record = _harness.WaitForStatusAsync(queued.Id, JobStatus.Cancelled).GetAwaiter().GetResult();
+        _record = _harness
+            .WaitForStatusAsync(queued.Id, JobStatus.Cancelled)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -144,7 +152,10 @@ public class WhenAQueuedJobIsCancelledWhileAnotherIsRunning : IDisposable
         _harness.Jobs.Cancel(second.Id).ShouldBe(JobCancelOutcome.Cancelled);
 
         _blocked.Open();
-        _running = _harness.WaitForStatusAsync(first.Id, JobStatus.Completed).GetAwaiter().GetResult();
+        _running = _harness
+            .WaitForStatusAsync(first.Id, JobStatus.Completed)
+            .GetAwaiter()
+            .GetResult();
         _cancelled = _harness.Get(second.Id);
     }
 

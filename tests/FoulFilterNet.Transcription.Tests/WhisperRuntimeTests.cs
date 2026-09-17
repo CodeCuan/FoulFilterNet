@@ -10,8 +10,9 @@ namespace FoulFilterNet.Transcription.Tests;
 /// </summary>
 public sealed class WhenNoTranscriptionDeviceIsForced
 {
-    private readonly IReadOnlyList<RuntimeLibrary> _order =
-        WhisperRuntime.LibraryOrder(TranscriptionDevice.Auto);
+    private readonly IReadOnlyList<RuntimeLibrary> _order = WhisperRuntime.LibraryOrder(
+        TranscriptionDevice.Auto
+    );
 
     public WhenNoTranscriptionDeviceIsForced() => _order.ShouldNotBeEmpty();
 
@@ -39,14 +40,14 @@ public sealed class WhenNoTranscriptionDeviceIsForced
 /// </summary>
 public sealed class WhenCudaIsForced
 {
-    private readonly IReadOnlyList<RuntimeLibrary> _order =
-        WhisperRuntime.LibraryOrder(TranscriptionDevice.Cuda);
+    private readonly IReadOnlyList<RuntimeLibrary> _order = WhisperRuntime.LibraryOrder(
+        TranscriptionDevice.Cuda
+    );
 
     public WhenCudaIsForced() => _order.ShouldNotBeEmpty();
 
     [Fact]
-    public void NeverSilentlyFallsBackToTheCpu() =>
-        _order.ShouldNotContain(RuntimeLibrary.Cpu);
+    public void NeverSilentlyFallsBackToTheCpu() => _order.ShouldNotContain(RuntimeLibrary.Cpu);
 
     [Fact]
     public void NotEvenToTheNoAvxCpuBuild() => _order.ShouldNotContain(RuntimeLibrary.CpuNoAvx);
@@ -67,8 +68,9 @@ public sealed class WhenCudaIsForced
 /// </summary>
 public sealed class WhenTheCpuIsForced
 {
-    private readonly IReadOnlyList<RuntimeLibrary> _order =
-        WhisperRuntime.LibraryOrder(TranscriptionDevice.Cpu);
+    private readonly IReadOnlyList<RuntimeLibrary> _order = WhisperRuntime.LibraryOrder(
+        TranscriptionDevice.Cpu
+    );
 
     public WhenTheCpuIsForced() => _order.ShouldNotBeEmpty();
 
@@ -101,8 +103,8 @@ public sealed class WhenApplyingTheDeviceChoiceToARuntimeOrder
         WhisperRuntime.Apply(TranscriptionDevice.Cpu, _target);
 
     [Fact]
-    public void ReplacesWhateverWasThere() => _target.ShouldBe(
-        WhisperRuntime.LibraryOrder(TranscriptionDevice.Cpu).ToList());
+    public void ReplacesWhateverWasThere() =>
+        _target.ShouldBe(WhisperRuntime.LibraryOrder(TranscriptionDevice.Cpu).ToList());
 
     [Fact]
     public void LeavesNothingOfTheDefaultOrderBehind() =>
@@ -110,7 +112,9 @@ public sealed class WhenApplyingTheDeviceChoiceToARuntimeOrder
 
     [Fact]
     public void RefusesAMissingTarget() =>
-        Should.Throw<ArgumentNullException>(() => WhisperRuntime.Apply(TranscriptionDevice.Auto, null!));
+        Should.Throw<ArgumentNullException>(() =>
+            WhisperRuntime.Apply(TranscriptionDevice.Auto, null!)
+        );
 }
 
 /// <summary>
@@ -120,8 +124,10 @@ public sealed class WhenApplyingTheDeviceChoiceToARuntimeOrder
 /// </summary>
 public sealed class WhenLoadingAModelWhoseAlignmentHeadsAreKnown
 {
-    private readonly WhisperFactoryOptions _options =
-        WhisperRuntime.FactoryOptions(TranscriptionDevice.Auto, WhisperAlignmentHeadsPreset.LargeV3Turbo);
+    private readonly WhisperFactoryOptions _options = WhisperRuntime.FactoryOptions(
+        TranscriptionDevice.Auto,
+        WhisperAlignmentHeadsPreset.LargeV3Turbo
+    );
 
     [Fact]
     public void AsksForDtwWordTimestamps() => _options.UseDtwTimeStamps.ShouldBeTrue();
@@ -140,14 +146,17 @@ public sealed class WhenLoadingAModelWhoseAlignmentHeadsAreKnown
 /// </summary>
 public sealed class WhenLoadingAModelWithNoKnownAlignmentHeads
 {
-    private readonly WhisperFactoryOptions _options =
-        WhisperRuntime.FactoryOptions(TranscriptionDevice.Cpu, heads: null);
+    private readonly WhisperFactoryOptions _options = WhisperRuntime.FactoryOptions(
+        TranscriptionDevice.Cpu,
+        heads: null
+    );
 
     [Fact]
     public void LeavesDtwOff() => _options.UseDtwTimeStamps.ShouldBeFalse();
 
     [Fact]
-    public void NamesNoHeadsAtAll() => _options.HeadsPreset.ShouldBe(WhisperAlignmentHeadsPreset.None);
+    public void NamesNoHeadsAtAll() =>
+        _options.HeadsPreset.ShouldBe(WhisperAlignmentHeadsPreset.None);
 
     [Fact]
     public void KeepsTheModelOffTheGpu() => _options.UseGpu.ShouldBeFalse();

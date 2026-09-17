@@ -39,7 +39,8 @@ public sealed class LlmSmartCutAdvisor : ISmartCutAdvisor
         string phrase,
         int centerIndex,
         bool allowWidening,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         // An empty window is what SmartCutMapper.Map throws on, and there would be
         // nothing for the model to read anyway. Do not spend a round trip on it.
@@ -59,7 +60,11 @@ public sealed class LlmSmartCutAdvisor : ISmartCutAdvisor
         catch (Exception ex)
 #pragma warning restore CA1031
         {
-            _logger.LogError(ex, "Smart Cut failed for {Phrase}; keeping the original timestamps.", phrase);
+            _logger.LogError(
+                ex,
+                "Smart Cut failed for {Phrase}; keeping the original timestamps.",
+                phrase
+            );
 
             return SmartCutDecision.KeepOriginal;
         }

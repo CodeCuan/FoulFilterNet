@@ -30,14 +30,20 @@ internal sealed class RecordingFFmpegRunner : IFFmpegRunner
     /// </summary>
     public Action<IReadOnlyList<string>>? OnFFmpeg { get; set; }
 
-    public Task<FFmpegResult> RunFFmpegAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
+    public Task<FFmpegResult> RunFFmpegAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken = default
+    )
     {
         _ffmpegCalls.Add([.. arguments]);
         OnFFmpeg?.Invoke(arguments);
         return Task.FromResult(new FFmpegResult(0, string.Empty, string.Empty));
     }
 
-    public Task<FFmpegResult> RunFFprobeAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
+    public Task<FFmpegResult> RunFFprobeAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken = default
+    )
     {
         _ffprobeCalls.Add([.. arguments]);
         return Task.FromResult(new FFmpegResult(0, FFprobeOutput, string.Empty));
@@ -52,7 +58,10 @@ internal sealed class ScratchDirectory : IDisposable
 {
     public ScratchDirectory()
     {
-        Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"ffn_tests_{Guid.NewGuid():N}");
+        Path = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"ffn_tests_{Guid.NewGuid():N}"
+        );
         Directory.CreateDirectory(Path);
     }
 

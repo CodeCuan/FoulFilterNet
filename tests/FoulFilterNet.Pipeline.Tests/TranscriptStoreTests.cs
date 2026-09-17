@@ -13,10 +13,10 @@ internal static class CacheFixture
     public const string OtherDigest = "ffffffffffffffffffffffffffffffff";
 
     public static IReadOnlyList<Segment> Segments { get; } =
-        [new Segment(0.0, 1.2, "damn it"), new Segment(1.2, 2.4, "quite fine")];
+    [new Segment(0.0, 1.2, "damn it"), new Segment(1.2, 2.4, "quite fine")];
 
     public static IReadOnlyList<Word> Words { get; } =
-        [new Word("damn", 0.1, 0.5), new Word("it", 0.5, 0.7)];
+    [new Word("damn", 0.1, 0.5), new Word("it", 0.5, 0.7)];
 
     public static Transcript Cached { get; } =
         new(Transcript.CurrentVersion, Digest, Segments, Words);
@@ -24,9 +24,9 @@ internal static class CacheFixture
     /// <summary>A cache entry as it looks on disk, so the persisted shape is asserted rather than assumed.</summary>
     public static string Entry(int version, string fileHash, string text) =>
         $$"""
-          {"version":{{version}},"file_hash":"{{fileHash}}",
-           "segments":[{"start":0.0,"end":1.0,"text":"{{text}}"}],"words":[]}
-          """;
+            {"version":{{version}},"file_hash":"{{fileHash}}",
+             "segments":[{"start":0.0,"end":1.0,"text":"{{text}}"}],"words":[]}
+            """;
 
     public static string Write(string directory, string fileName, string json)
     {
@@ -37,7 +37,11 @@ internal static class CacheFixture
     }
 
     public static IReadOnlyList<string> JsonFileNames(string directory) =>
-        [.. Directory.EnumerateFiles(directory, "*.json").Select(f => Path.GetFileName(f) ?? string.Empty)];
+        [
+            .. Directory
+                .EnumerateFiles(directory, "*.json")
+                .Select(f => Path.GetFileName(f) ?? string.Empty),
+        ];
 }
 
 public class WhenSavingAndReloadingATranscript : IDisposable
@@ -145,7 +149,8 @@ public class WhenHashingAMediaFile : IDisposable
     public void MatchesTheDigestOfTheContent() => _shortDigest.ShouldBe(ShortContentDigest);
 
     [Fact]
-    public void HashesAFileLargerThanOneChunkCorrectly() => _largeDigest.ShouldBe(ThreeMegabyteDigest);
+    public void HashesAFileLargerThanOneChunkCorrectly() =>
+        _largeDigest.ShouldBe(ThreeMegabyteDigest);
 
     [Fact]
     public void IsStableAcrossCalls() => _repeatedDigest.ShouldBe(_shortDigest);
@@ -181,10 +186,13 @@ public class WhenACachedTranscriptWasWrittenByAnotherSchema : IDisposable
         _path = CacheFixture.Write(
             _directory.Path,
             $"{CacheFixture.Digest}_audiobook.json",
-            CacheFixture.Entry(99, CacheFixture.Digest, "damn"));
+            CacheFixture.Entry(99, CacheFixture.Digest, "damn")
+        );
 
         _found = new TranscriptStore(_directory.Path)
-            .FindAsync(CacheFixture.Digest).GetAwaiter().GetResult();
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -211,10 +219,13 @@ public class WhenACachedTranscriptIsTruncated : IDisposable
         CacheFixture.Write(
             _directory.Path,
             $"{CacheFixture.Digest}_audiobook.json",
-            "{\"version\": 1, \"file_hash\": \"01234");
+            "{\"version\": 1, \"file_hash\": \"01234"
+        );
 
         _found = new TranscriptStore(_directory.Path)
-            .FindAsync(CacheFixture.Digest).GetAwaiter().GetResult();
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -235,10 +246,15 @@ public class WhenACacheFileIsNotJsonAtAll : IDisposable
     public WhenACacheFileIsNotJsonAtAll()
     {
         CacheFixture.Write(
-            _directory.Path, $"{CacheFixture.Digest}_binary.json", "not json at all");
+            _directory.Path,
+            $"{CacheFixture.Digest}_binary.json",
+            "not json at all"
+        );
 
         _found = new TranscriptStore(_directory.Path)
-            .FindAsync(CacheFixture.Digest).GetAwaiter().GetResult();
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -265,10 +281,13 @@ public class WhenAPoisonedEntrySitsBesideAUsableOne : IDisposable
         CacheFixture.Write(
             _directory.Path,
             $"{CacheFixture.Digest}_good.json",
-            CacheFixture.Entry(Transcript.CurrentVersion, CacheFixture.Digest, "damn"));
+            CacheFixture.Entry(Transcript.CurrentVersion, CacheFixture.Digest, "damn")
+        );
 
         _found = new TranscriptStore(_directory.Path)
-            .FindAsync(CacheFixture.Digest).GetAwaiter().GetResult();
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -299,10 +318,13 @@ public class WhenACachedTranscriptBelongsToAnotherFile : IDisposable
         CacheFixture.Write(
             _directory.Path,
             $"{CacheFixture.Digest}_audiobook.json",
-            CacheFixture.Entry(Transcript.CurrentVersion, CacheFixture.OtherDigest, "damn"));
+            CacheFixture.Entry(Transcript.CurrentVersion, CacheFixture.OtherDigest, "damn")
+        );
 
         _found = new TranscriptStore(_directory.Path)
-            .FindAsync(CacheFixture.Digest).GetAwaiter().GetResult();
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -326,14 +348,17 @@ public class WhenNothingHasBeenCachedYet : IDisposable
         _missing = Path.Combine(_directory.Path, "transcripts");
 
         _found = new TranscriptStore(_missing)
-            .FindAsync(CacheFixture.Digest).GetAwaiter().GetResult();
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
     public void ReportsAMissForAnAbsentCacheDirectory() => _found.ShouldBeNull();
 
     [Fact]
-    public void DoesNotCreateTheDirectoryJustByLooking() => Directory.Exists(_missing).ShouldBeFalse();
+    public void DoesNotCreateTheDirectoryJustByLooking() =>
+        Directory.Exists(_missing).ShouldBeFalse();
 
     public void Dispose()
     {
@@ -380,10 +405,13 @@ public class WhenTheCacheHoldsOnlyOtherFilesTranscripts : IDisposable
         CacheFixture.Write(
             _directory.Path,
             $"{CacheFixture.OtherDigest}_other.json",
-            CacheFixture.Entry(Transcript.CurrentVersion, CacheFixture.OtherDigest, "damn"));
+            CacheFixture.Entry(Transcript.CurrentVersion, CacheFixture.OtherDigest, "damn")
+        );
 
         _found = new TranscriptStore(_directory.Path)
-            .FindAsync(CacheFixture.Digest).GetAwaiter().GetResult();
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
@@ -421,11 +449,15 @@ public class WhenTheFileNameWouldBeAwkward : IDisposable
 
     [Fact]
     public void KeepsOnlyTheCharactersTheLegacyCacheAllowed() =>
-        _fileName.ShouldAllBe(c => char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_' || c == '.');
+        _fileName.ShouldAllBe(c =>
+            char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_' || c == '.'
+        );
 
     [Fact]
     public void TruncatesTheReadableHalfToEightyCharacters() =>
-        _fileName.ShouldBe($"{CacheFixture.Digest}_.._My_Book__Chapter_1__unabridged__{new string('x', 45)}.json");
+        _fileName.ShouldBe(
+            $"{CacheFixture.Digest}_.._My_Book__Chapter_1__unabridged__{new string('x', 45)}.json"
+        );
 
     [Fact]
     public void WritesInsideTheCacheDirectoryRatherThanAboveIt() =>
@@ -485,7 +517,11 @@ public class WhenSavingOverAnEarlierTranscript : IDisposable
     {
         var sut = new TranscriptStore(_directory.Path);
         var unaligned = new Transcript(
-            Transcript.CurrentVersion, CacheFixture.Digest, CacheFixture.Segments, []);
+            Transcript.CurrentVersion,
+            CacheFixture.Digest,
+            CacheFixture.Segments,
+            []
+        );
 
         sut.SaveAsync(unaligned, "book").GetAwaiter().GetResult();
         sut.SaveAsync(CacheFixture.Cached, "renamed book").GetAwaiter().GetResult();
@@ -535,13 +571,15 @@ public class WhenTheJobIsCancelledDuringALookup : IDisposable
 
     [Fact]
     public async Task StopsHashingRatherThanFinishingTheFile() =>
-        await Should.ThrowAsync<OperationCanceledException>(
-            async () => await _sut.ComputeHashAsync(_media, _source.Token));
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await _sut.ComputeHashAsync(_media, _source.Token)
+        );
 
     [Fact]
     public async Task StopsLookingRatherThanReportingAMiss() =>
-        await Should.ThrowAsync<OperationCanceledException>(
-            async () => await _sut.FindAsync(CacheFixture.Digest, _source.Token));
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await _sut.FindAsync(CacheFixture.Digest, _source.Token)
+        );
 
     public void Dispose()
     {
@@ -557,7 +595,8 @@ internal sealed class TempDirectory : IDisposable
     {
         Path = System.IO.Path.Combine(
             System.IO.Path.GetTempPath(),
-            "ffn-pipeline-" + Guid.NewGuid().ToString("N")[..8]);
+            "ffn-pipeline-" + Guid.NewGuid().ToString("N")[..8]
+        );
         Directory.CreateDirectory(Path);
     }
 
@@ -569,8 +608,6 @@ internal sealed class TempDirectory : IDisposable
         {
             Directory.Delete(Path, recursive: true);
         }
-        catch (IOException)
-        {
-        }
+        catch (IOException) { }
     }
 }

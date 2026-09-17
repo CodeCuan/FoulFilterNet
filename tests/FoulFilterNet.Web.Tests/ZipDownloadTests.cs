@@ -39,7 +39,9 @@ public class WhenDownloadingTwoFinishedOutputsAsAZip : IDisposable
     /// </summary>
     [Fact]
     public void DoesNotPrefixNamesThatAreAlreadyPrefixed() =>
-        _entryNames.ShouldAllBe(name => !name.StartsWith("censored_censored_", StringComparison.Ordinal));
+        _entryNames.ShouldAllBe(name =>
+            !name.StartsWith("censored_censored_", StringComparison.Ordinal)
+        );
 
     [Fact]
     public void NamesEachEntryAfterItsOutputFile() =>
@@ -51,7 +53,8 @@ public class WhenDownloadingTwoFinishedOutputsAsAZip : IDisposable
 
     [Fact]
     public void OffersItUnderOneFileName() =>
-        _response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+        _response
+            .Content.Headers.ContentDisposition?.FileName?.Trim('"')
             .ShouldBe("foulfilter_results.zip");
 
     [Fact]
@@ -100,8 +103,7 @@ public class WhenOnlySomeSelectedJobsHaveFinished : IDisposable
     public void IncludesOnlyTheFinishedOne() => _archive.Entries.Count.ShouldBe(1);
 
     [Fact]
-    public void NamesTheFinishedOne() =>
-        _archive.Entries[0].FullName.ShouldBe("censored_done.mp3");
+    public void NamesTheFinishedOne() => _archive.Entries[0].FullName.ShouldBe("censored_done.mp3");
 
     public void Dispose()
     {
@@ -124,13 +126,14 @@ public class WhenNothingSelectedHasFinished : IDisposable
     {
         _client = _app.CreateClient();
         _unknown = Zip.GetAsync(_client, "nosuchjob").GetAwaiter().GetResult();
-        _empty = _client.GetAsync(new Uri("/download_zip?ids=", UriKind.Relative), Api.Token)
-            .GetAwaiter().GetResult();
+        _empty = _client
+            .GetAsync(new Uri("/download_zip?ids=", UriKind.Relative), Api.Token)
+            .GetAwaiter()
+            .GetResult();
     }
 
     [Fact]
-    public void SaysThereIsNothingToZip() =>
-        _unknown.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    public void SaysThereIsNothingToZip() => _unknown.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
     [Fact]
     public void TreatsAnEmptySelectionTheSameWay() =>
@@ -192,7 +195,8 @@ internal static class Zip
     public static Task<HttpResponseMessage> GetAsync(HttpClient client, params string[] jobIds) =>
         client.GetAsync(
             new Uri($"/download_zip?ids={string.Join(',', jobIds)}", UriKind.Relative),
-            Api.Token);
+            Api.Token
+        );
 
     public static async Task<ZipArchive> OpenAsync(HttpResponseMessage response)
     {

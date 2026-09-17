@@ -14,7 +14,8 @@ public class WhenMatchingASingleWordInASegment
     {
         _candidates = PhraseMatcher.FindCandidates(
             [new Segment(0.0, 2.0, "Well, Damn. that's bad")],
-            BadWordsList.FromLines(["damn"]));
+            BadWordsList.FromLines(["damn"])
+        );
 
         _candidates.ShouldNotBeNull();
         _candidates.Count.ShouldBe(1);
@@ -27,7 +28,8 @@ public class WhenMatchingASingleWordInASegment
     public void StartsAfterTheSegmentStart() => _candidates[0].ApproxStart.ShouldBeGreaterThan(0.0);
 
     [Fact]
-    public void EndsAfterItStarts() => _candidates[0].ApproxEnd.ShouldBeGreaterThan(_candidates[0].ApproxStart);
+    public void EndsAfterItStarts() =>
+        _candidates[0].ApproxEnd.ShouldBeGreaterThan(_candidates[0].ApproxStart);
 
     [Fact]
     public void EndsBeforeTheSegmentEnds() => _candidates[0].ApproxEnd.ShouldBeLessThan(2.0);
@@ -45,7 +47,8 @@ public class WhenMatchingAMultiWordPhrase
     {
         _candidates = PhraseMatcher.FindCandidates(
             [new Segment(10.0, 14.0, "he can go to hell for all I care")],
-            BadWordsList.FromLines(["go to hell"]));
+            BadWordsList.FromLines(["go to hell"])
+        );
 
         _candidates.ShouldNotBeNull();
         _candidates.Count.ShouldBe(1);
@@ -74,7 +77,8 @@ public class WhenASegmentContainsAnApostrophe
     {
         _candidates = PhraseMatcher.FindCandidates(
             [new Segment(0.0, 1.0, "you son of a bitch")],
-            BadWordsList.FromLines(["bitch", "don't"]));
+            BadWordsList.FromLines(["bitch", "don't"])
+        );
 
         _candidates.ShouldNotBeNull();
     }
@@ -84,9 +88,12 @@ public class WhenASegmentContainsAnApostrophe
 
     [Fact]
     public void MatchesAnEntryThatItselfHasAnApostrophe() =>
-        PhraseMatcher.FindCandidates(
-            [new Segment(0.0, 1.0, "Don't you dare")],
-            BadWordsList.FromLines(["don't"])).Count.ShouldBe(1);
+        PhraseMatcher
+            .FindCandidates(
+                [new Segment(0.0, 1.0, "Don't you dare")],
+                BadWordsList.FromLines(["don't"])
+            )
+            .Count.ShouldBe(1);
 }
 
 /// <summary>Ports <c>test_no_false_positive_substrings</c> - the whole point of token matching.</summary>
@@ -98,7 +105,8 @@ public class WhenAnEntryAppearsOnlyAsASubstring
     {
         _candidates = PhraseMatcher.FindCandidates(
             [new Segment(0.0, 1.0, "classify the class")],
-            BadWordsList.FromLines(["ass"]));
+            BadWordsList.FromLines(["ass"])
+        );
 
         _candidates.ShouldNotBeNull();
     }
@@ -108,9 +116,9 @@ public class WhenAnEntryAppearsOnlyAsASubstring
 
     [Fact]
     public void StillMatchesTheWholeToken() =>
-        PhraseMatcher.FindCandidates(
-            [new Segment(0.0, 1.0, "what an ass")],
-            BadWordsList.FromLines(["ass"])).Count.ShouldBe(1);
+        PhraseMatcher
+            .FindCandidates([new Segment(0.0, 1.0, "what an ass")], BadWordsList.FromLines(["ass"]))
+            .Count.ShouldBe(1);
 }
 
 /// <summary>
@@ -125,7 +133,8 @@ public class WhenAShorterEntryIsNestedInsideALongerMatch
     {
         _candidates = PhraseMatcher.FindCandidates(
             [new Segment(0.0, 4.0, "he can go to hell")],
-            BadWordsList.FromLines(["go to hell", "hell"]));
+            BadWordsList.FromLines(["go to hell", "hell"])
+        );
 
         _candidates.ShouldNotBeNull();
         _candidates.ShouldAllBe(c => c.ApproxEnd > c.ApproxStart);
@@ -139,9 +148,12 @@ public class WhenAShorterEntryIsNestedInsideALongerMatch
 
     [Fact]
     public void StillMatchesTheShortEntryWhereItStandsAlone() =>
-        PhraseMatcher.FindCandidates(
-            [new Segment(0.0, 4.0, "what the hell")],
-            BadWordsList.FromLines(["go to hell", "hell"]))[0].Phrase.ShouldBe("hell");
+        PhraseMatcher
+            .FindCandidates(
+                [new Segment(0.0, 4.0, "what the hell")],
+                BadWordsList.FromLines(["go to hell", "hell"])
+            )[0]
+            .Phrase.ShouldBe("hell");
 }
 
 public class WhenTheSameWordOccursSeveralTimesInOneSegment
@@ -152,7 +164,8 @@ public class WhenTheSameWordOccursSeveralTimesInOneSegment
     {
         _candidates = PhraseMatcher.FindCandidates(
             [new Segment(0.0, 6.0, "damn and damn and damn")],
-            BadWordsList.FromLines(["damn"]));
+            BadWordsList.FromLines(["damn"])
+        );
 
         _candidates.ShouldNotBeNull();
         _candidates.ShouldAllBe(c => c.Phrase == "damn");
@@ -166,7 +179,8 @@ public class WhenTheSameWordOccursSeveralTimesInOneSegment
         _candidates.Select(c => c.ApproxStart).Distinct().Count().ShouldBe(3);
 
     [Fact]
-    public void ReportsThemInTextOrder() => _candidates.Select(c => c.ApproxStart).ShouldBeInOrder();
+    public void ReportsThemInTextOrder() =>
+        _candidates.Select(c => c.ApproxStart).ShouldBeInOrder();
 }
 
 public class WhenMatchingAcrossSeveralSegments
@@ -181,7 +195,8 @@ public class WhenMatchingAcrossSeveralSegments
                 new Segment(2.0, 4.0, "oh damn"),
                 new Segment(4.0, 6.0, "hell no"),
             ],
-            BadWordsList.FromLines(["damn", "hell"]));
+            BadWordsList.FromLines(["damn", "hell"])
+        );
 
         _candidates.ShouldNotBeNull();
         _candidates.Count.ShouldBe(2);
@@ -212,7 +227,8 @@ public class WhenASegmentHoldsNoMatch
     {
         _candidates = PhraseMatcher.FindCandidates(
             [new Segment(0.0, 1.0, ""), new Segment(1.0, 2.0, "all quite polite")],
-            BadWordsList.FromLines(["damn"]));
+            BadWordsList.FromLines(["damn"])
+        );
 
         _candidates.ShouldNotBeNull();
     }
@@ -239,7 +255,8 @@ public class WhenMatchingOverAlignedWords
                 new Word("hell", 1.4, 1.9),
                 new Word("friend", 1.9, 2.4),
             ],
-            BadWordsList.FromLines(["hell"]));
+            BadWordsList.FromLines(["hell"])
+        );
 
         _hits.ShouldNotBeNull();
         _hits.Count.ShouldBe(1);
@@ -271,7 +288,8 @@ public class WhenAPhraseSpansSeveralAlignedWords
                 new Word("to", 5.8, 5.9),
                 new Word("hell", 5.9, 6.2),
             ],
-            BadWordsList.FromLines(["go to hell", "hell"]));
+            BadWordsList.FromLines(["go to hell", "hell"])
+        );
 
         _hits.ShouldNotBeNull();
         _hits.Count.ShouldBe(1);
@@ -298,7 +316,8 @@ public class WhenAlignedWordsCarryPunctuationAndCase
     {
         _hits = PhraseMatcher.FindHits(
             [new Word("Well,", 0.0, 0.3), new Word("Damn!", 0.3, 0.8)],
-            BadWordsList.FromLines(["damn"]));
+            BadWordsList.FromLines(["damn"])
+        );
 
         _hits.ShouldNotBeNull();
         _hits.Count.ShouldBe(1);
@@ -312,7 +331,9 @@ public class WhenAlignedWordsCarryPunctuationAndCase
 
     [Fact]
     public void IgnoresAWordWithNoTokensAtAll() =>
-        PhraseMatcher.FindHits([new Word("...", 0.0, 0.1)], BadWordsList.FromLines(["damn"])).ShouldBeEmpty();
+        PhraseMatcher
+            .FindHits([new Word("...", 0.0, 0.1)], BadWordsList.FromLines(["damn"]))
+            .ShouldBeEmpty();
 
     [Fact]
     public void SurvivesAnEmptyWordList() =>

@@ -13,8 +13,12 @@ internal sealed class StubMediaPipeline : IMediaPipeline
 {
     private int _running;
 
-    public Func<JobRequest, IProgress<JobProgress>?, CancellationToken, Task<JobSummary>> Behaviour { get; set; } =
-        static (_, _, _) => Task.FromResult(Completed());
+    public Func<
+        JobRequest,
+        IProgress<JobProgress>?,
+        CancellationToken,
+        Task<JobSummary>
+    > Behaviour { get; set; } = static (_, _, _) => Task.FromResult(Completed());
 
     /// <summary>Every request the worker handed over, in order.</summary>
     public List<JobRequest> Requests { get; } = [];
@@ -27,12 +31,14 @@ internal sealed class StubMediaPipeline : IMediaPipeline
             Enumerable.Range(0, hits).Select(i => new Hit("damn", i, i + 0.5)).ToArray(),
             TranscriptWordCount: 10,
             UsedCachedTranscript: false,
-            Rescanned: rescanned);
+            Rescanned: rescanned
+        );
 
     public async Task<JobSummary> RunAsync(
         JobRequest request,
         IProgress<JobProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var inFlight = Interlocked.Increment(ref _running);
         lock (Requests)

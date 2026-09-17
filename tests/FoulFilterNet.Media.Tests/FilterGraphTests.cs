@@ -20,30 +20,34 @@ public class WhenBuildingTheSilenceFilter
 
     public WhenBuildingTheSilenceFilter()
     {
-        _graph = FilterGraph.Silence(HitFactory.Hits(
-            HitFactory.Hit(1.0, 2.0),
-            HitFactory.Hit(4.0, 5.0)));
+        _graph = FilterGraph.Silence(
+            HitFactory.Hits(HitFactory.Hit(1.0, 2.0), HitFactory.Hit(4.0, 5.0))
+        );
 
         _graph.ShouldNotBeNullOrWhiteSpace();
         _graph.ShouldNotContain("[");
     }
 
     [Fact]
-    public void ChainsOneVolumeGatePerHit() => _graph.ShouldBe(
-        "volume=enable='between(t,1.0,2.0)':volume=0,"
-        + "volume=enable='between(t,4.0,5.0)':volume=0");
+    public void ChainsOneVolumeGatePerHit() =>
+        _graph.ShouldBe(
+            "volume=enable='between(t,1.0,2.0)':volume=0,"
+                + "volume=enable='between(t,4.0,5.0)':volume=0"
+        );
 
     [Fact]
     public void JoinsTheGatesWithCommas() => _graph.Split(",volume=").Length.ShouldBe(2);
 
     [Fact]
     public void RendersAWholeSecondWithItsDecimalPointAsPythonDoes() =>
-        FilterGraph.Silence(HitFactory.Hits(HitFactory.Hit(3.0, 6.0)))
+        FilterGraph
+            .Silence(HitFactory.Hits(HitFactory.Hit(3.0, 6.0)))
             .ShouldBe("volume=enable='between(t,3.0,6.0)':volume=0");
 
     [Fact]
     public void RendersAFractionWithoutPaddingIt() =>
-        FilterGraph.Silence(HitFactory.Hits(HitFactory.Hit(0.15, 2.7)))
+        FilterGraph
+            .Silence(HitFactory.Hits(HitFactory.Hit(0.15, 2.7)))
             .ShouldBe("volume=enable='between(t,0.15,2.7)':volume=0");
 }
 
@@ -80,12 +84,14 @@ public class WhenBuildingTheBleepFilter
         _graph.ShouldContain("[base][b0]amix=inputs=2:duration=first:normalize=0[out]");
 
     [Fact]
-    public void ProducesTheWholeGraphExactly() => _graph.ShouldBe(
-        "[0:a]aformat=sample_rates=44100:channel_layouts=stereo,"
-        + "volume=enable='between(t,2.0,2.7)':volume=0[base]"
-        + ";sine=frequency=1000:duration=0.700[s0]"
-        + ";[s0]adelay=2000|2000[b0]"
-        + ";[base][b0]amix=inputs=2:duration=first:normalize=0[out]");
+    public void ProducesTheWholeGraphExactly() =>
+        _graph.ShouldBe(
+            "[0:a]aformat=sample_rates=44100:channel_layouts=stereo,"
+                + "volume=enable='between(t,2.0,2.7)':volume=0[base]"
+                + ";sine=frequency=1000:duration=0.700[s0]"
+                + ";[s0]adelay=2000|2000[b0]"
+                + ";[base][b0]amix=inputs=2:duration=first:normalize=0[out]"
+        );
 }
 
 public class WhenBleepingSeveralHits
@@ -94,9 +100,9 @@ public class WhenBleepingSeveralHits
 
     public WhenBleepingSeveralHits()
     {
-        _graph = FilterGraph.Bleep(HitFactory.Hits(
-            HitFactory.Hit(0.0, 0.5),
-            HitFactory.Hit(4.25, 4.26)));
+        _graph = FilterGraph.Bleep(
+            HitFactory.Hits(HitFactory.Hit(0.0, 0.5), HitFactory.Hit(4.25, 4.26))
+        );
 
         _graph.ShouldNotBeNullOrWhiteSpace();
     }
@@ -122,16 +128,17 @@ public class WhenBuildingTheRemoveFilter
 
     public WhenBuildingTheRemoveFilter()
     {
-        _graph = FilterGraph.Remove(HitFactory.Hits(
-            HitFactory.Hit(1.0, 2.0),
-            HitFactory.Hit(3.0, 4.0)));
+        _graph = FilterGraph.Remove(
+            HitFactory.Hits(HitFactory.Hit(1.0, 2.0), HitFactory.Hit(3.0, 4.0))
+        );
 
         _graph.ShouldNotBeNullOrWhiteSpace();
         _graph.ShouldEndWith("[out]");
     }
 
     [Fact]
-    public void KeepsTheHeadBeforeTheFirstHit() => _graph.ShouldContain("atrim=start=0.000:end=1.000");
+    public void KeepsTheHeadBeforeTheFirstHit() =>
+        _graph.ShouldContain("atrim=start=0.000:end=1.000");
 
     [Fact]
     public void KeepsTheGapBetweenTwoHits() => _graph.ShouldContain("atrim=start=2.000:end=3.000");
@@ -140,18 +147,24 @@ public class WhenBuildingTheRemoveFilter
     public void KeepsAnOpenEndedTailAfterTheLastHit() => _graph.ShouldContain("atrim=start=4.000");
 
     [Fact]
-    public void ConcatenatesEveryKeptSpanAsAudioOnly() => _graph.ShouldContain("concat=n=3:v=0:a=1[out]");
+    public void ConcatenatesEveryKeptSpanAsAudioOnly() =>
+        _graph.ShouldContain("concat=n=3:v=0:a=1[out]");
 
     [Fact]
     public void ResetsPresentationTimestampsOnEachSpan() =>
-        _graph.Split(';').Count(part => part.Contains("asetpts=PTS-STARTPTS", StringComparison.Ordinal)).ShouldBe(3);
+        _graph
+            .Split(';')
+            .Count(part => part.Contains("asetpts=PTS-STARTPTS", StringComparison.Ordinal))
+            .ShouldBe(3);
 
     [Fact]
-    public void ProducesTheWholeGraphExactly() => _graph.ShouldBe(
-        "[0:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[clip0]"
-        + ";[0:a]atrim=start=2.000:end=3.000,asetpts=PTS-STARTPTS[clip1]"
-        + ";[0:a]atrim=start=4.000,asetpts=PTS-STARTPTS[clip2]"
-        + ";[clip0][clip1][clip2]concat=n=3:v=0:a=1[out]");
+    public void ProducesTheWholeGraphExactly() =>
+        _graph.ShouldBe(
+            "[0:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[clip0]"
+                + ";[0:a]atrim=start=2.000:end=3.000,asetpts=PTS-STARTPTS[clip1]"
+                + ";[0:a]atrim=start=4.000,asetpts=PTS-STARTPTS[clip2]"
+                + ";[clip0][clip1][clip2]concat=n=3:v=0:a=1[out]"
+        );
 }
 
 public class WhenRemovingHitsGivenTheFileDuration
@@ -160,7 +173,10 @@ public class WhenRemovingHitsGivenTheFileDuration
 
     public WhenRemovingHitsGivenTheFileDuration()
     {
-        _graph = FilterGraph.Remove(HitFactory.Hits(HitFactory.Hit(1.0, 5.0)), totalDurationSeconds: 5.0);
+        _graph = FilterGraph.Remove(
+            HitFactory.Hits(HitFactory.Hit(1.0, 5.0)),
+            totalDurationSeconds: 5.0
+        );
 
         _graph.ShouldNotBeNullOrWhiteSpace();
     }
@@ -169,22 +185,27 @@ public class WhenRemovingHitsGivenTheFileDuration
     public void DropsTheTailWhenTheLastHitReachesTheEnd() => _graph.ShouldNotContain("[clip1]");
 
     [Fact]
-    public void ConcatenatesOnlyTheHead() => _graph.ShouldBe(
-        "[0:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[clip0]"
-        + ";[clip0]concat=n=1:v=0:a=1[out]");
+    public void ConcatenatesOnlyTheHead() =>
+        _graph.ShouldBe(
+            "[0:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[clip0]"
+                + ";[clip0]concat=n=1:v=0:a=1[out]"
+        );
 
     [Fact]
     public void SortsHitsByStartBeforeTrimming() =>
-        FilterGraph.Remove(HitFactory.Hits(HitFactory.Hit(3.0, 4.0), HitFactory.Hit(1.0, 2.0)))
+        FilterGraph
+            .Remove(HitFactory.Hits(HitFactory.Hit(3.0, 4.0), HitFactory.Hit(1.0, 2.0)))
             .ShouldContain("atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[clip0]");
 
     [Fact]
     public void SwallowsOverlappingHitsIntoOneGap() =>
-        FilterGraph.Remove(HitFactory.Hits(HitFactory.Hit(1.0, 3.0), HitFactory.Hit(2.0, 4.0)))
+        FilterGraph
+            .Remove(HitFactory.Hits(HitFactory.Hit(1.0, 3.0), HitFactory.Hit(2.0, 4.0)))
             .ShouldBe(
                 "[0:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[clip0]"
-                + ";[0:a]atrim=start=4.000,asetpts=PTS-STARTPTS[clip1]"
-                + ";[clip0][clip1]concat=n=2:v=0:a=1[out]");
+                    + ";[0:a]atrim=start=4.000,asetpts=PTS-STARTPTS[clip1]"
+                    + ";[clip0][clip1]concat=n=2:v=0:a=1[out]"
+            );
 }
 
 public class WhenHitsWouldConsumeTheWholeFile
@@ -200,16 +221,21 @@ public class WhenHitsWouldConsumeTheWholeFile
 
     [Fact]
     public void RefusesToBuildAGraphThatWouldLeaveNothing() =>
-        Should.Throw<ArgumentException>(() => FilterGraph.Remove(_hits, totalDurationSeconds: 10.0));
+        Should.Throw<ArgumentException>(() =>
+            FilterGraph.Remove(_hits, totalDurationSeconds: 10.0)
+        );
 
     [Fact]
     public void SaysWhyItRefused() =>
-        Should.Throw<ArgumentException>(() => FilterGraph.Remove(_hits, totalDurationSeconds: 10.0))
+        Should
+            .Throw<ArgumentException>(() => FilterGraph.Remove(_hits, totalDurationSeconds: 10.0))
             .Message.ShouldContain("entire file", Case.Insensitive);
 
     [Fact]
     public void ToleratesAMillisecondOfSlackAtTheEnd() =>
-        Should.Throw<ArgumentException>(() => FilterGraph.Remove(_hits, totalDurationSeconds: 10.0005));
+        Should.Throw<ArgumentException>(() =>
+            FilterGraph.Remove(_hits, totalDurationSeconds: 10.0005)
+        );
 
     [Fact]
     public void StillBuildsWhenTheDurationIsUnknown() =>
@@ -228,7 +254,8 @@ public class WhenBuildingAFilterFromNoHits
     }
 
     [Fact]
-    public void SilenceRefuses() => Should.Throw<ArgumentException>(() => FilterGraph.Silence(_none));
+    public void SilenceRefuses() =>
+        Should.Throw<ArgumentException>(() => FilterGraph.Silence(_none));
 
     [Fact]
     public void BleepRefuses() => Should.Throw<ArgumentException>(() => FilterGraph.Bleep(_none));
@@ -238,5 +265,7 @@ public class WhenBuildingAFilterFromNoHits
 
     [Fact]
     public void SilenceNamesTheOffendingArgument() =>
-        Should.Throw<ArgumentException>(() => FilterGraph.Silence(_none)).ParamName.ShouldBe("hits");
+        Should
+            .Throw<ArgumentException>(() => FilterGraph.Silence(_none))
+            .ParamName.ShouldBe("hits");
 }

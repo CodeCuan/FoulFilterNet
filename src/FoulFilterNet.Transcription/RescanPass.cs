@@ -32,7 +32,10 @@ public static class RescanPass
     /// A segment ending at or before zero lay entirely inside the padding and
     /// is dropped; one straddling zero has its start clamped.
     /// </summary>
-    public static IReadOnlyList<Segment> Shift(IReadOnlyList<Segment> segments, double offsetSeconds)
+    public static IReadOnlyList<Segment> Shift(
+        IReadOnlyList<Segment> segments,
+        double offsetSeconds
+    )
     {
         ArgumentNullException.ThrowIfNull(segments);
 
@@ -84,7 +87,8 @@ public static class RescanPass
 
         return new TranscriptionResult(
             Shift(result.Segments, offsetSeconds),
-            Shift(result.Words, offsetSeconds));
+            Shift(result.Words, offsetSeconds)
+        );
     }
 
     /// <summary>
@@ -93,7 +97,10 @@ public static class RescanPass
     /// segment whose text repeats the previous kept segment's is dropped when
     /// the two overlap - the same text at a genuinely different time survives.
     /// </summary>
-    public static IReadOnlyList<Segment> Union(IReadOnlyList<Segment> primary, IReadOnlyList<Segment> extra)
+    public static IReadOnlyList<Segment> Union(
+        IReadOnlyList<Segment> primary,
+        IReadOnlyList<Segment> extra
+    )
     {
         ArgumentNullException.ThrowIfNull(primary);
         ArgumentNullException.ThrowIfNull(extra);
@@ -108,8 +115,10 @@ public static class RescanPass
             if (union.Count > 0)
             {
                 var previous = union[^1];
-                if (string.Equals(segment.Text, previous.Text, StringComparison.Ordinal)
-                    && segment.Start < previous.End)
+                if (
+                    string.Equals(segment.Text, previous.Text, StringComparison.Ordinal)
+                    && segment.Start < previous.End
+                )
                 {
                     continue;
                 }

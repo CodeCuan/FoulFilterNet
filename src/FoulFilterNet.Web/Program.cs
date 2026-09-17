@@ -19,9 +19,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddLegacyEnvironmentVariables();
 
 builder.Services.Configure<StorageOptions>(
-    builder.Configuration.GetSection(StorageOptions.SectionName));
-builder.Services.Configure<TranscriptionOptions>(
-    builder.Configuration.GetSection("Transcription"));
+    builder.Configuration.GetSection(StorageOptions.SectionName)
+);
+builder.Services.Configure<TranscriptionOptions>(builder.Configuration.GetSection("Transcription"));
 
 // Binds the SmartCut section, registers the named client, and resolves exactly
 // one ISmartCutAdvisor - the no-op when the feature is off or unconfigured. The
@@ -30,7 +30,8 @@ builder.Services.AddSmartCut(builder.Configuration);
 
 // The front end and the Python it was written against both speak snake_case.
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+);
 
 builder.Services.AddSingleton<JobEventFanOut>();
 builder.Services.AddSingleton<JobManager>();
@@ -57,14 +58,17 @@ builder.Services.AddSingleton<IWhisperEngine>(provider => new WhisperNetEngine(
     provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
     new WhisperModelSource(
         provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value.ModelDirectory,
-        WhisperModelSource.Download),
-    provider.GetRequiredService<ILogger<WhisperNetEngine>>()));
+        WhisperModelSource.Download
+    ),
+    provider.GetRequiredService<ILogger<WhisperNetEngine>>()
+));
 
 // Conversion, padding, rescan rebasing and temporary-file cleanup sit around the
 // engine rather than inside it, which is what keeps them testable without a GPU.
 builder.Services.AddSingleton<WhisperTranscriber>(provider => new WhisperTranscriber(
     provider.GetRequiredService<IWhisperEngine>(),
-    provider.GetRequiredService<IAudioPreparer>()));
+    provider.GetRequiredService<IAudioPreparer>()
+));
 
 // Alignment is a no-op seam now that the transcriber returns words itself; it
 // stays so that a forced aligner can be reintroduced without touching the
@@ -76,14 +80,17 @@ builder.Services.AddSingleton<IAligner, PassThroughAligner>();
 // the flag off the wrapper is the no-op that keeps the model resident.
 builder.Services.AddSingleton<ITranscriber>(provider => new ReleasePolicyTranscriber(
     provider.GetRequiredService<WhisperTranscriber>(),
-    provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value));
+    provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value
+));
 
 // The transcript cache belongs to the job's own transcript directory.
-builder.Services.AddSingleton<TranscriptStoreFactory>(
-    _ => directory => new TranscriptStore(directory));
+builder.Services.AddSingleton<TranscriptStoreFactory>(_ =>
+    directory => new TranscriptStore(directory)
+);
 
-builder.Services.AddSingleton(
-    provider => provider.GetRequiredService<IOptions<SmartCutOptions>>().Value);
+builder.Services.AddSingleton(provider =>
+    provider.GetRequiredService<IOptions<SmartCutOptions>>().Value
+);
 
 builder.Services.AddSingleton<IMediaPipeline, MediaPipeline>();
 

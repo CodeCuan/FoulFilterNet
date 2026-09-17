@@ -1,5 +1,4 @@
 <Project>
-
   <!--
     Central package management. EVERY package the port is expected to need is
     declared here up front, including ones no project references yet, so that
@@ -38,9 +37,11 @@
   <ItemGroup Label="Hosting and configuration">
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
+    <PackageVersion
+      Include="Microsoft.Extensions.Options.ConfigurationExtensions"
+      Version="10.0.12"
+    />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
   </ItemGroup>
-
 </Project>

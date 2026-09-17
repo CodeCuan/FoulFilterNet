@@ -25,9 +25,13 @@ public static class UserInterfaceEndpoints
 
         app.UseStaticFiles(new StaticFileOptions { RequestPath = "/static" });
 
-        app.MapGet("/", (IWebHostEnvironment environment) =>
-            Results.File(
-                Path.Combine(environment.WebRootPath, "index.html"),
-                "text/html; charset=utf-8"));
+        app.MapGet(
+            "/",
+            (IWebHostEnvironment environment) =>
+                Results.File(
+                    Path.Combine(environment.WebRootPath, "index.html"),
+                    "text/html; charset=utf-8"
+                )
+        );
     }
 }

@@ -117,7 +117,8 @@ public sealed record ScoreCard
             : new ErrorStatistics(
                 Times.Round(errors.Average(Math.Abs)),
                 Times.Round(errors.Max(Math.Abs)),
-                Times.Round(errors.Average()));
+                Times.Round(errors.Average())
+            );
 
     private static double? Max(IEnumerable<double> values) =>
         values.Select(v => (double?)v).Max() is { } max ? Times.Round(max) : null;

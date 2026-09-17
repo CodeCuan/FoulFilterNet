@@ -43,7 +43,8 @@ public sealed class OpenAiCompatibleTransport : ISmartCutTransport
         HttpClient http,
         string url,
         string model,
-        ILogger<OpenAiCompatibleTransport> logger)
+        ILogger<OpenAiCompatibleTransport> logger
+    )
     {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
@@ -64,10 +65,15 @@ public sealed class OpenAiCompatibleTransport : ISmartCutTransport
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(chatCompletionsUrl);
 
-        return new Uri(chatCompletionsUrl.Replace("/chat/completions", "/models", StringComparison.Ordinal));
+        return new Uri(
+            chatCompletionsUrl.Replace("/chat/completions", "/models", StringComparison.Ordinal)
+        );
     }
 
-    public async Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default)
+    public async Task<string> CompleteAsync(
+        string prompt,
+        CancellationToken cancellationToken = default
+    )
     {
         // An unset model id is configuration saying "whatever the server has".
         if (string.IsNullOrWhiteSpace(_model))
@@ -87,7 +93,10 @@ public sealed class OpenAiCompatibleTransport : ISmartCutTransport
 
                 if (_logger.IsEnabled(LogLevel.Information))
                 {
-                    _logger.LogInformation("Local LLM: retrying with the server's own model id {Model}.", _model);
+                    _logger.LogInformation(
+                        "Local LLM: retrying with the server's own model id {Model}.",
+                        _model
+                    );
                 }
                 (status, body) = await PostAsync(discovered, prompt, cancellationToken);
             }
@@ -108,18 +117,26 @@ public sealed class OpenAiCompatibleTransport : ISmartCutTransport
     private async Task<(HttpStatusCode? Status, string? Body)> PostAsync(
         string model,
         string prompt,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
             using var content = new StringContent(
-                BuildPayload(model, prompt), Encoding.UTF8, "application/json");
+                BuildPayload(model, prompt),
+                Encoding.UTF8,
+                "application/json"
+            );
 
             using var response = await _http.PostAsync(_chatUri, content, cancellationToken);
 
-            return (response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
+            return (
+                response.StatusCode,
+                await response.Content.ReadAsStringAsync(cancellationToken)
+            );
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        catch (Exception ex)
+            when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
             _logger.LogWarning(ex, "Local LLM at {Url} could not be reached.", _chatUri);
             return (null, null);
@@ -137,25 +154,37 @@ public sealed class OpenAiCompatibleTransport : ISmartCutTransport
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                _logger.LogWarning("Local LLM model discovery returned {Status}.", (int)response.StatusCode);
+                _logger.LogWarning(
+                    "Local LLM model discovery returned {Status}.",
+                    (int)response.StatusCode
+                );
                 return null;
             }
 
-            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
+            using var document = JsonDocument.Parse(
+                await response.Content.ReadAsStringAsync(timeout.Token)
+            );
 
-            if (document.RootElement.TryGetProperty("data", out var data)
+            if (
+                document.RootElement.TryGetProperty("data", out var data)
                 && data.ValueKind == JsonValueKind.Array
                 && data.GetArrayLength() > 0
                 && data[0].TryGetProperty("id", out var id)
-                && id.GetString() is { Length: > 0 } modelId)
+                && id.GetString() is { Length: > 0 } modelId
+            )
             {
                 return modelId;
             }
 
             _logger.LogWarning("Local LLM at {Url} listed no models.", _modelsUri);
         }
-        catch (Exception ex) when (
-            ex is HttpRequestException or TaskCanceledException or IOException or JsonException)
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or TaskCanceledException
+                        or IOException
+                        or JsonException
+            )
         {
             _logger.LogError(ex, "Local LLM model discovery failed.");
         }
@@ -163,31 +192,34 @@ public sealed class OpenAiCompatibleTransport : ISmartCutTransport
         return null;
     }
 
-    private static string BuildPayload(string model, string prompt) => JsonSerializer.Serialize(new
-    {
-        model,
-        messages = new[]
-        {
-            new { role = "system", content = SystemPrompt },
-            new { role = "user", content = prompt },
-        },
-        temperature = 0.1,
-        response_format = new
-        {
-            type = "json_object",
-            schema = new
+    private static string BuildPayload(string model, string prompt) =>
+        JsonSerializer.Serialize(
+            new
             {
-                type = "object",
-                properties = new
+                model,
+                messages = new[]
                 {
-                    reasoning = new { type = "string" },
-                    start_index = new { type = "integer" },
-                    end_index = new { type = "integer" },
+                    new { role = "system", content = SystemPrompt },
+                    new { role = "user", content = prompt },
                 },
-                required = RequiredFields,
-            },
-        },
-    });
+                temperature = 0.1,
+                response_format = new
+                {
+                    type = "json_object",
+                    schema = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            reasoning = new { type = "string" },
+                            start_index = new { type = "integer" },
+                            end_index = new { type = "integer" },
+                        },
+                        required = RequiredFields,
+                    },
+                },
+            }
+        );
 
     /// <summary><c>choices[0].message.content</c>, trimmed.</summary>
     private string ReadContent(string body)
@@ -196,15 +228,16 @@ public sealed class OpenAiCompatibleTransport : ISmartCutTransport
         {
             using var document = JsonDocument.Parse(body);
 
-            var content = document.RootElement
-                .GetProperty("choices")[0]
+            var content = document
+                .RootElement.GetProperty("choices")[0]
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString();
 
             return content?.Trim() ?? SmartCutResponses.ApiUnavailable;
         }
-        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or IndexOutOfRangeException)
+        catch (Exception ex)
+            when (ex is JsonException or KeyNotFoundException or IndexOutOfRangeException)
         {
             _logger.LogError(ex, "Local LLM returned a reply in an unexpected shape.");
             return SmartCutResponses.ApiUnavailable;

@@ -1,9 +1,9 @@
 using System.IO.Compression;
-using Microsoft.AspNetCore.Http.Features;
 using FoulFilterNet.Domain;
 using FoulFilterNet.Jobs;
 using FoulFilterNet.Web.Contracts;
 using FoulFilterNet.Web.Uploads;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 
 namespace FoulFilterNet.Web.Endpoints;
@@ -27,7 +27,8 @@ public static class JobEndpoints
         HttpRequest request,
         JobManager jobs,
         IOptions<StorageOptions> storage,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         if (!request.HasFormContentType)
         {
@@ -40,7 +41,11 @@ public static class JobEndpoints
         try
         {
             upload = await UploadRequestReader.ReadAsync(
-                request, options.UploadDirectory, options.MaxUploadBytes, cancellationToken);
+                request,
+                options.UploadDirectory,
+                options.MaxUploadBytes,
+                cancellationToken
+            );
         }
         catch (UploadTooLargeException tooLarge)
         {
@@ -55,7 +60,12 @@ public static class JobEndpoints
             return Problem(StatusCodes.Status400BadRequest, malformed.Message);
         }
 
-        if (!WireNames.TryParseCensorMethod(upload.Field("censor_method") ?? "silence", out var censorMethod))
+        if (
+            !WireNames.TryParseCensorMethod(
+                upload.Field("censor_method") ?? "silence",
+                out var censorMethod
+            )
+        )
         {
             Discard(upload);
             return Problem(StatusCodes.Status400BadRequest, "Invalid censor_method");
@@ -69,17 +79,21 @@ public static class JobEndpoints
         var jobIds = new List<string>(upload.Files.Count);
         foreach (var file in upload.Files)
         {
-            jobs.Enqueue(file.JobId, file.FileName, new JobRequest
-            {
-                InputPath = file.InputPath,
-                OutputPath = Path.Combine(options.OutputDirectory, $"censored_{file.FileName}"),
-                BadWordsPath = options.BadWordsPath,
-                TranscriptDirectory = options.ResolvedTranscriptDirectory,
-                ScratchDirectory = Path.Combine(options.ScratchDirectory, file.JobId),
-                CensorMethod = censorMethod,
-                Debug = upload.Flag("debug"),
-                Rescan = upload.Flag("rescan"),
-            });
+            jobs.Enqueue(
+                file.JobId,
+                file.FileName,
+                new JobRequest
+                {
+                    InputPath = file.InputPath,
+                    OutputPath = Path.Combine(options.OutputDirectory, $"censored_{file.FileName}"),
+                    BadWordsPath = options.BadWordsPath,
+                    TranscriptDirectory = options.ResolvedTranscriptDirectory,
+                    ScratchDirectory = Path.Combine(options.ScratchDirectory, file.JobId),
+                    CensorMethod = censorMethod,
+                    Debug = upload.Flag("debug"),
+                    Rescan = upload.Flag("rescan"),
+                }
+            );
 
             jobIds.Add(file.JobId);
         }
@@ -98,14 +112,15 @@ public static class JobEndpoints
             : Results.Ok(JobView.From(record));
     }
 
-    private static IResult Cancel(string jobId, JobManager jobs) => jobs.Cancel(jobId) switch
-    {
-        JobCancelOutcome.NotFound => Problem(StatusCodes.Status404NotFound, "Job not found"),
-        JobCancelOutcome.Cancelled => Results.Ok(new CancelResponse(true)),
+    private static IResult Cancel(string jobId, JobManager jobs) =>
+        jobs.Cancel(jobId) switch
+        {
+            JobCancelOutcome.NotFound => Problem(StatusCodes.Status404NotFound, "Job not found"),
+            JobCancelOutcome.Cancelled => Results.Ok(new CancelResponse(true)),
 
-        // Already finished. Not an error: the UI reuses DELETE as "remove row".
-        _ => Results.Ok(new CancelResponse(false)),
-    };
+            // Already finished. Not an error: the UI reuses DELETE as "remove row".
+            _ => Results.Ok(new CancelResponse(false)),
+        };
 
     private static IResult Download(string jobId, JobManager jobs)
     {
@@ -139,7 +154,8 @@ public static class JobEndpoints
     {
         var wanted = (ids ?? string.Empty).Split(
             ',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
 
         var paths = new List<string>(wanted.Length);
         foreach (var jobId in wanted)
@@ -181,7 +197,9 @@ public static class JobEndpoints
                     // censored_<name>. The Python added another "censored_" here
                     // and every archive arrived full of censored_censored_*.
                     var entry = archive.CreateEntry(
-                        Path.GetFileName(path), CompressionLevel.NoCompression);
+                        Path.GetFileName(path),
+                        CompressionLevel.NoCompression
+                    );
 
                     await using var source = File.OpenRead(path);
                     await using var target = entry.Open();
@@ -189,7 +207,8 @@ public static class JobEndpoints
                 }
             },
             "application/zip",
-            "foulfilter_results.zip");
+            "foulfilter_results.zip"
+        );
     }
 
     private static void Discard(UploadRequest upload)
@@ -200,12 +219,8 @@ public static class JobEndpoints
             {
                 File.Delete(file.InputPath);
             }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
-            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
     }
 

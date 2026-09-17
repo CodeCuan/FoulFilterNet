@@ -6,7 +6,10 @@ namespace FoulFilterNet.Domain.Abstractions;
 /// </summary>
 public interface ITranscriber
 {
-    Task<TranscriptionResult> TranscribeAsync(string audioPath, CancellationToken cancellationToken = default);
+    Task<TranscriptionResult> TranscribeAsync(
+        string audioPath,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// The Rescan Pass: transcribe with every chunk boundary shifted by
@@ -17,7 +20,8 @@ public interface ITranscriber
     Task<TranscriptionResult> TranscribeShiftedAsync(
         string audioPath,
         double offsetSeconds,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Drop the model and hand its VRAM back (UNLOAD_MODELS_AFTER_JOB).</summary>
     ValueTask ReleaseAsync();
@@ -35,7 +39,8 @@ public interface IAligner
         IReadOnlyList<Segment> segments,
         IReadOnlyList<Word> existingWords,
         IProgress<JobProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 
     ValueTask ReleaseAsync();
 }
@@ -66,5 +71,6 @@ public interface ISmartCutAdvisor
         string phrase,
         int centerIndex,
         bool allowWidening,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 }

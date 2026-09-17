@@ -43,14 +43,20 @@ public sealed class WhisperModelSource
     }
 
     /// <summary>Whisper.net's own downloader, which fetches from Hugging Face.</summary>
-    public static GgmlWeightsSource Download => (model, cancellationToken) =>
-        WhisperGgmlDownloader.Default.GetGgmlModelAsync(model, QuantizationType.NoQuantization, cancellationToken);
+    public static GgmlWeightsSource Download =>
+        (model, cancellationToken) =>
+            WhisperGgmlDownloader.Default.GetGgmlModelAsync(
+                model,
+                QuantizationType.NoQuantization,
+                cancellationToken
+            );
 
     /// <summary>The directory weights are read from and written to.</summary>
     public string DirectoryPath { get; }
 
     /// <summary>Where a model's weights would be, whether or not they are there.</summary>
-    public string PathFor(string model) => Path.Combine(DirectoryPath, WhisperModelFiles.FileName(model));
+    public string PathFor(string model) =>
+        Path.Combine(DirectoryPath, WhisperModelFiles.FileName(model));
 
     /// <summary>
     /// The path of the weights for <paramref name="model"/>, acquiring them
@@ -58,7 +64,10 @@ public sealed class WhisperModelSource
     /// </summary>
     /// <exception cref="FileNotFoundException">The weights are absent and nothing may fetch them.</exception>
     /// <exception cref="InvalidOperationException">The weights are absent and are not a model that can be fetched.</exception>
-    public async Task<string> ResolveAsync(string model, CancellationToken cancellationToken = default)
+    public async Task<string> ResolveAsync(
+        string model,
+        CancellationToken cancellationToken = default
+    )
     {
         var path = PathFor(model);
         if (File.Exists(path))
@@ -72,12 +81,16 @@ public sealed class WhisperModelSource
         if (_acquire is null)
         {
             throw new FileNotFoundException(
-                $"No Whisper weights for '{model}'. Install '{fileName}' in '{DirectoryPath}'.", path);
+                $"No Whisper weights for '{model}'. Install '{fileName}' in '{DirectoryPath}'.",
+                path
+            );
         }
 
-        var type = WhisperModelFiles.GgmlTypeFor(model)
+        var type =
+            WhisperModelFiles.GgmlTypeFor(model)
             ?? throw new InvalidOperationException(
-                $"'{model}' is not a model Whisper.net can fetch. Install '{fileName}' in '{DirectoryPath}' by hand.");
+                $"'{model}' is not a model Whisper.net can fetch. Install '{fileName}' in '{DirectoryPath}' by hand."
+            );
 
         await AcquireAsync(type, path, cancellationToken).ConfigureAwait(false);
         return path;
@@ -96,7 +109,9 @@ public sealed class WhisperModelSource
         var completed = false;
         try
         {
-            await using (var source = await _acquire!(type, cancellationToken).ConfigureAwait(false))
+            await using (
+                var source = await _acquire!(type, cancellationToken).ConfigureAwait(false)
+            )
             await using (var destination = File.Create(partial))
             {
                 await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);

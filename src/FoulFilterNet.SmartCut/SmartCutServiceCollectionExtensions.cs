@@ -44,7 +44,10 @@ public static class SmartCutServiceCollectionExtensions
     /// and travel with the repository. It comes from the <c>GOOGLE_API_KEY</c>
     /// environment variable and nowhere else.
     /// </remarks>
-    public static IServiceCollection AddSmartCut(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddSmartCut(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -62,9 +65,13 @@ public static class SmartCutServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddHttpClient(HttpClientName, client => client.Timeout = OpenAiCompatibleTransport.RequestTimeout);
+        services.AddHttpClient(
+            HttpClientName,
+            client => client.Timeout = OpenAiCompatibleTransport.RequestTimeout
+        );
         services.TryAddSingleton<GoogleApiKeySource>(_ =>
-            () => Environment.GetEnvironmentVariable(GoogleApiKeyVariable));
+            () => Environment.GetEnvironmentVariable(GoogleApiKeyVariable)
+        );
         services.TryAddSingleton<ISmartCutAdvisor>(CreateAdvisor);
 
         return services;
@@ -78,7 +85,9 @@ public static class SmartCutServiceCollectionExtensions
 
         if (!options.Enabled)
         {
-            logger.LogDebug("Smart Cut is disabled; hits will be used exactly as the matcher found them.");
+            logger.LogDebug(
+                "Smart Cut is disabled; hits will be used exactly as the matcher found them."
+            );
 
             return NoOpSmartCutAdvisor.Instance;
         }
@@ -107,7 +116,8 @@ public static class SmartCutServiceCollectionExtensions
         IServiceProvider provider,
         SmartCutOptions options,
         ILoggerFactory loggerFactory,
-        ILogger logger)
+        ILogger logger
+    )
     {
         var clients = provider.GetRequiredService<IHttpClientFactory>();
 
@@ -120,7 +130,8 @@ public static class SmartCutServiceCollectionExtensions
                 {
                     logger.LogWarning(
                         "Smart Cut is enabled in Google mode but {Variable} is not set; falling back to the no-op advisor.",
-                        GoogleApiKeyVariable);
+                        GoogleApiKeyVariable
+                    );
 
                     return null;
                 }
@@ -128,7 +139,8 @@ public static class SmartCutServiceCollectionExtensions
                 if (string.IsNullOrWhiteSpace(options.GoogleModel))
                 {
                     logger.LogWarning(
-                        "Smart Cut is enabled in Google mode but no model is configured; falling back to the no-op advisor.");
+                        "Smart Cut is enabled in Google mode but no model is configured; falling back to the no-op advisor."
+                    );
 
                     return null;
                 }
@@ -137,15 +149,19 @@ public static class SmartCutServiceCollectionExtensions
                     clients.CreateClient(HttpClientName),
                     apiKey,
                     options.GoogleModel,
-                    loggerFactory.CreateLogger<GeminiTransport>());
+                    loggerFactory.CreateLogger<GeminiTransport>()
+                );
 
             case SmartCutMode.Local:
-                if (!Uri.TryCreate(options.LocalUrl, UriKind.Absolute, out var url)
-                    || url.Scheme is not ("http" or "https"))
+                if (
+                    !Uri.TryCreate(options.LocalUrl, UriKind.Absolute, out var url)
+                    || url.Scheme is not ("http" or "https")
+                )
                 {
                     logger.LogWarning(
                         "Smart Cut is enabled in Local mode but {Url} is not a usable endpoint; falling back to the no-op advisor.",
-                        options.LocalUrl);
+                        options.LocalUrl
+                    );
 
                     return null;
                 }
@@ -154,12 +170,14 @@ public static class SmartCutServiceCollectionExtensions
                     clients.CreateClient(HttpClientName),
                     options.LocalUrl,
                     options.LocalModel,
-                    loggerFactory.CreateLogger<OpenAiCompatibleTransport>());
+                    loggerFactory.CreateLogger<OpenAiCompatibleTransport>()
+                );
 
             default:
                 logger.LogWarning(
                     "Smart Cut is enabled but {Mode} is not a transport it knows; falling back to the no-op advisor.",
-                    options.Mode);
+                    options.Mode
+                );
 
                 return null;
         }

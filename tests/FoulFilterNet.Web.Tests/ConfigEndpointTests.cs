@@ -28,7 +28,10 @@ public class WhenTheUiAsksWhatIsConfigured : IDisposable
 
     [Fact]
     public void OffersTheThreeCensorMethods() =>
-        _config.GetProperty("censor_methods").EnumerateArray().Select(m => m.GetString())
+        _config
+            .GetProperty("censor_methods")
+            .EnumerateArray()
+            .Select(m => m.GetString())
             .ShouldBe(["silence", "bleep", "remove"]);
 
     [Fact]

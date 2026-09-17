@@ -35,8 +35,13 @@ internal static class Resolve
 /// </summary>
 public sealed class WhenCensorMethodIsGivenAlongsideBleepAndDelete
 {
-    private readonly CensorMethod _resolved =
-        Resolve.Method("remove", "--censor_method", "silence", "--bleep", "--delete");
+    private readonly CensorMethod _resolved = Resolve.Method(
+        "remove",
+        "--censor_method",
+        "silence",
+        "--bleep",
+        "--delete"
+    );
 
     [Fact]
     public void TakesTheExplicitMethod() => _resolved.ShouldBe(CensorMethod.Silence);
@@ -92,7 +97,11 @@ public sealed class WhenTheEnvironmentAsksForTheLegacyDeleteSynonym
 /// </summary>
 public sealed class WhenCensorMethodIsTheLegacyDeleteSynonym
 {
-    private readonly CensorMethod _resolved = Resolve.Method(environmentValue: null, "--censor_method", "delete");
+    private readonly CensorMethod _resolved = Resolve.Method(
+        environmentValue: null,
+        "--censor_method",
+        "delete"
+    );
 
     [Fact]
     public void Removes() => _resolved.ShouldBe(CensorMethod.Remove);

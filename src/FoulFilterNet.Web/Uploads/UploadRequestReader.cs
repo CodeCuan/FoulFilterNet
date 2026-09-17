@@ -8,7 +8,10 @@ namespace FoulFilterNet.Web.Uploads;
 public sealed record UploadedFile(string JobId, string FileName, string InputPath);
 
 /// <summary>Everything <c>POST /upload</c> carried.</summary>
-public sealed record UploadRequest(IReadOnlyList<UploadedFile> Files, IReadOnlyDictionary<string, string> Fields)
+public sealed record UploadRequest(
+    IReadOnlyList<UploadedFile> Files,
+    IReadOnlyDictionary<string, string> Fields
+)
 {
     public string? Field(string name) => Fields.TryGetValue(name, out var value) ? value : null;
 
@@ -16,7 +19,8 @@ public sealed record UploadRequest(IReadOnlyList<UploadedFile> Files, IReadOnlyD
     /// Checkbox fields arrive as the strings JavaScript's <c>String(bool)</c>
     /// produces, so anything that is not exactly "true" is false.
     /// </summary>
-    public bool Flag(string name) => string.Equals(Field(name), "true", StringComparison.OrdinalIgnoreCase);
+    public bool Flag(string name) =>
+        string.Equals(Field(name), "true", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Raised when an upload names a file the pipeline cannot open.</summary>
@@ -29,9 +33,7 @@ public sealed class UnsupportedUploadException : Exception
     }
 
     public UnsupportedUploadException()
-        : this(string.Empty)
-    {
-    }
+        : this(string.Empty) { }
 
     public UnsupportedUploadException(string message, Exception innerException)
         : base(message, innerException)
@@ -58,7 +60,8 @@ public static class UploadRequestReader
         HttpRequest request,
         string uploadDirectory,
         long maxBytes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -70,8 +73,9 @@ public static class UploadRequestReader
             bodySize.MaxRequestBodySize = null;
         }
 
-        var boundary = HeaderUtilities.RemoveQuotes(
-            MediaTypeHeaderValue.Parse(request.ContentType).Boundary).Value;
+        var boundary = HeaderUtilities
+            .RemoveQuotes(MediaTypeHeaderValue.Parse(request.ContentType).Boundary)
+            .Value;
 
         if (string.IsNullOrEmpty(boundary))
         {
@@ -84,18 +88,33 @@ public static class UploadRequestReader
 
         try
         {
-            for (var section = await reader.ReadNextSectionAsync(cancellationToken);
-                 section is not null;
-                 section = await reader.ReadNextSectionAsync(cancellationToken))
+            for (
+                var section = await reader.ReadNextSectionAsync(cancellationToken);
+                section is not null;
+                section = await reader.ReadNextSectionAsync(cancellationToken)
+            )
             {
-                if (!ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var disposition))
+                if (
+                    !ContentDispositionHeaderValue.TryParse(
+                        section.ContentDisposition,
+                        out var disposition
+                    )
+                )
                 {
                     continue;
                 }
 
                 if (disposition.FileName.HasValue || disposition.FileNameStar.HasValue)
                 {
-                    files.Add(await SaveAsync(section, disposition, uploadDirectory, maxBytes, cancellationToken));
+                    files.Add(
+                        await SaveAsync(
+                            section,
+                            disposition,
+                            uploadDirectory,
+                            maxBytes,
+                            cancellationToken
+                        )
+                    );
                 }
                 else if (disposition.Name.HasValue)
                 {
@@ -124,7 +143,8 @@ public static class UploadRequestReader
         ContentDispositionHeaderValue disposition,
         string uploadDirectory,
         long maxBytes,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         var raw = disposition.FileNameStar.HasValue
             ? disposition.FileNameStar.Value
@@ -150,11 +170,7 @@ public static class UploadRequestReader
         {
             File.Delete(path);
         }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 }

@@ -32,7 +32,8 @@ public class WhenWideningIsAllowed
             endIndex: 6,
             contextWindow: SmartCutWindow.Words,
             centerIndex: 6,
-            allowWidening: true);
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
         _decision.Outcome.ShouldBe(SmartCutOutcome.Adjust);
@@ -64,7 +65,8 @@ public class WhenWideningIsNotAllowed
             endIndex: 6,
             contextWindow: SmartCutWindow.Words,
             centerIndex: 6,
-            allowWidening: false);
+            allowWidening: false
+        );
 
         _decision.ShouldNotBeNull();
         _decision.Outcome.ShouldBe(SmartCutOutcome.Adjust);
@@ -82,7 +84,8 @@ public class WhenWideningIsNotAllowed
 
     [Fact]
     public void ClampsACenterIndexThatIsOutOfRangeToo() =>
-        SmartCutMapper.Map(0, 0, SmartCutWindow.Words, centerIndex: 99, allowWidening: false)
+        SmartCutMapper
+            .Map(0, 0, SmartCutWindow.Words, centerIndex: 99, allowWidening: false)
             .CutStart.ShouldBe(5.9, 0.001);
 }
 
@@ -93,7 +96,13 @@ public class WhenTheAdvisorAnswersMinusOne
 
     public WhenTheAdvisorAnswersMinusOne()
     {
-        _decision = SmartCutMapper.Map(-1, -1, SmartCutWindow.Words, centerIndex: 3, allowWidening: true);
+        _decision = SmartCutMapper.Map(
+            -1,
+            -1,
+            SmartCutWindow.Words,
+            centerIndex: 3,
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
     }
@@ -103,17 +112,20 @@ public class WhenTheAdvisorAnswersMinusOne
 
     [Fact]
     public void RejectsWhenOnlyTheStartIndexIsMinusOne() =>
-        SmartCutMapper.Map(-1, 4, SmartCutWindow.Words, 3, allowWidening: true)
+        SmartCutMapper
+            .Map(-1, 4, SmartCutWindow.Words, 3, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.Reject);
 
     [Fact]
     public void RejectsWhenOnlyTheEndIndexIsMinusOne() =>
-        SmartCutMapper.Map(2, -1, SmartCutWindow.Words, 3, allowWidening: true)
+        SmartCutMapper
+            .Map(2, -1, SmartCutWindow.Words, 3, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.Reject);
 
     [Fact]
     public void RejectsEvenWhenWideningIsForbidden() =>
-        SmartCutMapper.Map(-1, -1, SmartCutWindow.Words, 3, allowWidening: false)
+        SmartCutMapper
+            .Map(-1, -1, SmartCutWindow.Words, 3, allowWidening: false)
             .Outcome.ShouldBe(SmartCutOutcome.Reject);
 }
 
@@ -124,7 +136,13 @@ public class WhenTheAdvisorAnswersOutOfRange
 
     public WhenTheAdvisorAnswersOutOfRange()
     {
-        _decision = SmartCutMapper.Map(-5, 99, SmartCutWindow.Words, centerIndex: 0, allowWidening: true);
+        _decision = SmartCutMapper.Map(
+            -5,
+            99,
+            SmartCutWindow.Words,
+            centerIndex: 0,
+            allowWidening: true
+        );
 
         _decision.ShouldNotBeNull();
         _decision.Outcome.ShouldBe(SmartCutOutcome.Adjust);
@@ -163,5 +181,7 @@ public class WhenTheContextWindowIsEmpty
 
     [Fact]
     public void StillRejectsWithoutLookingAtTheWindow() =>
-        SmartCutMapper.Map(-1, -1, [], 0, allowWidening: true).Outcome.ShouldBe(SmartCutOutcome.Reject);
+        SmartCutMapper
+            .Map(-1, -1, [], 0, allowWidening: true)
+            .Outcome.ShouldBe(SmartCutOutcome.Reject);
 }

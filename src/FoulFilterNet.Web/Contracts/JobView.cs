@@ -76,7 +76,8 @@ public sealed record ConfigView(
     IReadOnlyList<string> CensorMethods,
     bool AiEnhance,
     string WhisperModel,
-    int MaxUploadMb);
+    int MaxUploadMb
+);
 
 /// <summary>
 /// The lower-case spellings the HTTP surface and the front end share. Kept as
@@ -85,23 +86,25 @@ public sealed record ConfigView(
 /// </summary>
 public static class WireNames
 {
-    public static string Of(JobStatus status) => status switch
-    {
-        JobStatus.Queued => "queued",
-        JobStatus.Processing => "processing",
-        JobStatus.Completed => "completed",
-        JobStatus.Failed => "failed",
-        JobStatus.Cancelled => "cancelled",
-        _ => throw new ArgumentOutOfRangeException(nameof(status)),
-    };
+    public static string Of(JobStatus status) =>
+        status switch
+        {
+            JobStatus.Queued => "queued",
+            JobStatus.Processing => "processing",
+            JobStatus.Completed => "completed",
+            JobStatus.Failed => "failed",
+            JobStatus.Cancelled => "cancelled",
+            _ => throw new ArgumentOutOfRangeException(nameof(status)),
+        };
 
-    public static string Of(CensorMethod method) => method switch
-    {
-        CensorMethod.Silence => "silence",
-        CensorMethod.Bleep => "bleep",
-        CensorMethod.Remove => "remove",
-        _ => throw new ArgumentOutOfRangeException(nameof(method)),
-    };
+    public static string Of(CensorMethod method) =>
+        method switch
+        {
+            CensorMethod.Silence => "silence",
+            CensorMethod.Bleep => "bleep",
+            CensorMethod.Remove => "remove",
+            _ => throw new ArgumentOutOfRangeException(nameof(method)),
+        };
 
     /// <summary>The three the UI offers, in the order it offers them.</summary>
     public static IReadOnlyList<string> CensorMethods { get; } = ["silence", "bleep", "remove"];

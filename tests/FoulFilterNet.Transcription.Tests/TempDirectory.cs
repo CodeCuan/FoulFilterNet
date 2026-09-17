@@ -5,8 +5,7 @@ internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()
     {
-        Path = System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(), $"ffn_t13_{Guid.NewGuid():N}");
+        Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"ffn_t13_{Guid.NewGuid():N}");
         Directory.CreateDirectory(Path);
     }
 

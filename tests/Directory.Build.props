@@ -1,5 +1,4 @@
 <Project>
-
   <!-- Inherit the root settings, then layer on test-project defaults so that
        each *.Tests.csproj needs nothing but its ProjectReference. -->
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
@@ -23,5 +22,4 @@
     <Using Include="Xunit" />
     <Using Include="Shouldly" />
   </ItemGroup>
-
 </Project>

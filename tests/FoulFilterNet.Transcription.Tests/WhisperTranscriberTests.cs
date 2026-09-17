@@ -15,8 +15,10 @@ public sealed class WhenTranscribingAMediaFile : IDisposable
     private readonly TempDirectory _directory = new();
     private readonly IAudioPreparer _audio = Substitute.For<IAudioPreparer>();
     private readonly IWhisperEngine _engine = Substitute.For<IWhisperEngine>();
-    private readonly TranscriptionResult _heard =
-        new([new Segment(3.41, 3.897, "Damn.")], [new Word("damn", 3.41, 3.897)]);
+    private readonly TranscriptionResult _heard = new(
+        [new Segment(3.41, 3.897, "Damn.")],
+        [new Word("damn", 3.41, 3.897)]
+    );
 
     private readonly string _converted;
     private readonly TranscriptionResult _returned;
@@ -26,14 +28,17 @@ public sealed class WhenTranscribingAMediaFile : IDisposable
         _converted = Path.Combine(_directory.Path, "analysis.wav");
         File.WriteAllText(_converted, "riff");
 
-        _audio.PadStartAsync("book.m4b", Arg.Any<double>(), Arg.Any<CancellationToken>())
+        _audio
+            .PadStartAsync("book.m4b", Arg.Any<double>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(_converted));
-        _engine.TranscribeWavAsync(_converted, Arg.Any<CancellationToken>())
+        _engine
+            .TranscribeWavAsync(_converted, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(_heard));
 
         var sut = new WhisperTranscriber(_engine, _audio);
         _returned = sut.TranscribeAsync("book.m4b", TestContext.Current.CancellationToken)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _returned.ShouldNotBeNull();
     }
@@ -72,15 +77,22 @@ public sealed class WhenTheEngineFailsMidTranscription : IDisposable
         _converted = Path.Combine(_directory.Path, "analysis.wav");
         File.WriteAllText(_converted, "riff");
 
-        _audio.PadStartAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
+        _audio
+            .PadStartAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(_converted));
-        _engine.TranscribeWavAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns<Task<TranscriptionResult>>(_ => throw new InvalidOperationException("cuda oom"));
+        _engine
+            .TranscribeWavAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<Task<TranscriptionResult>>(_ =>
+                throw new InvalidOperationException("cuda oom")
+            );
 
         var sut = new WhisperTranscriber(_engine, _audio);
-        _thrown = Should.ThrowAsync<InvalidOperationException>(
-            () => sut.TranscribeAsync("book.m4b", TestContext.Current.CancellationToken))
-            .GetAwaiter().GetResult();
+        _thrown = Should
+            .ThrowAsync<InvalidOperationException>(() =>
+                sut.TranscribeAsync("book.m4b", TestContext.Current.CancellationToken)
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _thrown.ShouldNotBeNull();
     }
@@ -115,17 +127,32 @@ public sealed class WhenRescanningWithShiftedChunkBoundaries : IDisposable
 
         // What the engine hears on the padded timeline: one segment inside the
         // four seconds of silence, one real one four seconds late.
-        _audio.PadStartAsync("book.m4b", RescanPass.DefaultOffsetSeconds, Arg.Any<CancellationToken>())
+        _audio
+            .PadStartAsync(
+                "book.m4b",
+                RescanPass.DefaultOffsetSeconds,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Task.FromResult(_padded));
-        _engine.TranscribeWavAsync(_padded, Arg.Any<CancellationToken>()).Returns(Task.FromResult(
-            new TranscriptionResult(
-                [new Segment(0.5, 1.5, "(silence)"), new Segment(7.41, 7.897, "Damn.")],
-                [new Word("damn", 7.41, 7.897)])));
+        _engine
+            .TranscribeWavAsync(_padded, Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(
+                    new TranscriptionResult(
+                        [new Segment(0.5, 1.5, "(silence)"), new Segment(7.41, 7.897, "Damn.")],
+                        [new Word("damn", 7.41, 7.897)]
+                    )
+                )
+            );
 
         var sut = new WhisperTranscriber(_engine, _audio);
         _returned = sut.TranscribeShiftedAsync(
-            "book.m4b", RescanPass.DefaultOffsetSeconds, TestContext.Current.CancellationToken)
-            .GetAwaiter().GetResult();
+                "book.m4b",
+                RescanPass.DefaultOffsetSeconds,
+                TestContext.Current.CancellationToken
+            )
+            .GetAwaiter()
+            .GetResult();
 
         _returned.ShouldNotBeNull();
     }
@@ -134,8 +161,13 @@ public sealed class WhenRescanningWithShiftedChunkBoundaries : IDisposable
 
     [Fact]
     public async Task PrependsSilenceOfExactlyTheOffset() =>
-        await _audio.Received(1).PadStartAsync(
-            "book.m4b", RescanPass.DefaultOffsetSeconds, Arg.Any<CancellationToken>());
+        await _audio
+            .Received(1)
+            .PadStartAsync(
+                "book.m4b",
+                RescanPass.DefaultOffsetSeconds,
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void RebasesSegmentsOntoTheOriginalTimeline() =>
@@ -196,6 +228,10 @@ public sealed class WhenATranscriberIsBuiltWithoutCollaborators
 
     [Fact]
     public async Task RefusesABlankAudioPath() =>
-        await Should.ThrowAsync<ArgumentException>(() => new WhisperTranscriber(_engine, _audio)
-            .TranscribeAsync("  ", TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<ArgumentException>(() =>
+            new WhisperTranscriber(_engine, _audio).TranscribeAsync(
+                "  ",
+                TestContext.Current.CancellationToken
+            )
+        );
 }

@@ -11,7 +11,8 @@ public class WhenExtractingAVideosAudioTrack
     {
         new FFmpegAudioPreparer(_runner)
             .ExtractAudioTrackAsync("clip.mp4", "work/clip.m4a")
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -20,8 +21,18 @@ public class WhenExtractingAVideosAudioTrack
     }
 
     [Fact]
-    public void RunsTheWholeCommandTheLegacyPipelineRan() => _arguments.ShouldBe(
-        ["-y", "-loglevel", "error", "-i", "clip.mp4", "-vn", "-acodec", "aac", "work/clip.m4a"]);
+    public void RunsTheWholeCommandTheLegacyPipelineRan() =>
+        _arguments.ShouldBe([
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            "clip.mp4",
+            "-vn",
+            "-acodec",
+            "aac",
+            "work/clip.m4a",
+        ]);
 
     [Fact]
     public void DropsTheVideoStream() => _arguments.ShouldContain("-vn");
@@ -35,8 +46,13 @@ public class WhenExtractingAVideosAudioTrack
 
     [Fact]
     public async Task RefusesAnEmptyOutputPath() =>
-        await Should.ThrowAsync<ArgumentException>(() => new FFmpegAudioPreparer(_runner)
-            .ExtractAudioTrackAsync("clip.mp4", "   ", TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<ArgumentException>(() =>
+            new FFmpegAudioPreparer(_runner).ExtractAudioTrackAsync(
+                "clip.mp4",
+                "   ",
+                TestContext.Current.CancellationToken
+            )
+        );
 }
 
 public sealed class WhenPaddingAudioForTheRescanPass : IDisposable
@@ -52,7 +68,8 @@ public sealed class WhenPaddingAudioForTheRescanPass : IDisposable
         _preparer = new FFmpegAudioPreparer(_runner, _scratch.Path);
         _padded = _preparer
             .PadStartAsync("analysis.m4a", FFmpegAudioPreparer.DefaultRescanOffsetSeconds)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _arguments = _runner.LastFFmpegCall;
 
@@ -63,13 +80,23 @@ public sealed class WhenPaddingAudioForTheRescanPass : IDisposable
     public void Dispose() => _scratch.Dispose();
 
     [Fact]
-    public void RunsTheWholeCommandTheLegacyTranscriberRan() => _arguments.ShouldBe(
-        [
-            "-y", "-loglevel", "error",
-            "-i", "analysis.m4a",
-            "-af", "adelay=4000|4000",
-            "-vn", "-ac", "1", "-ar", "16000",
-            "-acodec", "pcm_s16le", _padded,
+    public void RunsTheWholeCommandTheLegacyTranscriberRan() =>
+        _arguments.ShouldBe([
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            "analysis.m4a",
+            "-af",
+            "adelay=4000|4000",
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-acodec",
+            "pcm_s16le",
+            _padded,
         ]);
 
     [Fact]
@@ -89,8 +116,13 @@ public sealed class WhenPaddingAudioForTheRescanPass : IDisposable
 
     [Fact]
     public async Task ChoosesAFreshNameEachTimeSoConcurrentJobsCannotCollide() =>
-        (await _preparer.PadStartAsync("analysis.m4a", 4.0, TestContext.Current.CancellationToken))
-            .ShouldNotBe(_padded);
+        (
+            await _preparer.PadStartAsync(
+                "analysis.m4a",
+                4.0,
+                TestContext.Current.CancellationToken
+            )
+        ).ShouldNotBe(_padded);
 }
 
 public sealed class WhenPaddingByAFractionalOffset : IDisposable
@@ -123,8 +155,9 @@ public sealed class WhenPaddingByAFractionalOffset : IDisposable
 
     [Fact]
     public async Task RefusesANegativeOffset() =>
-        await Should.ThrowAsync<ArgumentOutOfRangeException>(
-            () => _preparer.PadStartAsync("analysis.m4a", -1.0, TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(() =>
+            _preparer.PadStartAsync("analysis.m4a", -1.0, TestContext.Current.CancellationToken)
+        );
 }
 
 public sealed class WhenCroppingASpanOfAudio : IDisposable
@@ -151,13 +184,25 @@ public sealed class WhenCroppingASpanOfAudio : IDisposable
     private int PositionOf(string flag) => _arguments.ToList().IndexOf(flag);
 
     [Fact]
-    public void RunsTheWholeCommandTheLegacyAlignerRan() => _arguments.ShouldBe(
-        [
-            "-y", "-loglevel", "error",
-            "-ss", "12.500", "-t", "3.000",
-            "-i", "analysis.m4a",
-            "-vn", "-ac", "1", "-ar", "16000",
-            "-acodec", "pcm_s16le", _cropped,
+    public void RunsTheWholeCommandTheLegacyAlignerRan() =>
+        _arguments.ShouldBe([
+            "-y",
+            "-loglevel",
+            "error",
+            "-ss",
+            "12.500",
+            "-t",
+            "3.000",
+            "-i",
+            "analysis.m4a",
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-acodec",
+            "pcm_s16le",
+            _cropped,
         ]);
 
     [Fact]
@@ -182,12 +227,17 @@ public sealed class WhenCroppingASpanOfAudio : IDisposable
 
     [Fact]
     public void WritesUncompressedSixteenBitPcm() =>
-        _arguments.SkipWhile(argument => argument != "-acodec").Skip(1).First().ShouldBe("pcm_s16le");
+        _arguments
+            .SkipWhile(argument => argument != "-acodec")
+            .Skip(1)
+            .First()
+            .ShouldBe("pcm_s16le");
 
     [Fact]
     public async Task RefusesANonPositiveDuration() =>
-        await Should.ThrowAsync<ArgumentOutOfRangeException>(
-            () => _preparer.CropAsync("analysis.m4a", 1.0, 0.0, TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(() =>
+            _preparer.CropAsync("analysis.m4a", 1.0, 0.0, TestContext.Current.CancellationToken)
+        );
 }
 
 /// <summary>
@@ -226,7 +276,8 @@ public sealed class WhenFFmpegFailsWhilePreparingAudio : IDisposable
     public async Task PaddingSurfacesTheFailure() => await Should.ThrowAsync<FFmpegException>(Pad);
 
     [Fact]
-    public async Task CroppingSurfacesTheFailure() => await Should.ThrowAsync<FFmpegException>(Crop);
+    public async Task CroppingSurfacesTheFailure() =>
+        await Should.ThrowAsync<FFmpegException>(Crop);
 
     [Fact]
     public async Task PaddingLeavesNoHalfWrittenFileBehind()
@@ -266,8 +317,10 @@ public sealed class WhenPreparingTheRealSampleVideosAudio : IDisposable
 
         File.Exists(MediaFixtures.Path("sample_video.mp4")).ShouldBeTrue();
 
-        _preparer.ExtractAudioTrackAsync(MediaFixtures.Path("sample_video.mp4"), _extracted)
-            .GetAwaiter().GetResult();
+        _preparer
+            .ExtractAudioTrackAsync(MediaFixtures.Path("sample_video.mp4"), _extracted)
+            .GetAwaiter()
+            .GetResult();
 
         File.Exists(_extracted).ShouldBeTrue();
     }
@@ -284,7 +337,12 @@ public sealed class WhenPreparingTheRealSampleVideosAudio : IDisposable
     [Fact]
     public async Task CropsAMonoSixteenKilohertzSpan()
     {
-        var cropped = await _preparer.CropAsync(_extracted, 1.0, 2.0, TestContext.Current.CancellationToken);
+        var cropped = await _preparer.CropAsync(
+            _extracted,
+            1.0,
+            2.0,
+            TestContext.Current.CancellationToken
+        );
 
         (await Probe(cropped)).AudioSampleRate.ShouldBe(16000);
     }
@@ -292,7 +350,12 @@ public sealed class WhenPreparingTheRealSampleVideosAudio : IDisposable
     [Fact]
     public async Task CropsExactlyTheSpanItWasAskedFor()
     {
-        var cropped = await _preparer.CropAsync(_extracted, 1.0, 2.0, TestContext.Current.CancellationToken);
+        var cropped = await _preparer.CropAsync(
+            _extracted,
+            1.0,
+            2.0,
+            TestContext.Current.CancellationToken
+        );
 
         (await Probe(cropped)).DurationSeconds.ShouldBe(2.0, 0.1);
     }
@@ -301,7 +364,11 @@ public sealed class WhenPreparingTheRealSampleVideosAudio : IDisposable
     public async Task PadsTheTrackByTheWholeOffset()
     {
         var before = await Probe(_extracted);
-        var padded = await _preparer.PadStartAsync(_extracted, 4.0, TestContext.Current.CancellationToken);
+        var padded = await _preparer.PadStartAsync(
+            _extracted,
+            4.0,
+            TestContext.Current.CancellationToken
+        );
 
         (await Probe(padded)).DurationSeconds.ShouldBe(before.DurationSeconds + 4.0, 0.15);
     }

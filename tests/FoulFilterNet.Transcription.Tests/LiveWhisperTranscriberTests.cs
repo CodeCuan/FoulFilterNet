@@ -36,7 +36,8 @@ namespace FoulFilterNet.Transcription.Tests;
 /// </remarks>
 public sealed class LiveWhisperTranscriberTests
 {
-    private const string OptIn = "opt-in: set RUN_GPU_TESTS=1 with CUDA, FFmpeg and GGML weights installed";
+    private const string OptIn =
+        "opt-in: set RUN_GPU_TESTS=1 with CUDA, FFmpeg and GGML weights installed";
 
     /// <summary>
     /// The tolerance <em>is</em> the answer to the open question. It is set to
@@ -50,7 +51,9 @@ public sealed class LiveWhisperTranscriberTests
     /// <summary>Gate, read the same way the live-LLM tests read theirs.</summary>
     public static bool GpuTestsEnabled =>
         (Environment.GetEnvironmentVariable("RUN_GPU_TESTS") ?? string.Empty).ToLowerInvariant()
-            is "1" or "true" or "yes";
+            is "1"
+                or "true"
+                or "yes";
 
     /// <remarks>
     /// The word arrives as "damn," - whisper.cpp attaches the following comma to
@@ -61,8 +64,9 @@ public sealed class LiveWhisperTranscriberTests
     /// </remarks>
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task HearsTheProfanityInTheSingleHitFixture() =>
-        (await LiveWhisper.WordsAsync("single_hit.mp3"))
-            .ShouldContain(w => Tokenizer.Normalize(w.Text) == "damn");
+        (await LiveWhisper.WordsAsync("single_hit.mp3")).ShouldContain(w =>
+            Tokenizer.Normalize(w.Text) == "damn"
+        );
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task ProducesWordTimestampsWithoutAForcedAligner() =>
@@ -87,14 +91,17 @@ public sealed class LiveWhisperTranscriberTests
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task PlacesTheEndOfThePhraseWithinThePostPadding()
     {
-        var hell = (await LiveWhisper.WordsAsync("phrase_hit.mp3")).Last(w => w.Text.StartsWith("hell", StringComparison.Ordinal));
+        var hell = (await LiveWhisper.WordsAsync("phrase_hit.mp3")).Last(w =>
+            w.Text.StartsWith("hell", StringComparison.Ordinal)
+        );
 
         hell.End.ShouldBe(4.227, EndTolerance);
     }
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task FindsEveryRepetitionInTheRepeatedHitsFixture() =>
-        (await LiveWhisper.WordsAsync("repeated_hits.mp3")).Count(w => w.Text.StartsWith("damn", StringComparison.Ordinal))
+        (await LiveWhisper.WordsAsync("repeated_hits.mp3"))
+            .Count(w => w.Text.StartsWith("damn", StringComparison.Ordinal))
             .ShouldBe(5);
 
     /// <remarks>
@@ -111,8 +118,9 @@ public sealed class LiveWhisperTranscriberTests
     /// </remarks>
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task StillHearsTheProfanityWhenEveryChunkBoundaryMoves() =>
-        (await LiveWhisper.RescanAsync("single_hit.mp3")).Words
-            .ShouldContain(w => Tokenizer.Normalize(w.Text) == "damn");
+        (await LiveWhisper.RescanAsync("single_hit.mp3")).Words.ShouldContain(w =>
+            Tokenizer.Normalize(w.Text) == "damn"
+        );
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task RebasesTheRescansSegmentsOntoTheOriginalTimeline()
@@ -121,13 +129,15 @@ public sealed class LiveWhisperTranscriberTests
 
         // Four seconds of silence went in front of the audio; a segment still
         // reporting the padded timeline would sit at about 7 s, not 3 s.
-        shifted.Segments
-            .First(s => s.Text.Contains("damn", StringComparison.OrdinalIgnoreCase))
+        shifted
+            .Segments.First(s => s.Text.Contains("damn", StringComparison.OrdinalIgnoreCase))
             .Start.ShouldBe(3.0, 1.0);
     }
 
     private static async Task<Word> Damn() =>
-        (await LiveWhisper.WordsAsync("single_hit.mp3")).First(w => w.Text.StartsWith("damn", StringComparison.Ordinal));
+        (await LiveWhisper.WordsAsync("single_hit.mp3")).First(w =>
+            w.Text.StartsWith("damn", StringComparison.Ordinal)
+        );
 }
 
 /// <summary>
@@ -148,7 +158,9 @@ internal static class LiveWhisper
             if (!Heard.TryGetValue(fixtureFileName, out var result))
             {
                 result = await Transcriber.Value.TranscribeAsync(
-                    MediaFixtures.Path(fixtureFileName), TestContext.Current.CancellationToken);
+                    MediaFixtures.Path(fixtureFileName),
+                    TestContext.Current.CancellationToken
+                );
                 Heard[fixtureFileName] = result;
             }
 
@@ -167,7 +179,8 @@ internal static class LiveWhisper
         Transcriber.Value.TranscribeShiftedAsync(
             MediaFixtures.Path(fixtureFileName),
             RescanPass.DefaultOffsetSeconds,
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken
+        );
 
     private static WhisperTranscriber Build()
     {
@@ -183,7 +196,8 @@ internal static class LiveWhisper
 
         return new WhisperTranscriber(
             new WhisperNetEngine(options, models, NullLogger<WhisperNetEngine>.Instance),
-            new FFmpegAudioPreparer(new FFmpegRunner()));
+            new FFmpegAudioPreparer(new FFmpegRunner())
+        );
     }
 }
 
@@ -193,7 +207,9 @@ internal static class LiveWhisper
 /// </summary>
 internal static class MediaFixtures
 {
-    private static readonly Lazy<string> Media = new(() => Locate(System.IO.Path.Combine("tests", "fixtures", "media")));
+    private static readonly Lazy<string> Media = new(() =>
+        Locate(System.IO.Path.Combine("tests", "fixtures", "media"))
+    );
 
     public static string Path(string fileName) => System.IO.Path.Combine(Media.Value, fileName);
 
@@ -216,6 +232,8 @@ internal static class MediaFixtures
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException($"Could not find {relative} above {AppContext.BaseDirectory}.");
+        throw new DirectoryNotFoundException(
+            $"Could not find {relative} above {AppContext.BaseDirectory}."
+        );
     }
 }

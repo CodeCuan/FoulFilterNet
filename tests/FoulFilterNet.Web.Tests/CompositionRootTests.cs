@@ -94,7 +94,8 @@ public sealed class WhenTheHostComposesTheOrchestrator : IDisposable
     /// </summary>
     [Fact]
     public void WrapsTheTranscriberInTheModelReleasePolicy() =>
-        _services.GetRequiredService<ITranscriber>()
+        _services
+            .GetRequiredService<ITranscriber>()
             .ShouldBeOfType<Transcription.ReleasePolicyTranscriber>();
 
     /// <summary>
@@ -104,7 +105,8 @@ public sealed class WhenTheHostComposesTheOrchestrator : IDisposable
     /// </summary>
     [Fact]
     public void ResolvesTheWhisperEngineTheTranscriberDrives() =>
-        _services.GetRequiredService<Transcription.IWhisperEngine>()
+        _services
+            .GetRequiredService<Transcription.IWhisperEngine>()
             .ShouldBeOfType<Transcription.WhisperNetEngine>();
 
     [Fact]
@@ -118,13 +120,14 @@ public sealed class WhenTheHostComposesTheOrchestrator : IDisposable
     /// </summary>
     [Fact]
     public void ReadsTheLegacyEnvironmentVariables() =>
-        ((IConfigurationRoot)_services.GetRequiredService<IConfiguration>()).Providers
-            .OfType<LegacyEnvironmentConfigurationProvider>()
+        ((IConfigurationRoot)_services.GetRequiredService<IConfiguration>())
+            .Providers.OfType<LegacyEnvironmentConfigurationProvider>()
             .ShouldHaveSingleItem();
 
     [Fact]
     public void BuildsATranscriptStoreOverWhicheverDirectoryAJobNames() =>
-        _services.GetRequiredService<TranscriptStoreFactory>()(Path.GetTempPath())
+        _services
+            .GetRequiredService<TranscriptStoreFactory>()(Path.GetTempPath())
             .ShouldBeOfType<TranscriptStore>();
 }
 
@@ -142,15 +145,16 @@ public sealed class WhenSmartCutIsEnabledWithoutAnApiKey : IDisposable
     public WhenSmartCutIsEnabledWithoutAnApiKey()
     {
         _client = _app.WithWebHostBuilder(builder =>
-        {
-            builder.UseSetting("SmartCut:Enabled", "true");
-            builder.UseSetting("SmartCut:Mode", "Google");
-            builder.ConfigureServices(services =>
             {
-                services.RemoveAll<GoogleApiKeySource>();
-                services.AddSingleton<GoogleApiKeySource>(new GoogleApiKeySource(() => null));
-            });
-        }).CreateClient();
+                builder.UseSetting("SmartCut:Enabled", "true");
+                builder.UseSetting("SmartCut:Mode", "Google");
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<GoogleApiKeySource>();
+                    services.AddSingleton<GoogleApiKeySource>(new GoogleApiKeySource(() => null));
+                });
+            })
+            .CreateClient();
 
         _config = Api.GetAsync(_client, "/config").GetAwaiter().GetResult();
 

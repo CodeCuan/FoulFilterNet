@@ -20,12 +20,17 @@ public static class EventEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.MapGet("/events", (
-            JobManager jobs,
-            IHostApplicationLifetime lifetime,
-            CancellationToken cancellationToken) =>
-            TypedResults.ServerSentEvents(
-                StreamAsync(jobs, lifetime.ApplicationStopping, cancellationToken)));
+        app.MapGet(
+            "/events",
+            (
+                JobManager jobs,
+                IHostApplicationLifetime lifetime,
+                CancellationToken cancellationToken
+            ) =>
+                TypedResults.ServerSentEvents(
+                    StreamAsync(jobs, lifetime.ApplicationStopping, cancellationToken)
+                )
+        );
     }
 
     /// <summary>
@@ -59,10 +64,13 @@ public static class EventEndpoints
     private static async IAsyncEnumerable<SseItem<JobView>> StreamAsync(
         JobManager jobs,
         CancellationToken applicationStopping,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken
+    )
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken, applicationStopping);
+            cancellationToken,
+            applicationStopping
+        );
 
         using var subscription = jobs.Subscribe();
 

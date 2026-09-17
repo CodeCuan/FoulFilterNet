@@ -51,9 +51,10 @@ public sealed class MediaEditor : IMediaEditor
         ArgumentException.ThrowIfNullOrWhiteSpace(inputPath);
 
         var directory = Path.GetDirectoryName(inputPath);
-        var fileName = Path.GetFileNameWithoutExtension(inputPath)
-                       + CensoredSuffix
-                       + Path.GetExtension(inputPath);
+        var fileName =
+            Path.GetFileNameWithoutExtension(inputPath)
+            + CensoredSuffix
+            + Path.GetExtension(inputPath);
 
         return string.IsNullOrEmpty(directory) ? fileName : Path.Combine(directory, fileName);
     }
@@ -70,7 +71,8 @@ public sealed class MediaEditor : IMediaEditor
         IReadOnlyList<Hit> hits,
         CensorMethod method,
         string outputPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(inputPath);
         ArgumentNullException.ThrowIfNull(hits);
@@ -79,16 +81,24 @@ public sealed class MediaEditor : IMediaEditor
 
         var graph = method switch
         {
-            CensorMethod.Remove => FilterGraph.Remove(hits, await KnownDurationAsync(inputPath, cancellationToken).ConfigureAwait(false)),
+            CensorMethod.Remove => FilterGraph.Remove(
+                hits,
+                await KnownDurationAsync(inputPath, cancellationToken).ConfigureAwait(false)
+            ),
             CensorMethod.Bleep => FilterGraph.Bleep(hits),
             _ => FilterGraph.LabelSilence(FilterGraph.Silence(hits)),
         };
 
-        var label = method is CensorMethod.Silence ? FilterGraph.SilenceOutputLabel : FilterGraph.OutputLabel;
+        var label =
+            method is CensorMethod.Silence
+                ? FilterGraph.SilenceOutputLabel
+                : FilterGraph.OutputLabel;
 
         await RunAsync(
-            ["-i", inputPath, "-filter_complex", graph, "-map", label, destination],
-            cancellationToken).ConfigureAwait(false);
+                ["-i", inputPath, "-filter_complex", graph, "-map", label, destination],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     public async Task CensorVideoAsync(
@@ -96,7 +106,8 @@ public sealed class MediaEditor : IMediaEditor
         IReadOnlyList<Hit> hits,
         CensorMethod method,
         string outputPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(inputPath);
         ArgumentNullException.ThrowIfNull(hits);
@@ -112,14 +123,22 @@ public sealed class MediaEditor : IMediaEditor
         // Remove falls back to Silence here (ADR-0004): cutting the audio would
         // slide it out of step with a picture that is being copied verbatim.
         await RunAsync(
-            [
-                "-i", inputPath,
-                "-filter_complex", FilterGraph.LabelSilence(FilterGraph.Silence(hits)),
-                "-map", "0:v", "-map", FilterGraph.SilenceOutputLabel,
-                "-c:v", "copy",
-                destination,
-            ],
-            cancellationToken).ConfigureAwait(false);
+                [
+                    "-i",
+                    inputPath,
+                    "-filter_complex",
+                    FilterGraph.LabelSilence(FilterGraph.Silence(hits)),
+                    "-map",
+                    "0:v",
+                    "-map",
+                    FilterGraph.SilenceOutputLabel,
+                    "-c:v",
+                    "copy",
+                    destination,
+                ],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -131,30 +150,45 @@ public sealed class MediaEditor : IMediaEditor
         string inputPath,
         IReadOnlyList<Hit> hits,
         string destination,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         var track = destination + BleepTrackSuffix;
 
         try
         {
             await RunAsync(
-                [
-                    "-i", inputPath, "-vn",
-                    "-filter_complex", FilterGraph.Bleep(hits),
-                    "-map", FilterGraph.OutputLabel,
-                    track,
-                ],
-                cancellationToken).ConfigureAwait(false);
+                    [
+                        "-i",
+                        inputPath,
+                        "-vn",
+                        "-filter_complex",
+                        FilterGraph.Bleep(hits),
+                        "-map",
+                        FilterGraph.OutputLabel,
+                        track,
+                    ],
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
 
             await RunAsync(
-                [
-                    "-i", inputPath,
-                    "-i", track,
-                    "-map", "0:v", "-map", "1:a",
-                    "-c:v", "copy",
-                    destination,
-                ],
-                cancellationToken).ConfigureAwait(false);
+                    [
+                        "-i",
+                        inputPath,
+                        "-i",
+                        track,
+                        "-map",
+                        "0:v",
+                        "-map",
+                        "1:a",
+                        "-c:v",
+                        "copy",
+                        destination,
+                    ],
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
         }
         finally
         {
@@ -170,7 +204,10 @@ public sealed class MediaEditor : IMediaEditor
     /// Zero is its "I do not know", and passing that on as a real length would
     /// make the remove graph drop the tail and then refuse to build.
     /// </summary>
-    private async Task<double?> KnownDurationAsync(string inputPath, CancellationToken cancellationToken)
+    private async Task<double?> KnownDurationAsync(
+        string inputPath,
+        CancellationToken cancellationToken
+    )
     {
         var info = await _prober.ProbeAsync(inputPath, cancellationToken).ConfigureAwait(false);
         return info.DurationSeconds > 0 ? info.DurationSeconds : null;

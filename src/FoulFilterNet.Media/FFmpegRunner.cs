@@ -14,19 +14,20 @@ public sealed record FFmpegResult(int ExitCode, string StandardOutput, string St
 /// </summary>
 public sealed class FFmpegException : Exception
 {
-    public FFmpegException()
-    {
-    }
+    public FFmpegException() { }
 
-    public FFmpegException(string message) : base(message)
-    {
-    }
+    public FFmpegException(string message)
+        : base(message) { }
 
-    public FFmpegException(string message, Exception innerException) : base(message, innerException)
-    {
-    }
+    public FFmpegException(string message, Exception innerException)
+        : base(message, innerException) { }
 
-    public FFmpegException(string message, int exitCode, string standardError, Exception? innerException = null)
+    public FFmpegException(
+        string message,
+        int exitCode,
+        string standardError,
+        Exception? innerException = null
+    )
         : base(message, innerException)
     {
         ExitCode = exitCode;
@@ -48,10 +49,16 @@ public sealed class FFmpegException : Exception
 public interface IFFmpegRunner
 {
     /// <summary>Run FFmpeg. Throws <see cref="FFmpegException"/> on a non-zero exit.</summary>
-    Task<FFmpegResult> RunFFmpegAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default);
+    Task<FFmpegResult> RunFFmpegAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Run FFprobe. Throws <see cref="FFmpegException"/> on a non-zero exit.</summary>
-    Task<FFmpegResult> RunFFprobeAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default);
+    Task<FFmpegResult> RunFFprobeAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary><see cref="IFFmpegRunner"/> over <see cref="Process"/>.</summary>
@@ -59,9 +66,8 @@ public sealed class FFmpegRunner : IFFmpegRunner
 {
     private readonly FFmpegOptions _options;
 
-    public FFmpegRunner() : this(new FFmpegOptions())
-    {
-    }
+    public FFmpegRunner()
+        : this(new FFmpegOptions()) { }
 
     public FFmpegRunner(FFmpegOptions options)
     {
@@ -69,21 +75,29 @@ public sealed class FFmpegRunner : IFFmpegRunner
         _options = options;
     }
 
-    public Task<FFmpegResult> RunFFmpegAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default) =>
-        RunAsync(_options.FFmpegPath, arguments, cancellationToken);
+    public Task<FFmpegResult> RunFFmpegAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken = default
+    ) => RunAsync(_options.FFmpegPath, arguments, cancellationToken);
 
-    public Task<FFmpegResult> RunFFprobeAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default) =>
-        RunAsync(_options.FFprobePath, arguments, cancellationToken);
+    public Task<FFmpegResult> RunFFprobeAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken = default
+    ) => RunAsync(_options.FFprobePath, arguments, cancellationToken);
 
     private static async Task<FFmpegResult> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(arguments);
         var description = FFmpegProcess.Describe(fileName, arguments);
 
-        using var process = new Process { StartInfo = FFmpegProcess.CreateStartInfo(fileName, arguments) };
+        using var process = new Process
+        {
+            StartInfo = FFmpegProcess.CreateStartInfo(fileName, arguments),
+        };
 
         try
         {
@@ -95,7 +109,8 @@ public sealed class FFmpegRunner : IFFmpegRunner
                 $"Could not start '{fileName}'. Is FFmpeg installed and on PATH? Command was: {description}",
                 -1,
                 string.Empty,
-                exception);
+                exception
+            );
         }
 
         // Both streams are drained concurrently: a process that fills one pipe
@@ -121,7 +136,8 @@ public sealed class FFmpegRunner : IFFmpegRunner
             throw new FFmpegException(
                 $"{description} exited with code {process.ExitCode}.{Environment.NewLine}{error.Trim()}",
                 process.ExitCode,
-                error);
+                error
+            );
         }
 
         return new FFmpegResult(process.ExitCode, output, error);

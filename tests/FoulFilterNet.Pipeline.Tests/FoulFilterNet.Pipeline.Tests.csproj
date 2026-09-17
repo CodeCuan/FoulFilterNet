@@ -1,7 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <ItemGroup>
     <ProjectReference Include="../../src/FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />
   </ItemGroup>
-
 </Project>

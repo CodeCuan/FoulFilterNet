@@ -13,11 +13,23 @@ namespace FoulFilterNet.Web.Uploads;
 public static partial class UploadFileName
 {
     /// <summary>What the pipeline can actually process. Lower case, dot included.</summary>
-    public static IReadOnlySet<string> AllowedExtensions { get; } = new HashSet<string>(StringComparer.Ordinal)
-    {
-        ".mp3", ".wav", ".m4a", ".m4b", ".flac", ".ogg", ".opus", ".wma",
-        ".mp4", ".mkv", ".mov", ".avi", ".webm",
-    };
+    public static IReadOnlySet<string> AllowedExtensions { get; } =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            ".mp3",
+            ".wav",
+            ".m4a",
+            ".m4b",
+            ".flac",
+            ".ogg",
+            ".opus",
+            ".wma",
+            ".mp4",
+            ".mkv",
+            ".mov",
+            ".avi",
+            ".webm",
+        };
 
     /// <summary>The name used when nothing usable survives sanitizing.</summary>
     public const string Fallback = "file";

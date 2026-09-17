@@ -133,7 +133,8 @@ public class WhenReadingFFprobeOutputForAVideoFile
     public void CallsItVideoBecauseAVideoStreamIsPresent() => _info.Kind.ShouldBe(MediaKind.Video);
 
     [Fact]
-    public void PrefersTheContainerDurationOverEitherStreams() => _info.DurationSeconds.ShouldBe(5.649);
+    public void PrefersTheContainerDurationOverEitherStreams() =>
+        _info.DurationSeconds.ShouldBe(5.649);
 
     [Fact]
     public void StillReportsTheAudioSampleRate() => _info.AudioSampleRate.ShouldBe(16000);
@@ -156,7 +157,8 @@ public class WhenReadingFFprobeOutputForAnAudiobook
     }
 
     [Fact]
-    public void CallsItAudioWithoutNeedingTheExtensionHack() => _info.Kind.ShouldBe(MediaKind.Audio);
+    public void CallsItAudioWithoutNeedingTheExtensionHack() =>
+        _info.Kind.ShouldBe(MediaKind.Audio);
 
     [Fact]
     public void ReadsItsDuration() => _info.DurationSeconds.ShouldBe(13.03);
@@ -180,7 +182,8 @@ public class WhenAudioCarriesCoverArt
     public void IgnoresTheAttachedPictureAndCallsItAudio() => _info.Kind.ShouldBe(MediaKind.Audio);
 
     [Fact]
-    public void WouldOtherwiseHaveTriedToStreamCopyAStillImage() => _info.Kind.ShouldNotBe(MediaKind.Video);
+    public void WouldOtherwiseHaveTriedToStreamCopyAStillImage() =>
+        _info.Kind.ShouldNotBe(MediaKind.Video);
 
     [Fact]
     public void ReadsTheRealAudioStreamsSampleRate() => _info.AudioSampleRate.ShouldBe(44100);
@@ -231,15 +234,21 @@ public class WhenTheContainerOmitsFieldsTheProberWants
 
     [Fact]
     public void ReportsZeroWhenNobodyKnowsTheDuration() =>
-        FFprobeReport.Parse(FFprobeSamples.NeitherDurationNorSampleRate).DurationSeconds.ShouldBe(0);
+        FFprobeReport
+            .Parse(FFprobeSamples.NeitherDurationNorSampleRate)
+            .DurationSeconds.ShouldBe(0);
 
     [Fact]
     public void ReportsNoSampleRateWhenTheStreamOmitsIt() =>
-        FFprobeReport.Parse(FFprobeSamples.NeitherDurationNorSampleRate).AudioSampleRate.ShouldBeNull();
+        FFprobeReport
+            .Parse(FFprobeSamples.NeitherDurationNorSampleRate)
+            .AudioSampleRate.ShouldBeNull();
 
     [Fact]
     public void StillRecognisesTheStreamAsAudio() =>
-        FFprobeReport.Parse(FFprobeSamples.NeitherDurationNorSampleRate).Kind.ShouldBe(MediaKind.Audio);
+        FFprobeReport
+            .Parse(FFprobeSamples.NeitherDurationNorSampleRate)
+            .Kind.ShouldBe(MediaKind.Audio);
 }
 
 public class WhenProbingAFile
@@ -252,9 +261,11 @@ public class WhenProbingAFile
     {
         IReadOnlyList<string> captured = [];
         _runner = Substitute.For<IFFmpegRunner>();
-        _runner.RunFFprobeAsync(
+        _runner
+            .RunFFprobeAsync(
                 Arg.Do<IReadOnlyList<string>>(arguments => captured = arguments),
-                Arg.Any<CancellationToken>())
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Task.FromResult(new FFmpegResult(0, FFprobeSamples.AudioMp3, string.Empty)));
 
         _info = new FFprobeMediaProber(_runner).ProbeAsync("clip.mp3").GetAwaiter().GetResult();
@@ -265,8 +276,16 @@ public class WhenProbingAFile
     }
 
     [Fact]
-    public void AsksFFprobeForJson() => _arguments.ShouldBe(
-        ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", "clip.mp3"]);
+    public void AsksFFprobeForJson() =>
+        _arguments.ShouldBe([
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-show_streams",
+            "clip.mp3",
+        ]);
 
     [Fact]
     public void PutsThePathLastSoItIsNeverReadAsAFlag() => _arguments[^1].ShouldBe("clip.mp3");
@@ -282,7 +301,8 @@ public class WhenFFprobeRefusesTheFile
     public WhenFFprobeRefusesTheFile()
     {
         var runner = Substitute.For<IFFmpegRunner>();
-        runner.RunFFprobeAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+        runner
+            .RunFFprobeAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new FFmpegException("invalid data", 1, "Invalid data found"));
 
         _info = new FFprobeMediaProber(runner).ProbeAsync("notes.txt").GetAwaiter().GetResult();
@@ -291,7 +311,8 @@ public class WhenFFprobeRefusesTheFile
     }
 
     [Fact]
-    public void DegradesToUnknownRatherThanFailingTheJob() => _info.Kind.ShouldBe(MediaKind.Unknown);
+    public void DegradesToUnknownRatherThanFailingTheJob() =>
+        _info.Kind.ShouldBe(MediaKind.Unknown);
 
     [Fact]
     public void ReportsNoDuration() => _info.DurationSeconds.ShouldBe(0);

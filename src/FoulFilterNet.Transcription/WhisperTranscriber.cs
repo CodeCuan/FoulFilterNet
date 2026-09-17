@@ -41,17 +41,19 @@ public sealed class WhisperTranscriber : ITranscriber
     /// <inheritdoc />
     public Task<TranscriptionResult> TranscribeAsync(
         string audioPath,
-        CancellationToken cancellationToken = default) =>
-        HearAsync(audioPath, offsetSeconds: 0.0, cancellationToken);
+        CancellationToken cancellationToken = default
+    ) => HearAsync(audioPath, offsetSeconds: 0.0, cancellationToken);
 
     /// <inheritdoc />
     public async Task<TranscriptionResult> TranscribeShiftedAsync(
         string audioPath,
         double offsetSeconds,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default
+    ) =>
         RescanPass.Shift(
             await HearAsync(audioPath, offsetSeconds, cancellationToken).ConfigureAwait(false),
-            offsetSeconds);
+            offsetSeconds
+        );
 
     /// <inheritdoc />
     /// <remarks>
@@ -68,15 +70,19 @@ public sealed class WhisperTranscriber : ITranscriber
     private async Task<TranscriptionResult> HearAsync(
         string audioPath,
         double offsetSeconds,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(audioPath);
 
-        var analysis = await _audio.PadStartAsync(audioPath, offsetSeconds, cancellationToken)
+        var analysis = await _audio
+            .PadStartAsync(audioPath, offsetSeconds, cancellationToken)
             .ConfigureAwait(false);
         try
         {
-            return await _engine.TranscribeWavAsync(analysis, cancellationToken).ConfigureAwait(false);
+            return await _engine
+                .TranscribeWavAsync(analysis, cancellationToken)
+                .ConfigureAwait(false);
         }
         finally
         {

@@ -63,8 +63,7 @@ public sealed class WhenALegacyDeploymentsEnvironmentIsTranslated
         _configuration[ConfigurationKeys.Model].ShouldBe("large-v3-turbo");
 
     [Fact]
-    public void MapsTheLanguage() =>
-        _configuration[ConfigurationKeys.Language].ShouldBe("en");
+    public void MapsTheLanguage() => _configuration[ConfigurationKeys.Language].ShouldBe("en");
 
     [Fact]
     public void MapsTheModelReleaseFlag() =>
@@ -98,8 +97,12 @@ public sealed class WhenAppsettingsAndALegacyVariableDisagree
     public WhenAppsettingsAndALegacyVariableDisagree()
     {
         _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { [ConfigurationKeys.Model] = "base" })
-            .AddLegacyEnvironmentVariables(new Dictionary<string, string> { ["WHISPER_MODEL"] = "small" })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { [ConfigurationKeys.Model] = "base" }
+            )
+            .AddLegacyEnvironmentVariables(
+                new Dictionary<string, string> { ["WHISPER_MODEL"] = "small" }
+            )
             .Build();
 
         _configuration[ConfigurationKeys.Model].ShouldNotBeNull();
@@ -128,7 +131,9 @@ public sealed class WhenTheDotNetSpellingIsAlsoInTheEnvironment
         };
 
         _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { [ConfigurationKeys.Model] = "medium" })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { [ConfigurationKeys.Model] = "medium" }
+            )
             .AddLegacyEnvironmentVariables(environment)
             .Build();
 
@@ -136,7 +141,8 @@ public sealed class WhenTheDotNetSpellingIsAlsoInTheEnvironment
     }
 
     [Fact]
-    public void TheDotNetSpellingWins() => _configuration[ConfigurationKeys.Model].ShouldBe("medium");
+    public void TheDotNetSpellingWins() =>
+        _configuration[ConfigurationKeys.Model].ShouldBe("medium");
 }
 
 /// <summary>The colon spelling some shells allow counts as the .NET name too.</summary>
@@ -146,17 +152,20 @@ public sealed class WhenTheColonSpellingIsInTheEnvironment
 
     public WhenTheColonSpellingIsInTheEnvironment()
     {
-        _translated = LegacyEnvironmentVariables.Translate(new Dictionary<string, string>
-        {
-            ["DATA_DIR"] = "/legacy",
-            ["storage:datadirectory"] = "/dotnet",
-        });
+        _translated = LegacyEnvironmentVariables.Translate(
+            new Dictionary<string, string>
+            {
+                ["DATA_DIR"] = "/legacy",
+                ["storage:datadirectory"] = "/dotnet",
+            }
+        );
 
         _translated.ShouldNotBeNull();
     }
 
     [Fact]
-    public void TheLegacyNameYields() => _translated.ContainsKey(ConfigurationKeys.DataDirectory).ShouldBeFalse();
+    public void TheLegacyNameYields() =>
+        _translated.ContainsKey(ConfigurationKeys.DataDirectory).ShouldBeFalse();
 }
 
 /// <summary>
@@ -171,26 +180,28 @@ public sealed class WhenLegacyVariablesAreBlank
     public WhenLegacyVariablesAreBlank()
     {
         _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                [ConfigurationKeys.Model] = "base",
-                [ConfigurationKeys.SmartCutMode] = "Local",
-            })
-            .AddLegacyEnvironmentVariables(new Dictionary<string, string>
-            {
-                ["WHISPER_MODEL"] = "",
-                ["AI_MODE"] = "   ",
-            })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    [ConfigurationKeys.Model] = "base",
+                    [ConfigurationKeys.SmartCutMode] = "Local",
+                }
+            )
+            .AddLegacyEnvironmentVariables(
+                new Dictionary<string, string> { ["WHISPER_MODEL"] = "", ["AI_MODE"] = "   " }
+            )
             .Build();
 
         _configuration[ConfigurationKeys.Model].ShouldNotBeNull();
     }
 
     [Fact]
-    public void LeavesTheModelFromAppsettings() => _configuration[ConfigurationKeys.Model].ShouldBe("base");
+    public void LeavesTheModelFromAppsettings() =>
+        _configuration[ConfigurationKeys.Model].ShouldBe("base");
 
     [Fact]
-    public void LeavesTheModeFromAppsettings() => _configuration[ConfigurationKeys.SmartCutMode].ShouldBe("Local");
+    public void LeavesTheModeFromAppsettings() =>
+        _configuration[ConfigurationKeys.SmartCutMode].ShouldBe("Local");
 }
 
 /// <summary>
@@ -200,8 +211,9 @@ public sealed class WhenLegacyVariablesAreBlank
 public sealed class WhenAiEnhanceIsSpelledSomeOtherWay
 {
     private readonly Func<string, string?> _enabled = value =>
-        LegacyEnvironmentVariables.Translate(new Dictionary<string, string> { ["AI_ENHANCE"] = value })
-            [ConfigurationKeys.SmartCutEnabled];
+        LegacyEnvironmentVariables.Translate(
+            new Dictionary<string, string> { ["AI_ENHANCE"] = value }
+        )[ConfigurationKeys.SmartCutEnabled];
 
     public WhenAiEnhanceIsSpelledSomeOtherWay()
     {
@@ -226,8 +238,9 @@ public sealed class WhenAiEnhanceIsSpelledSomeOtherWay
 public sealed class WhenTheModelReleaseFlagIsSpelledThePythonsWays
 {
     private readonly Func<string, string?> _unload = value =>
-        LegacyEnvironmentVariables.Translate(new Dictionary<string, string> { ["UNLOAD_MODELS_AFTER_JOB"] = value })
-            [ConfigurationKeys.UnloadAfterJob];
+        LegacyEnvironmentVariables.Translate(
+            new Dictionary<string, string> { ["UNLOAD_MODELS_AFTER_JOB"] = value }
+        )[ConfigurationKeys.UnloadAfterJob];
 
     public WhenTheModelReleaseFlagIsSpelledThePythonsWays()
     {
@@ -251,8 +264,9 @@ public sealed class WhenTheModelReleaseFlagIsSpelledThePythonsWays
 public sealed class WhenAiModeIsNotLocal
 {
     private readonly Func<string, string?> _mode = value =>
-        LegacyEnvironmentVariables.Translate(new Dictionary<string, string> { ["AI_MODE"] = value })
-            [ConfigurationKeys.SmartCutMode];
+        LegacyEnvironmentVariables.Translate(
+            new Dictionary<string, string> { ["AI_MODE"] = value }
+        )[ConfigurationKeys.SmartCutMode];
 
     public WhenAiModeIsNotLocal()
     {
@@ -278,13 +292,15 @@ public sealed class WhenTheTranslatedEnvironmentIsBound
     public WhenTheTranslatedEnvironmentIsBound()
     {
         var configuration = new ConfigurationBuilder()
-            .AddLegacyEnvironmentVariables(new Dictionary<string, string>
-            {
-                ["WHISPER_MODEL"] = "small",
-                ["UNLOAD_MODELS_AFTER_JOB"] = "yes",
-                ["AI_ENHANCE"] = "True",
-                ["AI_MODE"] = "local",
-            })
+            .AddLegacyEnvironmentVariables(
+                new Dictionary<string, string>
+                {
+                    ["WHISPER_MODEL"] = "small",
+                    ["UNLOAD_MODELS_AFTER_JOB"] = "yes",
+                    ["AI_ENHANCE"] = "True",
+                    ["AI_MODE"] = "local",
+                }
+            )
             .Build();
 
         _transcription = configuration.GetSection("Transcription").Get<TranscriptionOptions>()!;
@@ -318,10 +334,9 @@ public sealed class WhenTheGoogleApiKeyIsInTheEnvironment
 
     public WhenTheGoogleApiKeyIsInTheEnvironment()
     {
-        _translated = LegacyEnvironmentVariables.Translate(new Dictionary<string, string>
-        {
-            ["GOOGLE_API_KEY"] = "not-a-real-key",
-        });
+        _translated = LegacyEnvironmentVariables.Translate(
+            new Dictionary<string, string> { ["GOOGLE_API_KEY"] = "not-a-real-key" }
+        );
 
         _translated.ShouldNotBeNull();
     }
@@ -340,29 +355,35 @@ public sealed class WhenRetiredVariablesAreSet
 
     public WhenRetiredVariablesAreSet()
     {
-        _retired = LegacyEnvironmentVariables.RetiredIn(new Dictionary<string, string>
-        {
-            ["ALIGN_DEVICE"] = "cpu",
-            ["WHISPER_MULTI_GPU"] = "False",
-            ["WHISPER_ATTN"] = "",
-            ["WHISPER_MODEL"] = "base",
-        });
+        _retired = LegacyEnvironmentVariables.RetiredIn(
+            new Dictionary<string, string>
+            {
+                ["ALIGN_DEVICE"] = "cpu",
+                ["WHISPER_MULTI_GPU"] = "False",
+                ["WHISPER_ATTN"] = "",
+                ["WHISPER_MODEL"] = "base",
+            }
+        );
 
         _retired.ShouldNotBeNull();
     }
 
     [Fact]
     public void NamesEachOneThatIsSet() =>
-        _retired.Select(variable => variable.Name).ShouldBe(["ALIGN_DEVICE", "WHISPER_MULTI_GPU"], ignoreOrder: true);
+        _retired
+            .Select(variable => variable.Name)
+            .ShouldBe(["ALIGN_DEVICE", "WHISPER_MULTI_GPU"], ignoreOrder: true);
 
     [Fact]
     public void SaysWhatReplacesTheDeviceEscapeHatch() =>
-        _retired.Single(variable => variable.Name == "ALIGN_DEVICE").Reason
-            .ShouldContain("Transcription__Device", Case.Sensitive);
+        _retired
+            .Single(variable => variable.Name == "ALIGN_DEVICE")
+            .Reason.ShouldContain("Transcription__Device", Case.Sensitive);
 
     [Fact]
     public void TranslatesNoneOfThem() =>
-        LegacyEnvironmentVariables.Translate(new Dictionary<string, string> { ["ALIGN_DEVICE"] = "cpu" })
+        LegacyEnvironmentVariables
+            .Translate(new Dictionary<string, string> { ["ALIGN_DEVICE"] = "cpu" })
             .ShouldBeEmpty();
 }
 

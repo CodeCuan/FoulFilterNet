@@ -57,7 +57,8 @@ public sealed class StorageOptions
     public string ScratchDirectory => Path.Combine(DataDirectory, "scratch");
 
     /// <summary>The transcript cache. Survives restarts.</summary>
-    public string ResolvedTranscriptDirectory => DataLocations.TranscriptDirectory(DataDirectory, TranscriptDirectory);
+    public string ResolvedTranscriptDirectory =>
+        DataLocations.TranscriptDirectory(DataDirectory, TranscriptDirectory);
 
     /// <summary><see cref="MaxUploadMegabytes"/> as the byte count the writer enforces.</summary>
     public long MaxUploadBytes => (long)MaxUploadMegabytes * (1L << 20);

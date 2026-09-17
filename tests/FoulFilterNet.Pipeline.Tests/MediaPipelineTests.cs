@@ -29,16 +29,16 @@ public sealed class WhenCensoringAnAudioFileEndToEnd : IDisposable
     public void Dispose() => _harness.Dispose();
 
     [Fact]
-    public void WalksTheStagesAtTheExactPercentagesTheUiRenders() => _harness.Stages.ShouldBe(
-    [
-        ("transcribing", 5),
-        ("transcribing", 40),
-        ("matching", 50),
-        ("aligning", 55),
-        ("aligning", 75),
-        ("editing", 88),
-        ("completed", 100),
-    ]);
+    public void WalksTheStagesAtTheExactPercentagesTheUiRenders() =>
+        _harness.Stages.ShouldBe([
+            ("transcribing", 5),
+            ("transcribing", 40),
+            ("matching", 50),
+            ("aligning", 55),
+            ("aligning", 75),
+            ("editing", 88),
+            ("completed", 100),
+        ]);
 
     [Fact]
     public void NeverPreparesAudioForAFileThatIsAlreadyAudio() =>
@@ -62,12 +62,15 @@ public sealed class WhenCensoringAnAudioFileEndToEnd : IDisposable
 
     [Fact]
     public async Task RendersThroughTheAudioEditor() =>
-        await _harness.Editor.Received(1).CensorAudioAsync(
-            _harness.InputPath,
-            Arg.Any<IReadOnlyList<Hit>>(),
-            CensorMethod.Silence,
-            _harness.OutputPath,
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.Received(1)
+            .CensorAudioAsync(
+                _harness.InputPath,
+                Arg.Any<IReadOnlyList<Hit>>(),
+                CensorMethod.Silence,
+                _harness.OutputPath,
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void LeavesTheCensoredFileWhereTheJobPromisedIt() =>
@@ -139,7 +142,8 @@ public sealed class WhenATranscriptForThisFileIsAlreadyCached : IDisposable
 
     [Fact]
     public async Task NeverStartsTheTranscriber() =>
-        await _harness.Transcriber.DidNotReceive()
+        await _harness
+            .Transcriber.DidNotReceive()
             .TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
 
     [Fact]
@@ -151,15 +155,19 @@ public sealed class WhenATranscriptForThisFileIsAlreadyCached : IDisposable
 
     [Fact]
     public async Task NeedsNoAlignmentBecauseTheCachedTranscriptAlreadyHasWords() =>
-        await _harness.Aligner.DidNotReceive().AlignAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Segment>>(),
-            Arg.Any<IReadOnlyList<Word>>(),
-            Arg.Any<IProgress<JobProgress>?>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Aligner.DidNotReceive()
+            .AlignAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Segment>>(),
+                Arg.Any<IReadOnlyList<Word>>(),
+                Arg.Any<IProgress<JobProgress>?>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
-    public void StillCensorsTheProfanityTheCachedTranscriptHolds() => _summary.Hits.Count.ShouldBe(1);
+    public void StillCensorsTheProfanityTheCachedTranscriptHolds() =>
+        _summary.Hits.Count.ShouldBe(1);
 }
 
 /// <summary>
@@ -189,13 +197,19 @@ public sealed class WhenARescanIsRequested : IDisposable
 
     [Fact]
     public async Task TranscribesAgainRatherThanResuming() =>
-        await _harness.Transcriber.Received(1)
+        await _harness
+            .Transcriber.Received(1)
             .TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
 
     [Fact]
     public async Task RunsTheSecondPassWithTheBoundariesShifted() =>
-        await _harness.Transcriber.Received(1).TranscribeShiftedAsync(
-            Arg.Any<string>(), RescanPassOffset, Arg.Any<CancellationToken>());
+        await _harness
+            .Transcriber.Received(1)
+            .TranscribeShiftedAsync(
+                Arg.Any<string>(),
+                RescanPassOffset,
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void ReportsTheRescanAtItsOwnCheckpoint() =>
@@ -236,40 +250,51 @@ public sealed class WhenTheJobIsAVideo : IDisposable
 
     [Fact]
     public async Task PutsTheExtractedTrackInTheJobsScratchDirectory() =>
-        await _harness.AudioPreparer.Received(1).ExtractAudioTrackAsync(
-            _harness.InputPath, _extracted, Arg.Any<CancellationToken>());
+        await _harness
+            .AudioPreparer.Received(1)
+            .ExtractAudioTrackAsync(_harness.InputPath, _extracted, Arg.Any<CancellationToken>());
 
     [Fact]
     public async Task TranscribesTheExtractedTrackRatherThanTheVideo() =>
-        await _harness.Transcriber.Received(1)
+        await _harness
+            .Transcriber.Received(1)
             .TranscribeAsync(_extracted, Arg.Any<CancellationToken>());
 
     [Fact]
     public async Task AlignsAgainstTheExtractedTrackToo() =>
-        await _harness.Aligner.Received(1).AlignAsync(
-            _extracted,
-            Arg.Any<IReadOnlyList<Segment>>(),
-            Arg.Any<IReadOnlyList<Word>>(),
-            Arg.Any<IProgress<JobProgress>?>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Aligner.Received(1)
+            .AlignAsync(
+                _extracted,
+                Arg.Any<IReadOnlyList<Segment>>(),
+                Arg.Any<IReadOnlyList<Word>>(),
+                Arg.Any<IProgress<JobProgress>?>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public async Task RendersFromTheOriginalFileSoThePictureSurvives() =>
-        await _harness.Editor.Received(1).CensorVideoAsync(
-            _harness.InputPath,
-            Arg.Any<IReadOnlyList<Hit>>(),
-            Arg.Any<CensorMethod>(),
-            _harness.OutputPath,
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.Received(1)
+            .CensorVideoAsync(
+                _harness.InputPath,
+                Arg.Any<IReadOnlyList<Hit>>(),
+                Arg.Any<CensorMethod>(),
+                _harness.OutputPath,
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public async Task NeverRendersThroughTheAudioPath() =>
-        await _harness.Editor.DidNotReceive().CensorAudioAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Hit>>(),
-            Arg.Any<CensorMethod>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.DidNotReceive()
+            .CensorAudioAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Hit>>(),
+                Arg.Any<CensorMethod>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
 }
 
 /// <summary>
@@ -293,12 +318,15 @@ public sealed class WhenAskedToRemoveProfanityFromAVideo : IDisposable
 
     [Fact]
     public async Task RendersSilenceInstead() =>
-        await _harness.Editor.Received(1).CensorVideoAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Hit>>(),
-            CensorMethod.Silence,
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.Received(1)
+            .CensorVideoAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Hit>>(),
+                CensorMethod.Silence,
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void StillFinishes() => _harness.Stages.ShouldContain(("completed", 100));
@@ -348,7 +376,10 @@ public sealed class WhenDecidingWhetherSmartCutMayWiden
 
     private static bool WideningFor(CensorMethod method, MediaKind kind)
     {
-        using var harness = new PipelineHarness(kind, kind == MediaKind.Video ? "clip.mp4" : "book.mp3")
+        using var harness = new PipelineHarness(
+            kind,
+            kind == MediaKind.Video ? "clip.mp4" : "book.mp3"
+        )
         {
             CensorMethod = method,
             SmartCutEnabled = true,
@@ -374,9 +405,17 @@ public sealed class WhenSmartCutRejectsAHit : IDisposable
     {
         _harness.SmartCutEnabled = true;
         _harness.Segments =
-            [new Segment(1.0, 1.5, "damn"), new Segment(5.0, 5.4, "hell"), new Segment(9.0, 9.4, "damn")];
+        [
+            new Segment(1.0, 1.5, "damn"),
+            new Segment(5.0, 5.4, "hell"),
+            new Segment(9.0, 9.4, "damn"),
+        ];
         _harness.AlignedWords =
-            [new Word("damn", 1.0, 1.5), new Word("hell", 5.0, 5.4), new Word("damn", 9.0, 9.4)];
+        [
+            new Word("damn", 1.0, 1.5),
+            new Word("hell", 5.0, 5.4),
+            new Word("damn", 9.0, 9.4),
+        ];
         _harness.Decisions[1] = SmartCutDecision.Reject;
 
         _summary = _harness.Run();
@@ -403,7 +442,10 @@ public sealed class WhenSmartCutRejectsAHit : IDisposable
 
     [Fact]
     public void SpacesThoseCheckpointsAcrossTheRefiningBand() =>
-        _harness.Stages.Where(s => s.Stage == "refining").Select(s => s.Percent).ShouldBe([78, 81, 84]);
+        _harness
+            .Stages.Where(s => s.Stage == "refining")
+            .Select(s => s.Percent)
+            .ShouldBe([78, 81, 84]);
 
     [Fact]
     public void AsksAboutEveryHitBeforeDecidingAnything() =>
@@ -507,8 +549,7 @@ public sealed class WhenSmartCutRefinesAHitAlignmentLost : IDisposable
         _refinement.ContextWindow.Count.ShouldBe(3);
 
     [Fact]
-    public void AsksAboutThePhraseTheSegmentEstimateNamed() =>
-        _refinement.Phrase.ShouldBe("damn");
+    public void AsksAboutThePhraseTheSegmentEstimateNamed() => _refinement.Phrase.ShouldBe("damn");
 }
 
 /// <summary>ADR-0001: align the whole transcript, or none of it.</summary>
@@ -529,12 +570,15 @@ public sealed class WhenNothingInTheTranscriptIsOnTheBadWordsList : IDisposable
 
     [Fact]
     public async Task SkipsAlignmentAltogether() =>
-        await _harness.Aligner.DidNotReceive().AlignAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Segment>>(),
-            Arg.Any<IReadOnlyList<Word>>(),
-            Arg.Any<IProgress<JobProgress>?>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Aligner.DidNotReceive()
+            .AlignAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Segment>>(),
+                Arg.Any<IReadOnlyList<Word>>(),
+                Arg.Any<IProgress<JobProgress>?>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void ReportsNoAligningCheckpoints() =>
@@ -545,12 +589,15 @@ public sealed class WhenNothingInTheTranscriptIsOnTheBadWordsList : IDisposable
 
     [Fact]
     public async Task NeverCallsTheEditorBecauseThereIsNothingToEdit() =>
-        await _harness.Editor.DidNotReceive().CensorAudioAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Hit>>(),
-            Arg.Any<CensorMethod>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.DidNotReceive()
+            .CensorAudioAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Hit>>(),
+                Arg.Any<CensorMethod>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void StillProducesTheOutputFileTheJobPromised() =>
@@ -586,12 +633,15 @@ public sealed class WhenTheTranscriberAlreadyProducedWords : IDisposable
 
     [Fact]
     public async Task DoesNotAlignAgain() =>
-        await _harness.Aligner.DidNotReceive().AlignAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Segment>>(),
-            Arg.Any<IReadOnlyList<Word>>(),
-            Arg.Any<IProgress<JobProgress>?>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Aligner.DidNotReceive()
+            .AlignAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Segment>>(),
+                Arg.Any<IReadOnlyList<Word>>(),
+                Arg.Any<IProgress<JobProgress>?>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void UsesTheWordTimesTheTranscriberGave() => _summary.Hits[0].End.ShouldBe(1.75, 0.001);
@@ -623,7 +673,8 @@ public sealed class WhenTheFileIsNotMediaThisApplicationCanProcess : IDisposable
 
     [Fact]
     public async Task NeverReachesTheGpu() =>
-        await _harness.Transcriber.DidNotReceive()
+        await _harness
+            .Transcriber.DidNotReceive()
             .TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
 
     [Fact]
@@ -654,7 +705,8 @@ public sealed class WhenTheRenderProducesNoFile : IDisposable
     public void FailsTheJob() => _failure.ShouldBeOfType<InvalidOperationException>();
 
     [Fact]
-    public void NamesTheOutputThatNeverAppeared() => _failure.Message.ShouldContain(_harness.OutputPath);
+    public void NamesTheOutputThatNeverAppeared() =>
+        _failure.Message.ShouldContain(_harness.OutputPath);
 
     [Fact]
     public void NeverReportsTheJobComplete() =>
@@ -685,12 +737,15 @@ public sealed class WhenTheJobNamesNoOutputPath : IDisposable
 
     [Fact]
     public async Task RendersWhereTheEditorWouldHavePutIt() =>
-        await _harness.Editor.Received(1).CensorAudioAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Hit>>(),
-            Arg.Any<CensorMethod>(),
-            _expected,
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.Received(1)
+            .CensorAudioAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Hit>>(),
+                Arg.Any<CensorMethod>(),
+                _expected,
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void VerifiesThatSamePathAfterwards() => File.Exists(_expected).ShouldBeTrue();
@@ -717,12 +772,15 @@ public sealed class WhenNoRenderWasRequested : IDisposable
 
     [Fact]
     public async Task NeverCallsTheEditor() =>
-        await _harness.Editor.DidNotReceive().CensorAudioAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Hit>>(),
-            Arg.Any<CensorMethod>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.DidNotReceive()
+            .CensorAudioAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Hit>>(),
+                Arg.Any<CensorMethod>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void WritesNoOutputFile() => File.Exists(_harness.OutputPath).ShouldBeFalse();
@@ -785,7 +843,9 @@ public sealed class WhenTheJobIsCancelledBeforeItStarts : IDisposable
 
     [Fact]
     public async Task NeverProbesTheFile() =>
-        await _harness.Prober.DidNotReceive().ProbeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _harness
+            .Prober.DidNotReceive()
+            .ProbeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
 }
 
 public sealed class WhenTheJobIsCancelledDuringTranscription : IDisposable
@@ -834,12 +894,15 @@ public sealed class WhenTheJobIsCancelledAfterMatching : IDisposable
 
     [Fact]
     public async Task NeverStartsTheAligner() =>
-        await _harness.Aligner.DidNotReceive().AlignAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Segment>>(),
-            Arg.Any<IReadOnlyList<Word>>(),
-            Arg.Any<IProgress<JobProgress>?>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Aligner.DidNotReceive()
+            .AlignAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Segment>>(),
+                Arg.Any<IReadOnlyList<Word>>(),
+                Arg.Any<IProgress<JobProgress>?>(),
+                Arg.Any<CancellationToken>()
+            );
 }
 
 public sealed class WhenTheJobIsCancelledAfterAlignment : IDisposable
@@ -862,12 +925,15 @@ public sealed class WhenTheJobIsCancelledAfterAlignment : IDisposable
 
     [Fact]
     public async Task NeverRenders() =>
-        await _harness.Editor.DidNotReceive().CensorAudioAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Hit>>(),
-            Arg.Any<CensorMethod>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.DidNotReceive()
+            .CensorAudioAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Hit>>(),
+                Arg.Any<CensorMethod>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
 
     [Fact]
     public void LeavesNoOutputBehind() => File.Exists(_harness.OutputPath).ShouldBeFalse();
@@ -887,9 +953,17 @@ public sealed class WhenTheJobIsCancelledMidRefinement : IDisposable
     {
         _harness.SmartCutEnabled = true;
         _harness.Segments =
-            [new Segment(1.0, 1.5, "damn"), new Segment(5.0, 5.4, "hell"), new Segment(9.0, 9.4, "damn")];
+        [
+            new Segment(1.0, 1.5, "damn"),
+            new Segment(5.0, 5.4, "hell"),
+            new Segment(9.0, 9.4, "damn"),
+        ];
         _harness.AlignedWords =
-            [new Word("damn", 1.0, 1.5), new Word("hell", 5.0, 5.4), new Word("damn", 9.0, 9.4)];
+        [
+            new Word("damn", 1.0, 1.5),
+            new Word("hell", 5.0, 5.4),
+            new Word("damn", 9.0, 9.4),
+        ];
         _harness.OnRefine = _harness.Cancel;
 
         _failure = _harness.RunExpectingFailure();
@@ -907,12 +981,15 @@ public sealed class WhenTheJobIsCancelledMidRefinement : IDisposable
 
     [Fact]
     public async Task NeverRenders() =>
-        await _harness.Editor.DidNotReceive().CensorAudioAsync(
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyList<Hit>>(),
-            Arg.Any<CensorMethod>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        await _harness
+            .Editor.DidNotReceive()
+            .CensorAudioAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<Hit>>(),
+                Arg.Any<CensorMethod>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
 }
 
 /// <summary>An engine that observes the token itself must not report as a failure either.</summary>
@@ -923,7 +1000,8 @@ public sealed class WhenAnEngineObservesTheCancellationItself : IDisposable
 
     public WhenAnEngineObservesTheCancellationItself()
     {
-        _harness.Transcriber.TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _harness
+            .Transcriber.TranscribeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns<Task<TranscriptionResult>>(_ => throw new OperationCanceledException());
 
         _failure = _harness.RunExpectingFailure();
@@ -934,7 +1012,8 @@ public sealed class WhenAnEngineObservesTheCancellationItself : IDisposable
     public void Dispose() => _harness.Dispose();
 
     [Fact]
-    public void IsStillReportedAsACancelledJob() => _failure.ShouldBeOfType<JobCancelledException>();
+    public void IsStillReportedAsACancelledJob() =>
+        _failure.ShouldBeOfType<JobCancelledException>();
 
     [Fact]
     public void KeepsTheOriginalCancellationAsTheCause() =>

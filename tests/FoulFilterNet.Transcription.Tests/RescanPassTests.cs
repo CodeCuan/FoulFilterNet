@@ -30,11 +30,9 @@ public class WhenShiftingRescanSegmentsBackOntoTheOriginalTimeline
     public WhenShiftingRescanSegmentsBackOntoTheOriginalTimeline()
     {
         _shifted = RescanPass.Shift(
-            [
-                new Segment(7.4105, 9.8977, "well damn"),
-                new Segment(11.0, 12.5, "that went badly"),
-            ],
-            RescanPass.DefaultOffsetSeconds);
+            [new Segment(7.4105, 9.8977, "well damn"), new Segment(11.0, 12.5, "that went badly")],
+            RescanPass.DefaultOffsetSeconds
+        );
 
         _shifted.Count.ShouldBe(2);
     }
@@ -53,7 +51,8 @@ public class WhenShiftingRescanSegmentsBackOntoTheOriginalTimeline
     public void LeavesTheTextAlone() => _shifted[0].Text.ShouldBe("well damn");
 
     [Fact]
-    public void ShiftsEverySegment() => _shifted[1].ShouldBe(new Segment(7.0, 8.5, "that went badly"));
+    public void ShiftsEverySegment() =>
+        _shifted[1].ShouldBe(new Segment(7.0, 8.5, "that went badly"));
 }
 
 public class WhenAShiftedSegmentFallsInsideThePadding
@@ -68,7 +67,8 @@ public class WhenAShiftedSegmentFallsInsideThePadding
                 new Segment(2.0, 4.0, "ends exactly at the offset"),
                 new Segment(5.0, 6.0, "real speech"),
             ],
-            4.0);
+            4.0
+        );
 
         _shifted.ShouldNotBeEmpty();
     }
@@ -120,7 +120,8 @@ public class WhenShiftingRescanWords
                 new Word("damn", 7.4105, 7.8971),
                 new Word("straddling", 3.5, 4.25),
             ],
-            4.0);
+            4.0
+        );
 
         _shifted.ShouldNotBeEmpty();
     }
@@ -147,8 +148,10 @@ public class WhenShiftingAWholeRescanResult
         _shifted = RescanPass.Shift(
             new TranscriptionResult(
                 [new Segment(4.5, 6.0, "well damn")],
-                [new Word("damn", 5.0, 5.4)]),
-            4.0);
+                [new Word("damn", 5.0, 5.4)]
+            ),
+            4.0
+        );
 
         _shifted.ShouldNotBeNull();
     }
@@ -158,8 +161,7 @@ public class WhenShiftingAWholeRescanResult
         _shifted.Segments.ShouldBe([new Segment(0.5, 2.0, "well damn")]);
 
     [Fact]
-    public void RebasesTheWords() =>
-        _shifted.Words.ShouldBe([new Word("damn", 1.0, 1.4)]);
+    public void RebasesTheWords() => _shifted.Words.ShouldBe([new Word("damn", 1.0, 1.4)]);
 
     [Fact]
     public void StillReportsWordTimestamps() => _shifted.HasWordTimestamps.ShouldBeTrue();
@@ -172,14 +174,9 @@ public class WhenUnioningARescanIntoThePrimaryTranscript
     public WhenUnioningARescanIntoThePrimaryTranscript()
     {
         _union = RescanPass.Union(
-            [
-                new Segment(0.0, 2.0, "hello there"),
-                new Segment(2.5, 4.0, "damn it"),
-            ],
-            [
-                new Segment(2.4, 4.1, "damn it"),
-                new Segment(5.0, 6.0, "recovered at the boundary"),
-            ]);
+            [new Segment(0.0, 2.0, "hello there"), new Segment(2.5, 4.0, "damn it")],
+            [new Segment(2.4, 4.1, "damn it"), new Segment(5.0, 6.0, "recovered at the boundary")]
+        );
 
         _union.ShouldNotBeEmpty();
     }
@@ -188,8 +185,7 @@ public class WhenUnioningARescanIntoThePrimaryTranscript
     public void DropsTheDuplicatedOverlappingSpan() => _union.Count.ShouldBe(3);
 
     [Fact]
-    public void SortsByStartTime() =>
-        _union.Select(s => s.Start).ShouldBe([0.0, 2.4, 5.0]);
+    public void SortsByStartTime() => _union.Select(s => s.Start).ShouldBe([0.0, 2.4, 5.0]);
 
     [Fact]
     public void KeepsTheEarlierOfTwoIdenticalSpans() =>
@@ -206,9 +202,7 @@ public class WhenUnioningSegmentsThatOnlyLookLikeDuplicates
 
     public WhenUnioningSegmentsThatOnlyLookLikeDuplicates()
     {
-        _union = RescanPass.Union(
-            [new Segment(0.0, 1.0, "damn")],
-            [new Segment(5.0, 6.0, "damn")]);
+        _union = RescanPass.Union([new Segment(0.0, 1.0, "damn")], [new Segment(5.0, 6.0, "damn")]);
 
         _union.ShouldNotBeEmpty();
     }
@@ -218,13 +212,19 @@ public class WhenUnioningSegmentsThatOnlyLookLikeDuplicates
 
     [Fact]
     public void DropsIdenticalTextAtAnIdenticalSpan() =>
-        RescanPass.Union([new Segment(1.0, 2.0, "damn")], [new Segment(1.0, 2.0, "damn")]).Count.ShouldBe(1);
+        RescanPass
+            .Union([new Segment(1.0, 2.0, "damn")], [new Segment(1.0, 2.0, "damn")])
+            .Count.ShouldBe(1);
 
     [Fact]
     public void KeepsOverlappingSpansWithDifferentText() =>
-        RescanPass.Union([new Segment(1.0, 3.0, "damn it")], [new Segment(2.0, 4.0, "damn")]).Count.ShouldBe(2);
+        RescanPass
+            .Union([new Segment(1.0, 3.0, "damn it")], [new Segment(2.0, 4.0, "damn")])
+            .Count.ShouldBe(2);
 
     [Fact]
     public void ReturnsThePrimaryUnchangedWhenTheRescanFoundNothing() =>
-        RescanPass.Union([new Segment(1.0, 2.0, "damn")], []).ShouldBe([new Segment(1.0, 2.0, "damn")]);
+        RescanPass
+            .Union([new Segment(1.0, 2.0, "damn")], [])
+            .ShouldBe([new Segment(1.0, 2.0, "damn")]);
 }

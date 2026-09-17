@@ -20,8 +20,12 @@ internal static class SmartCutContainer
     public static ISmartCutAdvisor ResolveFrom(params (string Key, string Value)[] settings)
     {
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(settings.Select(setting =>
-                new KeyValuePair<string, string?>(setting.Key, setting.Value)))
+            .AddInMemoryCollection(
+                settings.Select(setting => new KeyValuePair<string, string?>(
+                    setting.Key,
+                    setting.Value
+                ))
+            )
             .Build();
 
         return new ServiceCollection()
@@ -45,7 +49,8 @@ public class WhenNothingIsConfigured
         _advisor = SmartCutContainer.Resolve();
         _decision = _advisor
             .RefineAsync(PromptWindow.Words, "hoe", centerIndex: 6, allowWidening: true)
-            .GetAwaiter().GetResult();
+            .GetAwaiter()
+            .GetResult();
 
         _advisor.ShouldNotBeNull();
     }
@@ -78,7 +83,8 @@ public class WhenTheFlagIsOnForALocalServer
         _advisor = SmartCutContainer.ResolveFrom(
             ("SmartCut:Enabled", "true"),
             ("SmartCut:Mode", "Local"),
-            ("SmartCut:LocalUrl", "http://localhost:8080/v1/chat/completions"));
+            ("SmartCut:LocalUrl", "http://localhost:8080/v1/chat/completions")
+        );
 
         _advisor.ShouldNotBeNull();
     }
@@ -91,8 +97,9 @@ public class WhenTheFlagIsOnForALocalServer
 
     [Fact]
     public void TalksToAnOpenAiCompatibleEndpoint() =>
-        _advisor.ShouldBeOfType<LlmSmartCutAdvisor>().Transport
-            .ShouldBeOfType<OpenAiCompatibleTransport>();
+        _advisor
+            .ShouldBeOfType<LlmSmartCutAdvisor>()
+            .Transport.ShouldBeOfType<OpenAiCompatibleTransport>();
 }
 
 public class WhenTheFlagIsOnForGoogle
@@ -123,10 +130,12 @@ public class WhenTheFlagIsOnForGoogle
 
     [Fact]
     public void ReadsTheKeyFromTheEnvironmentRatherThanAppsettings() =>
-        SmartCutContainer.ResolveFrom(
+        SmartCutContainer
+            .ResolveFrom(
                 ("SmartCut:Enabled", "true"),
                 ("SmartCut:Mode", "Google"),
-                ("SmartCut:GoogleApiKey", "a-key-somebody-committed"))
+                ("SmartCut:GoogleApiKey", "a-key-somebody-committed")
+            )
             .IsEnabled.ShouldBeFalse();
 
     /// <summary>
@@ -137,10 +146,12 @@ public class WhenTheFlagIsOnForGoogle
     /// </summary>
     [Fact]
     public void IgnoresTheKeyEvenUnderItsOwnNameInConfiguration() =>
-        SmartCutContainer.ResolveFrom(
+        SmartCutContainer
+            .ResolveFrom(
                 ("SmartCut:Enabled", "true"),
                 ("SmartCut:Mode", "Google"),
-                ("GOOGLE_API_KEY", "a-key-somebody-committed"))
+                ("GOOGLE_API_KEY", "a-key-somebody-committed")
+            )
             .IsEnabled.ShouldBeFalse();
 }
 
@@ -154,11 +165,13 @@ public class WhenTheFlagIsOnButNothingIsReachable
 
     public WhenTheFlagIsOnButNothingIsReachable()
     {
-        _advisor = SmartCutContainer.Resolve(services => services.Configure<SmartCutOptions>(options =>
-        {
-            options.Enabled = true;
-            options.Mode = SmartCutMode.Google;
-        }));
+        _advisor = SmartCutContainer.Resolve(services =>
+            services.Configure<SmartCutOptions>(options =>
+            {
+                options.Enabled = true;
+                options.Mode = SmartCutMode.Google;
+            })
+        );
 
         _advisor.ShouldNotBeNull();
     }
@@ -172,24 +185,28 @@ public class WhenTheFlagIsOnButNothingIsReachable
 
     [Fact]
     public void DegradesTheSameWayForAnUnusableLocalUrl() =>
-        SmartCutContainer.ResolveFrom(
+        SmartCutContainer
+            .ResolveFrom(
                 ("SmartCut:Enabled", "true"),
                 ("SmartCut:Mode", "Local"),
-                ("SmartCut:LocalUrl", "not a url at all"))
+                ("SmartCut:LocalUrl", "not a url at all")
+            )
             .ShouldBeOfType<NoOpSmartCutAdvisor>();
 
     [Fact]
     public void DegradesTheSameWayWhenGoogleHasNoModel() =>
-        SmartCutContainer.Resolve(services =>
-        {
-            services.Configure<SmartCutOptions>(options =>
+        SmartCutContainer
+            .Resolve(services =>
             {
-                options.Enabled = true;
-                options.Mode = SmartCutMode.Google;
-                options.GoogleModel = "";
-            });
-            services.AddSingleton<GoogleApiKeySource>(_ => () => "a-key");
-        }).ShouldBeOfType<NoOpSmartCutAdvisor>();
+                services.Configure<SmartCutOptions>(options =>
+                {
+                    options.Enabled = true;
+                    options.Mode = SmartCutMode.Google;
+                    options.GoogleModel = "";
+                });
+                services.AddSingleton<GoogleApiKeySource>(_ => () => "a-key");
+            })
+            .ShouldBeOfType<NoOpSmartCutAdvisor>();
 }
 
 public class WhenTheSmartCutHttpClientIsBuilt

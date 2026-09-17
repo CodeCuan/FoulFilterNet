@@ -22,12 +22,11 @@ public sealed class JobManager(JobEventFanOut events)
     private readonly List<Entry> _order = [];
 
     private readonly Channel<string> _channel = Channel.CreateUnbounded<string>(
-        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false }
+    );
 
     public JobManager()
-        : this(new JobEventFanOut())
-    {
-    }
+        : this(new JobEventFanOut()) { }
 
     /// <summary>What the worker blocks on. One reader only - jobs are sequential.</summary>
     public ChannelReader<string> Reader => _channel.Reader;
@@ -58,7 +57,14 @@ public sealed class JobManager(JobEventFanOut events)
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentNullException.ThrowIfNull(request);
 
-        var entry = new Entry(new JobRecord { Id = id, FileName = fileName, Request = request });
+        var entry = new Entry(
+            new JobRecord
+            {
+                Id = id,
+                FileName = fileName,
+                Request = request,
+            }
+        );
 
         lock (_gate)
         {
@@ -147,13 +153,16 @@ public sealed class JobManager(JobEventFanOut events)
     public bool TryBeginProcessing(
         string id,
         [NotNullWhen(true)] out JobRecord? record,
-        out CancellationToken cancellationToken)
+        out CancellationToken cancellationToken
+    )
     {
         lock (_gate)
         {
-            if (!_entries.TryGetValue(id, out var entry)
+            if (
+                !_entries.TryGetValue(id, out var entry)
                 || entry.Record.Status != JobStatus.Queued
-                || entry.Cancellation.IsCancellationRequested)
+                || entry.Cancellation.IsCancellationRequested
+            )
             {
                 record = null;
                 cancellationToken = CancellationToken.None;
@@ -180,31 +189,44 @@ public sealed class JobManager(JobEventFanOut events)
     {
         ArgumentNullException.ThrowIfNull(progress);
 
-        Update(id, record => record with
-        {
-            Stage = progress.Stage,
-            Progress = progress.Percent,
-            Detail = progress.Detail,
-        });
+        Update(
+            id,
+            record =>
+                record with
+                {
+                    Stage = progress.Stage,
+                    Progress = progress.Percent,
+                    Detail = progress.Detail,
+                }
+        );
     }
 
     public void MarkCompleted(string id, JobSummary summary)
     {
         ArgumentNullException.ThrowIfNull(summary);
 
-        Update(id, record => record with
-        {
-            Status = JobStatus.Completed,
-            Stage = "completed",
-            Progress = 100,
-            Detail = $"{summary.Hits.Count} hit(s)" + (summary.Rescanned ? " (rescanned)" : string.Empty),
-            Hits = summary.Hits,
-            DownloadUrl = $"/download/{id}",
-        });
+        Update(
+            id,
+            record =>
+                record with
+                {
+                    Status = JobStatus.Completed,
+                    Stage = "completed",
+                    Progress = 100,
+                    Detail =
+                        $"{summary.Hits.Count} hit(s)"
+                        + (summary.Rescanned ? " (rescanned)" : string.Empty),
+                    Hits = summary.Hits,
+                    DownloadUrl = $"/download/{id}",
+                }
+        );
     }
 
     public void MarkCancelled(string id) =>
-        Update(id, record => record with { Status = JobStatus.Cancelled, Detail = CancelledDetail });
+        Update(
+            id,
+            record => record with { Status = JobStatus.Cancelled, Detail = CancelledDetail }
+        );
 
     public void MarkFailed(string id, string detail) =>
         Update(id, record => record with { Status = JobStatus.Failed, Detail = detail });

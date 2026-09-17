@@ -33,7 +33,8 @@ public class WhenTheLocalServerAnswers
             _handler.Client(),
             LocalReplies.ChatUrl,
             model: "gpt-oss-20b-Q4_K_M",
-            NullLogger<OpenAiCompatibleTransport>.Instance);
+            NullLogger<OpenAiCompatibleTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
 
@@ -58,14 +59,21 @@ public class WhenTheLocalServerAnswers
 
     [Fact]
     public void KeepsThePythonsSystemPrompt() =>
-        _payload.GetProperty("messages")[0].GetProperty("content").GetString()
+        _payload
+            .GetProperty("messages")[0]
+            .GetProperty("content")
+            .GetString()
             .ShouldBe("You are a video editor. Output ONLY JSON.");
 
     [Fact]
     public void SendsThePromptAsTheUserTurn()
     {
         _payload.GetProperty("messages")[1].GetProperty("role").GetString().ShouldBe("user");
-        _payload.GetProperty("messages")[1].GetProperty("content").GetString().ShouldBe("the prompt");
+        _payload
+            .GetProperty("messages")[1]
+            .GetProperty("content")
+            .GetString()
+            .ShouldBe("the prompt");
     }
 
     [Fact]
@@ -74,30 +82,52 @@ public class WhenTheLocalServerAnswers
 
     [Fact]
     public void ConstrainsTheReplyToAJsonObject() =>
-        _payload.GetProperty("response_format").GetProperty("type").GetString().ShouldBe("json_object");
+        _payload
+            .GetProperty("response_format")
+            .GetProperty("type")
+            .GetString()
+            .ShouldBe("json_object");
 
     [Fact]
     public void SendsTheDecisionSchema()
     {
         var schema = _payload.GetProperty("response_format").GetProperty("schema");
 
-        schema.GetProperty("properties").GetProperty("reasoning").GetProperty("type").GetString()
+        schema
+            .GetProperty("properties")
+            .GetProperty("reasoning")
+            .GetProperty("type")
+            .GetString()
             .ShouldBe("string");
-        schema.GetProperty("properties").GetProperty("start_index").GetProperty("type").GetString()
+        schema
+            .GetProperty("properties")
+            .GetProperty("start_index")
+            .GetProperty("type")
+            .GetString()
             .ShouldBe("integer");
-        schema.GetProperty("properties").GetProperty("end_index").GetProperty("type").GetString()
+        schema
+            .GetProperty("properties")
+            .GetProperty("end_index")
+            .GetProperty("type")
+            .GetString()
             .ShouldBe("integer");
     }
 
     [Fact]
     public void RequiresEveryFieldOfTheSchema() =>
-        _payload.GetProperty("response_format").GetProperty("schema").GetProperty("required")
-            .EnumerateArray().Select(field => field.GetString())
+        _payload
+            .GetProperty("response_format")
+            .GetProperty("schema")
+            .GetProperty("required")
+            .EnumerateArray()
+            .Select(field => field.GetString())
             .ShouldBe(["reasoning", "start_index", "end_index"]);
 
     [Fact]
     public void AllowsForAColdServerLoadingWeightsIntoVram() =>
-        OpenAiCompatibleTransport.RequestTimeout.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMinutes(4));
+        OpenAiCompatibleTransport.RequestTimeout.ShouldBeGreaterThanOrEqualTo(
+            TimeSpan.FromMinutes(4)
+        );
 }
 
 /// <summary>
@@ -114,17 +144,17 @@ public class WhenTheLocalServerRunsADifferentModel
     {
         var posts = 0;
         _handler = FakeHttpMessageHandler.Responding(request =>
-            request.Method == HttpMethod.Get
-                ? (HttpStatusCode.OK, LocalReplies.Models)
-                : ++posts == 1
-                    ? (HttpStatusCode.BadRequest, LocalReplies.ModelNotFound)
-                    : (HttpStatusCode.OK, LocalReplies.Answer));
+            request.Method == HttpMethod.Get ? (HttpStatusCode.OK, LocalReplies.Models)
+            : ++posts == 1 ? (HttpStatusCode.BadRequest, LocalReplies.ModelNotFound)
+            : (HttpStatusCode.OK, LocalReplies.Answer)
+        );
 
         var transport = new OpenAiCompatibleTransport(
             _handler.Client(),
             LocalReplies.ChatUrl,
             model: "gpt-oss-20b-Q4_K_M",
-            NullLogger<OpenAiCompatibleTransport>.Instance);
+            NullLogger<OpenAiCompatibleTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
 
@@ -144,7 +174,10 @@ public class WhenTheLocalServerRunsADifferentModel
 
     [Fact]
     public void RetriesWithTheServersOwnModelId() =>
-        JsonDocument.Parse(_handler.Requests[2].Body!).RootElement.GetProperty("model").GetString()
+        JsonDocument
+            .Parse(_handler.Requests[2].Body!)
+            .RootElement.GetProperty("model")
+            .GetString()
             .ShouldBe("qwen3-8b-Q5_K_M");
 
     [Fact]
@@ -162,13 +195,15 @@ public class WhenTheModelIdIsNotConfigured
         _handler = FakeHttpMessageHandler.Responding(request =>
             request.Method == HttpMethod.Get
                 ? (HttpStatusCode.OK, LocalReplies.Models)
-                : (HttpStatusCode.OK, LocalReplies.Answer));
+                : (HttpStatusCode.OK, LocalReplies.Answer)
+        );
 
         var transport = new OpenAiCompatibleTransport(
             _handler.Client(),
             LocalReplies.ChatUrl,
             model: "",
-            NullLogger<OpenAiCompatibleTransport>.Instance);
+            NullLogger<OpenAiCompatibleTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
 
@@ -181,7 +216,10 @@ public class WhenTheModelIdIsNotConfigured
 
     [Fact]
     public void UsesWhatTheServerNamed() =>
-        JsonDocument.Parse(_handler.Requests[1].Body!).RootElement.GetProperty("model").GetString()
+        JsonDocument
+            .Parse(_handler.Requests[1].Body!)
+            .RootElement.GetProperty("model")
+            .GetString()
             .ShouldBe("qwen3-8b-Q5_K_M");
 }
 
@@ -191,12 +229,15 @@ public class WhenTheLocalServerIsNotRunning
 
     public WhenTheLocalServerIsNotRunning()
     {
-        var handler = FakeHttpMessageHandler.Throwing(new HttpRequestException("connection refused"));
+        var handler = FakeHttpMessageHandler.Throwing(
+            new HttpRequestException("connection refused")
+        );
         var transport = new OpenAiCompatibleTransport(
             handler.Client(),
             LocalReplies.ChatUrl,
             "gpt-oss-20b-Q4_K_M",
-            NullLogger<OpenAiCompatibleTransport>.Instance);
+            NullLogger<OpenAiCompatibleTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
     }
@@ -207,7 +248,8 @@ public class WhenTheLocalServerIsNotRunning
 
     [Fact]
     public void WhichMeansKeepTheOriginalTimestamps() =>
-        SmartCutResponseParser.Parse(_response, PromptWindow.Words, 6, allowWidening: true)
+        SmartCutResponseParser
+            .Parse(_response, PromptWindow.Words, 6, allowWidening: true)
             .Outcome.ShouldBe(SmartCutOutcome.KeepOriginal);
 }
 
@@ -219,13 +261,15 @@ public class WhenTheLocalServerFailsOutright
     public WhenTheLocalServerFailsOutright()
     {
         _handler = FakeHttpMessageHandler.Returning(
-            (HttpStatusCode.InternalServerError, """{"error":"out of memory"}"""));
+            (HttpStatusCode.InternalServerError, """{"error":"out of memory"}""")
+        );
 
         var transport = new OpenAiCompatibleTransport(
             _handler.Client(),
             LocalReplies.ChatUrl,
             "gpt-oss-20b-Q4_K_M",
-            NullLogger<OpenAiCompatibleTransport>.Instance);
+            NullLogger<OpenAiCompatibleTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
     }
@@ -251,13 +295,15 @@ public class WhenModelDiscoveryAlsoFails
         _handler = FakeHttpMessageHandler.Responding(request =>
             request.Method == HttpMethod.Get
                 ? (HttpStatusCode.NotFound, "no such endpoint")
-                : (HttpStatusCode.BadRequest, LocalReplies.ModelNotFound));
+                : (HttpStatusCode.BadRequest, LocalReplies.ModelNotFound)
+        );
 
         var transport = new OpenAiCompatibleTransport(
             _handler.Client(),
             LocalReplies.ChatUrl,
             "gpt-oss-20b-Q4_K_M",
-            NullLogger<OpenAiCompatibleTransport>.Instance);
+            NullLogger<OpenAiCompatibleTransport>.Instance
+        );
 
         _response = transport.CompleteAsync("the prompt").GetAwaiter().GetResult();
     }
@@ -286,6 +332,8 @@ public class WhenDerivingTheModelsUrl
 
     [Fact]
     public void LeavesAnyOtherPathAlone() =>
-        OpenAiCompatibleTransport.ModelsUriFor("http://gpu-box:9000/v1/chat/completions").ToString()
+        OpenAiCompatibleTransport
+            .ModelsUriFor("http://gpu-box:9000/v1/chat/completions")
+            .ToString()
             .ShouldBe("http://gpu-box:9000/v1/models");
 }

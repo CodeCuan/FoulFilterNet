@@ -39,8 +39,15 @@ internal sealed class SseSession : IAsyncDisposable
 
     public static async Task<SseSession> ConnectAsync(HttpClient client)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/events", UriKind.Relative));
-        var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, Api.Token);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            new Uri("/events", UriKind.Relative)
+        );
+        var response = await client.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            Api.Token
+        );
         var stream = await response.Content.ReadAsStreamAsync(Api.Token);
         return new SseSession(response, new StreamReader(stream));
     }
@@ -141,7 +148,9 @@ public class WhenAJobIsQueuedWhileAListenerWatches : IDisposable
     /// </summary>
     [Fact]
     public void LeavesEventsUnnamedSoOnMessageFires() =>
-        _events.RawLines.ShouldNotContain(line => line.StartsWith("event:", StringComparison.Ordinal));
+        _events.RawLines.ShouldNotContain(line =>
+            line.StartsWith("event:", StringComparison.Ordinal)
+        );
 
     [Fact]
     public void SendsTheJobThatWasQueued() =>
@@ -153,7 +162,8 @@ public class WhenAJobIsQueuedWhileAListenerWatches : IDisposable
 
     [Fact]
     public void NeverLeaksAFilesystemPath() =>
-        _received[0].EnumerateObject()
+        _received[0]
+            .EnumerateObject()
             .ShouldAllBe(property => !property.Name.EndsWith("_path", StringComparison.Ordinal));
 
     public void Dispose()
@@ -227,7 +237,8 @@ public class WhenAListenerStopsReading : IDisposable
     }
 
     [Fact]
-    public void TheJobStillFinishes() => _job.GetProperty("status").GetString().ShouldBe("completed");
+    public void TheJobStillFinishes() =>
+        _job.GetProperty("status").GetString().ShouldBe("completed");
 
     public void Dispose()
     {

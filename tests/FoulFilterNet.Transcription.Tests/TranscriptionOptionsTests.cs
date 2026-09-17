@@ -48,7 +48,9 @@ public class WhenTranscriptionOptionsCarryABareModelSize
 
     [Fact]
     public void LeavesASlashQualifiedNameAlone() =>
-        new TranscriptionOptions { Model = "openai/whisper-tiny" }.Model.ShouldBe("openai/whisper-tiny");
+        new TranscriptionOptions { Model = "openai/whisper-tiny" }.Model.ShouldBe(
+            "openai/whisper-tiny"
+        );
 
     [Fact]
     public void NormalizesAgainWhenCopiedWithANewModel() =>
