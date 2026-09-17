@@ -98,7 +98,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | ✅ | `task/T31-cli` | `4203dc7` | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
 | T32 | Container + configuration | ✅ | `task/T32-container-config` | `7f04e44` | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified, **image build not yet verified**; see output below |
-| T33 | Documentation + ASR ADR | — | | | |
+| T33 | Documentation + ASR ADR | ✅ | `task/T33-documentation` | | Root `README.md` and `CONTEXT.md`, docs index; the ADR was T13's (ADR-0006); doc/code discrepancies fixed in docs, see output below |
 | T34 | Evaluation harness | — | | | Stretch |
 
 ## Completed outside the ledger
@@ -199,6 +199,69 @@ weights, and it must stay that way — CI is CPU-only.
 - The tolerance question ("is DTW precise enough?") is **answered** — yes, with
   the DTW pass rather than the token-timestamp heuristic. `PassThroughAligner`
   stays as the seam. See ADR-0006 and the T13 output section.
+
+## T33 output — documentation, and where the docs had drifted from the code
+
+The repository root now has a [README.md](../README.md) for the .NET solution
+(there was none — the Python's stays at `Legacy/README.md`) and a
+[CONTEXT.md](../CONTEXT.md) carrying `Legacy/CONTEXT.md`'s vocabulary forward
+with what the .NET design changed. [README.md](README.md) here indexes both and
+`adr/`. ADR-0006 was already written by T13; it was re-read and needed no
+correction.
+
+**Verified on this host**: `dotnet build FoulFilterNet.slnx` (0 warnings) and
+`dotnet test FoulFilterNet.slnx` (1083 passing, 13 skipped, unchanged);
+`foulfilter --help` (the documented flags are the real ones); the CLI with no
+weights exits 1 with the "No Whisper weights" message and downloads nothing;
+`dotnet run --project src/FoulFilterNet.Web -- --urls ...` with a scratch
+`DATA_DIR` answered `/health`, `/config` and `/` with 200, and logged its content
+root as `src/FoulFilterNet.Web` (the launch profile) - whereas `dotnet run` of
+the CLI keeps the caller's working directory, so its default `models` resolves
+against the repository root. **Not verified**: anything Docker (no daemon, no
+image pulls), a GPU job through Web, the opt-in test gates, and every model size
+other than `large-v3-turbo` (the README marks the rest approximate).
+
+Discrepancies found - all fixed in the docs, no code changed:
+
+1. **User-secrets do not work.** The porting plan, the Stream D notes below and
+   a comment in `SmartCutServiceCollectionExtensions` say the Google API key can
+   come from user-secrets. `AddSmartCut` does consult configuration for
+   `GOOGLE_API_KEY`, but neither host declares a `UserSecretsId`, so
+   `dotnet user-secrets list --project src/FoulFilterNet.Web` fails with "Could
+   not find the global property 'UserSecretsId'", and the CLI's host is never in
+   the Development environment anyway. The README documents the environment
+   variable as the only working source. Making user-secrets real is a one-line
+   csproj change for whoever wants it (not done: docs task).
+2. **An unaligned Candidate is not dropped.** The T21 notes said a candidate the
+   aligner never placed "is logged and dropped rather than censored at a guessed
+   timestamp". The code does the opposite, correctly: `HitReconciler` falls back
+   to the Candidate's segment estimate (finding 2), and `MediaPipeline` logs "No
+   aligned timestamps ... using the segment estimate". Corrected in place below.
+3. **The open question "CUDA has never actually run on this host"** was still
+   listed after the T13 addendum recorded CUDA as verified. Struck through below.
+4. **T31's configuration notes are superseded** by T32 (appsettings read from
+   beside the executable, not the working directory; the transcript cache default
+   is the per-user data folder, not `/data/transcripts`). Left as history, since
+   T32's section says so; the README describes the current behaviour only.
+5. **The porting plan's dependency diagram** shows `Pipeline -> Domain` and
+   `Media` only. In the project files `FoulFilterNet.Pipeline` also references
+   `Transcription` and `SmartCut`; `MediaPipeline` uses the static
+   `RescanPass` and `MediaEditor.ResolveOutputPath` (its engines are still only
+   interfaces), and no source file in Pipeline uses the `SmartCut` project at
+   all. `Jobs` references `Pipeline`, and Web reaches the engines transitively
+   through `Pipeline`. `CONTEXT.md` has the
+   actual reference table; the plan is left as the plan.
+6. **`Transcription:ModelDirectory` "resolved against the process directory"**
+   (the XML docs on `TranscriptionOptions` and `WhisperModelSource`) means the
+   working directory - `Path.GetFullPath` - not the executable's directory,
+   which is where the CLI reads `appsettings.json` from. The README says working
+   directory.
+7. **"Never from appsettings" is a convention, not an enforcement.** The key is
+   looked up as `configuration["GOOGLE_API_KEY"]` before the environment, and
+   configuration includes `appsettings.json`, so a top-level `GOOGLE_API_KEY`
+   entry in a JSON file *would* be read. Nothing in the repository does that; the
+   README says to use the environment and never a committed file, rather than
+   claiming the file is ignored.
 
 ## T32 output — what T33 and whoever deploys need to know
 
@@ -559,8 +622,9 @@ touched; `ISmartCutAdvisor` was sufficient exactly as written.
   that is what makes the UI badge honest when the key is missing (finding 1).
 - **The Google API key never comes from appsettings.** `AddSmartCut` resolves a
   `GoogleApiKeySource` delegate that reads `GOOGLE_API_KEY` from configuration
-  (so environment variables and user-secrets work) and falls back to the
-  environment. Tests substitute the delegate; nothing logs the key.
+  (so environment variables work, and user-secrets would) and falls back to the
+  environment. *(T33: user-secrets do not work yet - no project declares a
+  `UserSecretsId`.)* Tests substitute the delegate; nothing logs the key.
 - **`RefineAsync` never throws**, including for an empty context window, which it
   short-circuits before `SmartCutMapper.Map` can reject it — no LLM call is spent
   on one either.
@@ -634,7 +698,9 @@ re-checks cancellation at every checkpoint, not merely between stages.
   because the store is scoped to the request's transcript directory and the
   pipeline is a singleton. Tests assert which directories it asked for.
 - **Alignment is all-or-nothing (ADR-0001)**; a candidate the aligner never
-  placed is logged and dropped rather than censored at a guessed timestamp.
+  placed is logged and censored at its segment estimate (`HitReconciler`,
+  finding 2). *(Corrected in T33: this line used to say such a candidate was
+  dropped, which the code never did.)*
   Widening is allowed only for `remove` on audio (ADR-0004).
 - **It releases the engines in a `finally`** - closed by T22, which also covers
   the failure and cancellation paths rather than only the happy one.
@@ -719,7 +785,7 @@ hits = new HitMerger().Merge(hits);
   answer holds **only** for the DTW pass with its instants read as token ends:
   whisper.cpp's older `t0`/`t1` heuristic errs by 0.90 s at worst, which the
   padding does not absorb.
-- **CUDA has never actually run on this host.** Every measurement above was
-  taken on the CPU, because the machine has no CUDA toolkit runtime installed -
-  see the T13 output section. Timestamps are backend-independent, so the numbers
-  stand; throughput is what is unverified.
+- ~~**CUDA has never actually run on this host.**~~ **Answered 2026-09-17** -
+  with the CUDA runtime installed Whisper.net loads `Cuda` unprompted, and the
+  GPU tests and the CLI reproduce the CPU boundaries; see the T13 output section
+  and ADR-0006's addendum.

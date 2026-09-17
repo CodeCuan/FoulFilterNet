@@ -184,6 +184,8 @@ running. A disabled advisor is a no-op in the pipeline — not a failure — and
 (see finding 1 in the analysis, where the Python advertises a feature it never
 runs). The Google API key is *not* read from `appsettings.json`; it comes from
 the environment or user-secrets, and `appsettings.*.local.json` is gitignored.
+(T33: user-secrets are not wired yet - no project declares a `UserSecretsId` -
+so today the environment is the only working source.)
 
 ## Known open decision
 
