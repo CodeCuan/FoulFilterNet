@@ -10,9 +10,9 @@ namespace FoulFilterNet.SmartCut;
 
 /// <summary>
 /// Where the Google API key comes from. A delegate rather than a configuration
-/// key so the secret has one deliberate source: the environment, or user-secrets
-/// in development. It must never be read from committed appsettings, and it must
-/// never be logged.
+/// key so the secret has one deliberate source: the <c>GOOGLE_API_KEY</c>
+/// environment variable. It is never read through configuration, because
+/// configuration includes committed appsettings, and it must never be logged.
 /// </summary>
 public delegate string? GoogleApiKeySource();
 
@@ -34,21 +34,22 @@ public static class SmartCutServiceCollectionExtensions
     public const string GoogleApiKeyVariable = "GOOGLE_API_KEY";
 
     /// <summary>
-    /// Bind <c>SmartCut</c> from configuration and register the advisor. The API
-    /// key is read from <paramref name="configuration"/> only so that environment
-    /// variables and user-secrets are picked up; nothing reads it from a committed
-    /// file, because nothing should put it in one.
+    /// Bind <c>SmartCut</c> from configuration and register the advisor.
     /// </summary>
+    /// <remarks>
+    /// The API key is deliberately <b>not</b> read from
+    /// <paramref name="configuration"/>. Configuration merges every JSON file the
+    /// host loads, including the committed <c>appsettings.json</c>, so looking the
+    /// key up there would let a key pasted into a tracked file switch Smart Cut on
+    /// and travel with the repository. It comes from the <c>GOOGLE_API_KEY</c>
+    /// environment variable and nowhere else.
+    /// </remarks>
     public static IServiceCollection AddSmartCut(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.Configure<SmartCutOptions>(configuration.GetSection(SmartCutOptions.SectionName));
-        services.TryAddSingleton<GoogleApiKeySource>(_ => () =>
-            configuration[GoogleApiKeyVariable] is { Length: > 0 } key
-                ? key
-                : Environment.GetEnvironmentVariable(GoogleApiKeyVariable));
 
         return services.AddSmartCut();
     }

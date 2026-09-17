@@ -15,7 +15,7 @@ Last updated: 2026-09-17
 | Phase | **Wave 1** — streams unblocked |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 8 production + 8 test projects, builds clean |
-| Tests | 1083 passing, 13 skipped (4 opt-in live-LLM + 9 opt-in GPU) |
+| Tests | 1084 passing, 13 skipped (4 opt-in live-LLM + 9 opt-in GPU) |
 
 ## Conventions for agents
 
@@ -109,6 +109,22 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | Media fixtures + generator | `6bdeda6` | 7 fixtures, exact ground truth in `manifest.json` |
 | `appsettings.json` with the feature flags | `eaf26ee` | The docs and `.gitignore` both described a file that did not exist; `Storage` deliberately excluded, see the flag block |
 | Root `.gitignore` + `.gitattributes` | `6bdeda6`, `a03fdd8` | |
+
+## API key hardening (after T33)
+
+T33 reported that user-secrets never worked. Following it up found a real hole
+behind the docs problem: `AddSmartCut` looked the key up as
+`configuration["GOOGLE_API_KEY"]` before the environment, and configuration
+merges every JSON file the host loads - so a key pasted at the top level of the
+committed `appsettings.json` switched Smart Cut on and would have travelled
+with the repository. The existing guard only covered the guessed spelling
+`SmartCut:GoogleApiKey`.
+
+The configuration lookup is gone; the key comes from the `GOOGLE_API_KEY`
+environment variable only. A test now pins the exact-name case
+(`IgnoresTheKeyEvenUnderItsOwnNameInConfiguration`), written red first. The
+lookup was not rewired to user-secrets: none of it worked, and a narrower
+provider-filtering scheme would be more code guarding a feature nobody uses.
 
 ## Decisions already made
 
@@ -232,6 +248,8 @@ Discrepancies found - all fixed in the docs, no code changed:
    the Development environment anyway. The README documents the environment
    variable as the only working source. Making user-secrets real is a one-line
    csproj change for whoever wants it (not done: docs task).
+   *Resolved after T33 - see "API key hardening": the configuration lookup was
+   itself the problem, and was removed rather than wired to user-secrets.*
 2. **An unaligned Candidate is not dropped.** The T21 notes said a candidate the
    aligner never placed "is logged and dropped rather than censored at a guessed
    timestamp". The code does the opposite, correctly: `HitReconciler` falls back
@@ -621,10 +639,10 @@ touched; `ISmartCutAdvisor` was sufficient exactly as written.
 - **`GET /config` should report `ISmartCutAdvisor.IsEnabled`**, not the raw flag —
   that is what makes the UI badge honest when the key is missing (finding 1).
 - **The Google API key never comes from appsettings.** `AddSmartCut` resolves a
-  `GoogleApiKeySource` delegate that reads `GOOGLE_API_KEY` from configuration
-  (so environment variables work, and user-secrets would) and falls back to the
-  environment. *(T33: user-secrets do not work yet - no project declares a
-  `UserSecretsId`.)* Tests substitute the delegate; nothing logs the key.
+  `GoogleApiKeySource` delegate that reads the `GOOGLE_API_KEY` environment
+  variable and nothing else. *(Originally it consulted configuration first, which
+  let a committed `appsettings.json` entry supply the key - fixed, see "API key
+  hardening".)* Tests substitute the delegate; nothing logs the key.
 - **`RefineAsync` never throws**, including for an empty context window, which it
   short-circuits before `SmartCutMapper.Map` can reject it — no LLM call is spent
   on one either.

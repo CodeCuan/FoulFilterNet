@@ -183,10 +183,9 @@ is the primary source for both hosts and lists every setting with its default.
   leaves each hit unchanged.
 - **Set the Google API key as the `GOOGLE_API_KEY` environment variable**, and
   never put it in `appsettings.json` or any committed file. It is only read under
-  that exact name (`SmartCut:GoogleApiKey` is ignored). The lookup goes through
-  configuration first so that .NET user-secrets could supply it, but neither
-  host declares a `UserSecretsId` yet, so `dotnet user-secrets` fails today and
-  the environment is the only working source.
+  that exact name, and only from the environment: a key in `appsettings.json`,
+  under `GOOGLE_API_KEY` or `SmartCut:GoogleApiKey`, is ignored and Smart Cut
+  stays off. .NET user-secrets are not supported.
 
 ## Tests
 

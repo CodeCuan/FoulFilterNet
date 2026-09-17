@@ -128,6 +128,20 @@ public class WhenTheFlagIsOnForGoogle
                 ("SmartCut:Mode", "Google"),
                 ("SmartCut:GoogleApiKey", "a-key-somebody-committed"))
             .IsEnabled.ShouldBeFalse();
+
+    /// <summary>
+    /// The name the key is actually read under. Configuration merges every
+    /// committed JSON file, so a top-level <c>GOOGLE_API_KEY</c> in
+    /// <c>appsettings.json</c> arrives here exactly like this - and must be
+    /// ignored just as firmly as the nested spelling above.
+    /// </summary>
+    [Fact]
+    public void IgnoresTheKeyEvenUnderItsOwnNameInConfiguration() =>
+        SmartCutContainer.ResolveFrom(
+                ("SmartCut:Enabled", "true"),
+                ("SmartCut:Mode", "Google"),
+                ("GOOGLE_API_KEY", "a-key-somebody-committed"))
+            .IsEnabled.ShouldBeFalse();
 }
 
 /// <summary>
