@@ -4,8 +4,7 @@ namespace FoulFilterNet.Pipeline.Tests;
 
 /// <summary>
 /// The Python's <c>/data</c> is the root of the current drive on native Windows.
-/// The default is a per-user directory instead; the container says <c>/data</c>
-/// explicitly.
+/// The default is a per-user directory instead.
 /// </summary>
 public sealed class WhenNothingConfiguresTheDataDirectory
 {

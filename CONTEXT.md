@@ -181,8 +181,9 @@ written into `appsettings.json`. The full mapping table is in the T32 output
 section of [docs/STATUS.md](docs/STATUS.md).
 
 Data defaults to a per-user folder (`%LOCALAPPDATA%\FoulFilterNet` on Windows,
-`~/.local/share/FoulFilterNet` on Linux) instead of the Python's `/data`; the
-container image sets `DATA_DIR=/data` itself.
+`~/.local/share/FoulFilterNet` on Linux) instead of the Python's `/data`.
+There is no container: the app runs natively (see "Container dropped" in
+[docs/STATUS.md](docs/STATUS.md)).
 
 ### Transcript cache
 

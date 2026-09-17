@@ -160,7 +160,7 @@ public sealed class WhenTheColonSpellingIsInTheEnvironment
 }
 
 /// <summary>
-/// Compose writes <c>WHISPER_MODEL=${WHISPER_MODEL}</c>, which sets every unset
+/// The legacy compose file wrote <c>WHISPER_MODEL=${WHISPER_MODEL}</c>, which set every unset
 /// variable to the empty string, and the Python read almost all of them with
 /// <c>os.getenv(X) or default</c>. Blank therefore means "not set".
 /// </summary>

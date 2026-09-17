@@ -148,11 +148,11 @@ bound through `IOptions<T>`, and **off by default**:
     "Model": "base",           // a bare size expands to openai/whisper-base
     "Language": "",            // empty means detect
     "Device": "Auto",          // Auto | Cuda | Cpu
-    "ModelDirectory": "models", // GGML weights; the image sets /data/models
+    "ModelDirectory": "models", // GGML weights, relative to the working directory
     "UnloadAfterJob": false    // UNLOAD_MODELS_AFTER_JOB
   },
   "Storage": {
-    "DataDirectory": "",       // blank: %LOCALAPPDATA%\FoulFilterNet; the image sets /data
+    "DataDirectory": "",       // blank: %LOCALAPPDATA%\FoulFilterNet
     "TranscriptDirectory": "", // blank: <DataDirectory>/transcripts
     "BadWordsPath": "",        // blank: <DataDirectory>/bad_words.txt
     "MaxUploadMegabytes": 4096

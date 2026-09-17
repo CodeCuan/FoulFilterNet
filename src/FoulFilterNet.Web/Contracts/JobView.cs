@@ -8,7 +8,7 @@ namespace FoulFilterNet.Web.Contracts;
 /// <para>
 /// The Python filtered its record dictionaries by stripping any key ending in
 /// <c>_path</c> on the way out, which is one forgotten suffix away from serving
-/// the container's filesystem layout. Here the paths live on
+/// the server's filesystem layout. Here the paths live on
 /// <see cref="JobRecord.Request"/> and there is simply no member on this type
 /// that could carry one.
 /// </para>

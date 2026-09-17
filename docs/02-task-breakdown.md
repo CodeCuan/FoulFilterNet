@@ -348,6 +348,9 @@ serves the UI. Native-first: containerised GPU access on Windows needs WSL2 and
 the NVIDIA container toolkit, and that should be a deployment choice, not a
 prerequisite for running the thing.
 **Depends on:** T29, T31
+*Outcome: the configuration half shipped. The container files were written but
+never built, then deleted - the app runs natively on the target machine with
+direct CUDA access. See STATUS, "Container dropped".*
 
 ### T33 · Documentation
 New ADR for the ASR change, a `CONTEXT.md` carried forward, and a README for

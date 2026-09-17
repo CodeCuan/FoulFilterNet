@@ -295,3 +295,7 @@ so **Docker stops being a prerequisite for development** — it becomes a
 deployment option rather than the only way to run the thing. Containerised GPU
 access on Windows means WSL2 plus the NVIDIA container toolkit, which works on
 this hardware but is no longer something to fight with just to see the app run.
+
+*Later decision: the container was dropped entirely. The port runs natively, and
+the Dockerfile T32 wrote was never built before being removed - see STATUS,
+"Container dropped".*

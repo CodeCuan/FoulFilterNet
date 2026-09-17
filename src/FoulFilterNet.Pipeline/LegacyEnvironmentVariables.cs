@@ -24,9 +24,9 @@ public sealed record RetiredVariable(string Name, string Reason);
 /// <para>
 /// Values are translated where the Python's reading differs from the binder's:
 /// its booleans were string comparisons, and its Smart Cut mode was "local or
-/// else Google". A blank variable is unset, because compose writes
+/// else Google". A blank variable is unset, because the legacy compose file wrote
 /// <c>X=${X}</c> for every variable and the Python read almost all of them as
-/// <c>os.getenv(X) or default</c>.
+/// <c>os.getenv(X) or default</c> - so an old <c>.env</c> behaves as it did.
 /// </para>
 /// <para>
 /// <c>GOOGLE_API_KEY</c> is deliberately absent: <c>AddSmartCut</c> reads it by
@@ -67,7 +67,7 @@ public static partial class LegacyEnvironmentVariables
         new("WHISPER_MULTI_GPU", "whisper.cpp runs on one device; there is no sharding to switch"),
         new("WHISPER_ATTN", "there is no PyTorch attention implementation to override"),
         new("ANALYSIS_CHUNK_SIZE", "nothing read it, in the Python or here"),
-        new("TORCH_INDEX_URL", "there are no PyTorch wheels; the image is built from the .NET SDK"),
+        new("TORCH_INDEX_URL", "there are no PyTorch wheels to choose between"),
         new("HSA_OVERRIDE_GFX_VERSION", "a ROCm workaround for RDNA2 cards; the target is CUDA"),
         new("HF_HOME", "models are GGML files under Transcription__ModelDirectory, not a Hugging Face cache"),
         new("MIOPEN_USER_DB_PATH", "a ROCm kernel cache; the target is CUDA"),

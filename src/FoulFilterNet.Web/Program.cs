@@ -50,7 +50,7 @@ builder.Services.AddSingleton<IMediaEditor, MediaEditor>();
 
 // Speech to text is whisper.cpp through Whisper.net, on CUDA where there is a
 // card and on the CPU where there is not (ADR-0006). The engine loads its model
-// on the first transcription rather than here, so building the container touches
+// on the first transcription rather than here, so building the host touches
 // no GPU, no native library and no weights file - and a job that resumed a
 // cached transcript releases a model it never loaded without complaint.
 builder.Services.AddSingleton<IWhisperEngine>(provider => new WhisperNetEngine(

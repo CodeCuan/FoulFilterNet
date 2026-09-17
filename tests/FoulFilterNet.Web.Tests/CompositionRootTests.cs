@@ -38,7 +38,7 @@ internal sealed class RealPipelineApplication : WebApplicationFactory<Program>
 /// <summary>
 /// Until T21 the host bound <c>IMediaPipeline</c> to a placeholder that threw,
 /// and nothing called <c>AddSmartCut</c>, so no advisor was resolvable at all.
-/// A container that cannot build the orchestrator fails at startup, which is
+/// A host that cannot build the orchestrator fails at startup, which is
 /// exactly the failure a unit test of the pipeline cannot catch.
 /// </summary>
 public sealed class WhenTheHostComposesTheOrchestrator : IDisposable

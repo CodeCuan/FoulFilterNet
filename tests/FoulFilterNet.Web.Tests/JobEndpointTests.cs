@@ -130,7 +130,7 @@ public class WhenAnUploadIsRejected : IDisposable
 
 /// <summary>
 /// The cap has to answer 413 rather than let an oversized body settle on the
-/// disk of a container sized for the configured limit.
+/// server's disk.
 /// </summary>
 public class WhenAnUploadIsTooBig : IDisposable
 {
@@ -275,7 +275,7 @@ public class WhenAJobFailsInThePipeline : IDisposable
 
 /// <summary>
 /// The Python filtered its responses by stripping keys that end in
-/// <c>_path</c>, which is one forgotten suffix away from serving the container's
+/// <c>_path</c>, which is one forgotten suffix away from serving the server's
 /// filesystem layout. Nothing here has a path to strip.
 /// </summary>
 public class WhenReadingJobsBackOverHttp : IDisposable

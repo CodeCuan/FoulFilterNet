@@ -142,26 +142,6 @@ later run to be diffed against. By default the Bad Words List is exactly the
 manifest's phrases and the transcript cache is `<work>/transcripts`, so a fresh
 `--work` always transcribes. Like the CLI it never downloads weights.
 
-## Running in a container — not yet built or verified
-
-A [`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml) and
-[`.env.example`](.env.example) exist, **but the image has never been built and no
-job has run inside it.** They were written without a Docker daemon; the
-assumptions they rest on, and how confident each is, are listed in the T32
-output section of [docs/STATUS.md](docs/STATUS.md). Treat the commands below as
-the intended usage, not a tested recipe.
-
-```sh
-cp .env.example .env        # optional; never commit it
-docker compose build
-docker compose up -d        # http://localhost:8000
-docker compose exec foulfilter dotnet /app/foulfilter.dll /data/in.mp3 /data/bad_words.txt
-```
-
-It needs the NVIDIA Container Toolkit (on Windows, Docker Desktop with WSL2).
-Everything persistent lives in `./data` mounted at `/data`, including the
-weights in `/data/models`; put `bad_words.txt` there yourself.
-
 ## Configuration
 
 [`src/FoulFilterNet.Web/appsettings.json`](src/FoulFilterNet.Web/appsettings.json)

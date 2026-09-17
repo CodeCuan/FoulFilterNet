@@ -10,8 +10,8 @@ namespace FoulFilterNet.Pipeline;
 /// here is a per-user application data directory
 /// (<c>%LOCALAPPDATA%\FoulFilterNet</c> on Windows,
 /// <c>~/.local/share/FoulFilterNet</c> on Linux), which is absolute, writable
-/// without elevation, and the same whichever directory a terminal is in. The
-/// container keeps <c>/data</c> by setting <c>DATA_DIR</c> itself.
+/// without elevation, and the same whichever directory a terminal is in.
+/// <c>DATA_DIR</c> or <c>Storage__DataDirectory</c> moves it.
 /// </remarks>
 public static class DataLocations
 {

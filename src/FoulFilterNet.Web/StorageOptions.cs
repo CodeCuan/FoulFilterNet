@@ -9,7 +9,7 @@ namespace FoulFilterNet.Web;
 /// <para>
 /// The data root defaults to <see cref="DataLocations.DefaultDataDirectory"/>
 /// rather than the Python's <c>/data</c>, which on native Windows is the root of
-/// the current drive; the container sets <c>DATA_DIR=/data</c> itself. Blank
+/// the current drive. Blank
 /// values mean "the default", so <c>appsettings.json</c> can list every key.
 /// </para>
 /// <para>
@@ -50,7 +50,7 @@ public sealed class StorageOptions
     /// <summary>Incoming media, one file per job. Wiped at startup.</summary>
     public string UploadDirectory => Path.Combine(DataDirectory, "uploads");
 
-    /// <summary>Censored results, downloadable until the container is replaced.</summary>
+    /// <summary>Censored results, downloadable until someone deletes them.</summary>
     public string OutputDirectory => Path.Combine(DataDirectory, "outputs");
 
     /// <summary>Per-job working files. Wiped at startup.</summary>

@@ -22,7 +22,7 @@ public class WhenStorageIsLeftAtItsDefaults
 
     /// <summary>
     /// Not the Python's <c>/data</c>, which on native Windows is the root of the
-    /// current drive. The container sets <c>DATA_DIR=/data</c> itself.
+    /// current drive.
     /// </summary>
     [Fact]
     public void KeepsDataInThePerUserDefault() =>
