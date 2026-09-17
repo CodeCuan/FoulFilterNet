@@ -4,6 +4,10 @@
     <!-- The orchestrator logs the Resume hit and warns per unaligned candidate,
          as the Python did. Abstractions only: nothing here picks a sink. -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+
+    <!-- The legacy environment variable translator is a configuration source
+         both hosts add, which is why it lives in the one project they share. -->
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
 
   <ItemGroup>

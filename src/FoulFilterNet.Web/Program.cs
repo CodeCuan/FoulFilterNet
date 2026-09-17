@@ -13,6 +13,11 @@ using Microsoft.Extensions.Options;
 // Composition root.
 var builder = WebApplication.CreateBuilder(args);
 
+// appsettings.json is the primary source; the Python's variable names
+// (DATA_DIR, WHISPER_MODEL, AI_ENHANCE, ...) override it through the translator
+// the CLI shares. A Section__Key variable for the same setting still wins.
+builder.Configuration.AddLegacyEnvironmentVariables();
+
 builder.Services.Configure<StorageOptions>(
     builder.Configuration.GetSection(StorageOptions.SectionName));
 builder.Services.Configure<TranscriptionOptions>(
@@ -83,6 +88,10 @@ builder.Services.AddSingleton(
 builder.Services.AddSingleton<IMediaPipeline, MediaPipeline>();
 
 var app = builder.Build();
+
+// ALIGN_DEVICE, WHISPER_MULTI_GPU and the other ROCm-era variables do nothing
+// now. An old .env that sets them is told so rather than silently ignored.
+LegacyEnvironmentVariables.WarnAboutRetiredVariables(app.Logger);
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapUserInterface();

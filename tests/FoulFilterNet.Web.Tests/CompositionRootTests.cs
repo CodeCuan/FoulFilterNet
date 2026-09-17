@@ -4,6 +4,7 @@ using FoulFilterNet.Pipeline;
 using FoulFilterNet.SmartCut;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -109,6 +110,17 @@ public sealed class WhenTheHostComposesTheOrchestrator : IDisposable
     [Fact]
     public void ResolvesTheTranscriberThatConvertsAudioForTheEngine() =>
         _services.GetRequiredService<Transcription.WhisperTranscriber>().ShouldNotBeNull();
+
+    /// <summary>
+    /// A legacy <c>.env</c> still configures the service: <c>DATA_DIR</c>,
+    /// <c>WHISPER_MODEL</c> and the rest reach configuration through the shared
+    /// translator, not through a copy of it.
+    /// </summary>
+    [Fact]
+    public void ReadsTheLegacyEnvironmentVariables() =>
+        ((IConfigurationRoot)_services.GetRequiredService<IConfiguration>()).Providers
+            .OfType<LegacyEnvironmentConfigurationProvider>()
+            .ShouldHaveSingleItem();
 
     [Fact]
     public void BuildsATranscriptStoreOverWhicheverDirectoryAJobNames() =>

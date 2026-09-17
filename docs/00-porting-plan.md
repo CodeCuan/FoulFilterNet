@@ -148,17 +148,33 @@ bound through `IOptions<T>`, and **off by default**:
     "Model": "base",           // a bare size expands to openai/whisper-base
     "Language": "",            // empty means detect
     "Device": "Auto",          // Auto | Cuda | Cpu
+    "ModelDirectory": "models", // GGML weights; the image sets /data/models
     "UnloadAfterJob": false    // UNLOAD_MODELS_AFTER_JOB
+  },
+  "Storage": {
+    "DataDirectory": "",       // blank: %LOCALAPPDATA%\FoulFilterNet; the image sets /data
+    "TranscriptDirectory": "", // blank: <DataDirectory>/transcripts
+    "BadWordsPath": "",        // blank: <DataDirectory>/bad_words.txt
+    "MaxUploadMegabytes": 4096
+  },
+  "Cli": {
+    "CensorMethod": "silence"  // the CLI's default when no flag names one
   }
 }
 ```
 
 Every value above is the code default, written out so the flags are
-*discoverable* rather than only inferable from source. The `Storage` section is
-deliberately **not** in the committed file: its defaults are the Python's
-container paths (`/data`), the target machine runs the app natively on Windows,
-and making configuration the primary source for deployment paths is T32's job —
-a committed path would state something false about where this app writes.
+*discoverable* rather than only inferable from source. The `Storage` paths are
+written **blank**, meaning "the default": that default is a per-user folder
+computed on each machine, so any literal path committed here would state
+something false about where the app writes (T32). The CLI reads this same file,
+copied beside its executable.
+
+Environment variables override the file under their standard `Section__Key`
+names **and** under the Python's names (`DATA_DIR`, `WHISPER_MODEL`,
+`AI_ENHANCE`, ...), which `LegacyEnvironmentVariables` in
+`FoulFilterNet.Pipeline` maps onto these keys for both hosts. The full table is
+in the T32 output section of [STATUS.md](STATUS.md).
 
 Smart Cut stays off unless someone opts in, for three reasons: it costs an LLM
 round trip per Hit, it is the only stage that can *change* what gets cut rather

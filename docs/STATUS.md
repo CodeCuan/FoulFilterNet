@@ -4,7 +4,7 @@
 as part of the task it completes, in the same commit as the work. If you are
 resuming this project cold, read this file first and trust it over memory.
 
-Last updated: 2026-09-16
+Last updated: 2026-09-17
 
 ---
 
@@ -97,7 +97,7 @@ Status: `—` not started · `WIP` in progress · `✅` merged to main · `⚠�
 | T29 | Front end + Smart Cut wiring | ✅ | `task/T29-front-end` | `74044d5` | UI ported unchanged; advisor wiring closed by T21 |
 | T30 | Startup housekeeping | ✅ | `task/T30-startup-housekeeping` | `9d3388c` | `StorageHousekeeping`; first hosted service, wipes uploads+scratch only |
 | T31 | CLI | ✅ | `task/T31-cli` | `4203dc7` | `FoulFilterCommandLine`, `CensorMethodResolution`, `JobRunner`; salvaged after an interruption; see output below |
-| T32 | Container + configuration | — | | | |
+| T32 | Container + configuration | ✅ | `task/T32-container-config` | | `LegacyEnvironmentVariables`, `DataLocations`, `ConfigurationKeys`; native run verified, **image build not yet verified**; see output below |
 | T33 | Documentation + ASR ADR | — | | | |
 | T34 | Evaluation harness | — | | | Stretch |
 
@@ -199,6 +199,177 @@ weights, and it must stay that way — CI is CPU-only.
 - The tolerance question ("is DTW precise enough?") is **answered** — yes, with
   the DTW pass rather than the token-timestamp heuristic. `PassThroughAligner`
   stays as the seam. See ADR-0006 and the T13 output section.
+
+## T32 output — what T33 and whoever deploys need to know
+
+Configuration is `appsettings.json` first, environment second, under both
+spellings. The Web app runs natively on Windows and serves the UI (verified).
+A `Dockerfile`, `docker-compose.yml`, `.dockerignore` and `.env.example` exist
+at the repository root. **The image build is NOT yet verified** - there was no
+Docker daemon, and pulling several GB of base images was not authorised.
+
+### Legacy variables
+
+`LegacyEnvironmentVariables` in `FoulFilterNet.Pipeline` (the one project both
+hosts reference) is a configuration source that Web and the CLI each add after
+their defaults. So a legacy variable beats `appsettings.json`, exactly as it beat
+the Python's defaults; a `Section__Key` variable for the same key beats the
+legacy name, because nobody types the .NET spelling by accident. A **blank**
+legacy variable is unset - compose's `X=${X}` pass-through sets every missing
+variable to the empty string, and the Python read nearly all of them with
+`os.getenv(X) or default`.
+
+| Legacy variable | .NET key | Translation |
+|---|---|---|
+| `DATA_DIR` | `Storage:DataDirectory` | as is |
+| `TRANSCRIPT_DIR` | `Storage:TranscriptDirectory` | as is |
+| `BAD_WORDS_PATH` | `Storage:BadWordsPath` | as is |
+| `MAX_UPLOAD_MB` | `Storage:MaxUploadMegabytes` | as is |
+| `CENSOR_METHOD` | `Cli:CensorMethod` | as is; the CLI still accepts `delete`. Web never read it, in the Python or here |
+| `WHISPER_MODEL` | `Transcription:Model` | as is; `TranscriptionOptions` normalises |
+| `WHISPER_LANGUAGE` | `Transcription:Language` | as is |
+| `UNLOAD_MODELS_AFTER_JOB` | `Transcription:UnloadAfterJob` | `1`/`true`/`yes` (any case) is true, else false - the Python's set |
+| `AI_ENHANCE` | `SmartCut:Enabled` | only `true` (any case) is true - the Python's `== "true"` |
+| `AI_MODE` | `SmartCut:Mode` | `local` is `Local`, anything else `Google` - `ai_helper.py`'s branch, so no value crashes the binder |
+| `LOCAL_LLM_URL` | `SmartCut:LocalUrl` | as is |
+| `LOCAL_LLM_MODEL` | `SmartCut:LocalModel` | as is |
+| `GOOGLE_API_KEY` | *(not mapped)* | still read by that name only, by `AddSmartCut`; `SmartCut:GoogleApiKey` stays ignored |
+
+**Retired**, not mapped, and **warned about at startup** by both hosts when set
+to anything non-blank (`LegacyEnvironmentVariables.Retired` carries each reason):
+`ALIGN_DEVICE` (alignment is part of transcription now; use
+`UNLOAD_MODELS_AFTER_JOB`, or `Transcription__Device=Cpu` to move all of
+transcription off the GPU - mapping it would have silently made every job ~5x
+slower for someone who only wanted the aligner moved), `WHISPER_MULTI_GPU`,
+`WHISPER_ATTN`, `ANALYSIS_CHUNK_SIZE` (the Python never read it either),
+`TORCH_INDEX_URL`, `HSA_OVERRIDE_GFX_VERSION`, `HF_HOME`, `MIOPEN_USER_DB_PATH`,
+`TRITON_CACHE_DIR`. `Transcription:Device` and `Transcription:ModelDirectory`
+have no legacy name; use `Transcription__Device` / `Transcription__ModelDirectory`.
+
+One consequence worth knowing: an `appsettings.json` value is beaten by a legacy
+variable, but so is a `--Section:Key=value` **command-line** switch, because the
+legacy source is added last. Neither host takes configuration switches in
+practice (the CLI's arguments go to System.CommandLine), so this was accepted
+rather than coupling the translator to the environment provider's type.
+
+### Decisions handed over by T13 and T31
+
+1. **Native data directory.** The code default is now
+   `DataLocations.DefaultDataDirectory`: `%LOCALAPPDATA%\FoulFilterNet` on
+   Windows (`~/.local/share/FoulFilterNet` on Linux), not `/data`. It is absolute,
+   writable without elevation, and the same whichever directory a terminal is
+   in, which is what lets the two hosts share a transcript cache. The container
+   keeps `/data` by setting **`DATA_DIR=/data` in the image** - the legacy name on
+   purpose, so a `.env` can still move it. `BadWordsPath` now defaults to
+   `bad_words.txt` *inside the data directory* rather than a fixed
+   `/data/bad_words.txt`, so moving the data moves the list. `appsettings.json`
+   lists every `Storage` key blank, and blank means default.
+2. **The CLI shares Web's configuration.** `FoulFilterNet.Cli.csproj` links
+   `src/FoulFilterNet.Web/appsettings.json` into its output, and the CLI's host
+   reads it from `AppContext.BaseDirectory` instead of the working directory -
+   one file, found wherever the terminal is. Its transcript cache is resolved
+   from the same `Storage` keys as Web's (`TRANSCRIPT_DIR`, else
+   `<DATA_DIR>/transcripts`, else the per-user default), so a file transcribed by
+   either host is a Resume hit for the other. The Python CLI ignored `DATA_DIR`;
+   honouring it is the deliberate change. `FoulFilterCommandLine.ToRequest`
+   now takes a configuration lookup by **.NET key**, not a raw environment lookup.
+   `Transcription:ModelDirectory` (`models`) is still resolved against the
+   working directory, as T13 left it.
+3. **`Whisper.net.Runtime.Cuda12` stays undeclared.** `Whisper.net.Runtime.Cuda`
+   1.9.1 is built with the CUDA **13** toolchain and needs a driver that
+   supports 13.x (>= 580). The target host reports driver **595.79** on the RTX
+   3080 Ti and has already run the Cuda runtime natively, and a container uses
+   the host's driver - so the 12 build would never be selected on this machine.
+   Declaring it would add another ~170 MB native library per platform to every
+   build output, and in the image it would only work alongside a second set of
+   CUDA 12 cuBLAS libraries (hundreds of MB more). If this is ever deployed on a
+   host whose driver predates CUDA 13: declare the package, reference it from
+   `FoulFilterNet.Transcription`, and install `cuda-cudart-12-x`/`libcublas-12-x`
+   in the image. Until then Auto quietly falls back to the CPU on such a host,
+   and `RuntimeOptions.LoadedLibrary` in the log says so.
+
+### Running natively (Windows)
+
+```powershell
+$env:Transcription__ModelDirectory = "$PWD\models"   # reuse the weights at the repository root
+dotnet run --project src/FoulFilterNet.Web -- --urls http://localhost:8000
+```
+
+Put `bad_words.txt` in `%LOCALAPPDATA%\FoulFilterNet` (or set `DATA_DIR` /
+`BAD_WORDS_PATH`). The relative `models` default resolves against the working
+directory, and `dotnet run` runs from `src/FoulFilterNet.Web`, hence the
+explicit model directory above; without it Web downloads the model there on
+first use. Verified on this host both ways - the built DLL, and `dotnet run`
+from the repository root (`/` and `/config` both 200, then stopped). With
+`DATA_DIR`, `WHISPER_MODEL=small`, `AI_ENHANCE=True`
+and `ALIGN_DEVICE=cpu` set, `GET /` served the UI (200) and `GET /config`
+answered 200 with `whisper_model: openai/whisper-small` and `ai_enhance: true`
+(Local mode needs no key); the data directories were created under `DATA_DIR`,
+and the `ALIGN_DEVICE` warning was logged. The CLI loaded the copied
+`appsettings.json` and logged the same warning.
+
+### Building and running the container (not yet verified)
+
+```sh
+cp .env.example .env        # optional; edit, never commit
+docker compose build
+docker compose up -d        # http://localhost:8000
+docker compose exec foulfilter dotnet /app/foulfilter.dll /data/in.mp3 /data/bad_words.txt
+```
+
+Requires the NVIDIA Container Toolkit (Docker Desktop on WSL2 provides the
+equivalent). Everything persistent is under `./data` -> `/data`: uploads,
+outputs, transcripts, `bad_words.txt`, and GGML weights in `/data/models`, which
+Web fetches on the first job. Nothing large is baked into the image.
+
+What the files rest on, and how sure each assumption is:
+
+- **Which CUDA libraries are needed - high confidence.** Read from the ELF
+  dynamic sections of the restored `Whisper.net.Runtime.Cuda.Linux` 1.9.1
+  natives, not from documentation: `libggml-cuda-whisper.so` needs
+  `libcudart.so.13`, `libcublas.so.13` and `libcuda.so.1`; every ggml library,
+  including the CPU runtime's, needs `libgomp.so.1`. The image installs
+  `cuda-cudart-13-0`, `libcublas-13-0` (which ships `libcublasLt.so.13`) and
+  `libgomp1`; `libcuda.so.1` comes from the host driver via the toolkit and must
+  not be installed. The bundled libraries' `DT_NEEDED` names carry a `.0` suffix
+  the package's files do not; Whisper.net loads them by path in dependency order,
+  which works natively on Windows and in its own Linux CI - assumed to hold here.
+- **The base image is Ubuntu 24.04 - medium-high.** .NET 10's default tags moved
+  to Ubuntu Noble. The Dockerfile does not rely on it: it maps
+  `/etc/os-release` to NVIDIA's `ubuntu2404`, `ubuntu2204` or `debian12` apt
+  repository and fails the build with a clear message otherwise.
+- **NVIDIA's apt package names and the keyring URL - medium-high.** `cuda-keyring_1.1-1_all.deb`,
+  `cuda-cudart-13-0` and `libcublas-13-0` follow NVIDIA's long-standing naming.
+  The libraries are assumed to land in
+  `/usr/local/cuda-13.0/targets/x86_64-linux/lib`, which `LD_LIBRARY_PATH` names
+  explicitly rather than trusting an `ld.so.conf` entry. If 13.0 is no longer
+  published, bump `CUDA_PACKAGE_VERSION` and `CUDA_LIBRARY_DIRECTORY` together.
+- **The SDK image satisfies `global.json` - medium.** `global.json` asks for
+  10.0.400 with `latestFeature` roll-forward; `sdk:10.0` must carry a 10.0.4xx
+  or later band. If restore fails with an SDK resolution error, pin
+  `DOTNET_VERSION` to a matching tag.
+- **Web and the CLI can publish into one directory - medium.** Same package
+  versions throughout, distinct `deps.json`/`runtimeconfig.json` names, and an
+  identical `appsettings.json`. Untested; if it misbehaves, publish the CLI to
+  `/app/cli` and accept the duplicated natives.
+- **Pruning non-linux-x64 natives - high.** Whisper.net's `.targets` copy
+  every platform's natives unconditionally (read from the package), into
+  `runtimes/<rid>` and `runtimes/cuda/<rid>`; the `find` removes the rest.
+- **Image size - low confidence in the old estimate.** Analysis §9.2's "a few
+  hundred MB" did not count cuBLAS, which alone is several hundred MB, nor the
+  ~170 MB CUDA ggml build. Expect well over 1 GB - still a fraction of the
+  Python's ~10 GB.
+- The container runs as root, as the Python's did, so a bind-mounted `./data`
+  needs no ownership fix-up. Port 8000 is kept for continuity
+  (`ASPNETCORE_HTTP_PORTS=8000`).
+
+### Deliberately left undone
+
+- The image build and a GPU job inside it (pending, for the user to run).
+- No starter `bad_words.txt` is seeded into `/data`: a bind mount hides anything
+  the image would put there. `Legacy/data/bad_words.example.txt` is the template.
+- No `HEALTHCHECK`: the runtime image has no HTTP client and `/health` exists
+  for whoever wants to add one.
 
 ## T31 output — what T32 and T33 need to know
 

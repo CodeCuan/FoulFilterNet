@@ -26,7 +26,7 @@ internal static class Resolve
     }
 
     internal static Func<string, string?> Environment(string? censorMethod) =>
-        key => key == "CENSOR_METHOD" ? censorMethod : null;
+        key => key == Pipeline.ConfigurationKeys.CensorMethod ? censorMethod : null;
 }
 
 /// <summary>

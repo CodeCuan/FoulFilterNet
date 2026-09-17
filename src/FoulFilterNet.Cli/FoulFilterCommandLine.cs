@@ -1,5 +1,6 @@
 using System.CommandLine;
 using FoulFilterNet.Domain;
+using FoulFilterNet.Pipeline;
 
 namespace FoulFilterNet.Cli;
 
@@ -15,15 +16,6 @@ namespace FoulFilterNet.Cli;
 /// </summary>
 public sealed class FoulFilterCommandLine
 {
-    /// <summary>Where the Python cached transcripts when nothing said otherwise.</summary>
-    public const string DefaultTranscriptDirectory = "/data/transcripts";
-
-    /// <summary>The legacy variable naming the transcript cache.</summary>
-    public const string TranscriptDirectoryVariable = "TRANSCRIPT_DIR";
-
-    /// <summary>The legacy variable carrying the default Censor Method.</summary>
-    public const string CensorMethodVariable = "CENSOR_METHOD";
-
     public FoulFilterCommandLine()
     {
         FilePath = new Argument<string>("file_path")
@@ -109,28 +101,36 @@ public sealed class FoulFilterCommandLine
 
     /// <summary>
     /// The Python's precedence chain, whole: <c>--censor_method</c> beats
-    /// <c>--bleep</c>, which beats <c>--delete</c>, which beats the environment.
+    /// <c>--bleep</c>, which beats <c>--delete</c>, which beats configuration
+    /// (<see cref="ConfigurationKeys.CensorMethod"/>, which <c>CENSOR_METHOD</c>
+    /// maps onto).
     /// </summary>
-    public CensorMethod ResolveCensorMethod(ParseResult parsed, Func<string, string?> environment)
+    /// <param name="parsed">The parsed command line.</param>
+    /// <param name="configuration">A configuration lookup by key.</param>
+    public CensorMethod ResolveCensorMethod(ParseResult parsed, Func<string, string?> configuration)
     {
         ArgumentNullException.ThrowIfNull(parsed);
-        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         return CensorMethodResolution.Resolve(
             parsed.GetValue(CensorMethodName),
             parsed.GetValue(Bleep),
             parsed.GetValue(Delete),
-            environment(CensorMethodVariable));
+            configuration(ConfigurationKeys.CensorMethod));
     }
 
     /// <summary>
     /// Everything <c>run_job</c> was handed: the derived output path, the
-    /// scratch directory beside it, and the transcript cache.
+    /// scratch directory beside it, and the transcript cache - which is Web's
+    /// cache, resolved from the same <c>Storage</c> keys, so a file transcribed
+    /// by either host is a Resume hit for the other.
     /// </summary>
-    public JobRequest ToRequest(ParseResult parsed, Func<string, string?> environment)
+    /// <param name="parsed">The parsed command line.</param>
+    /// <param name="configuration">A configuration lookup by key.</param>
+    public JobRequest ToRequest(ParseResult parsed, Func<string, string?> configuration)
     {
         ArgumentNullException.ThrowIfNull(parsed);
-        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         var inputPath = parsed.GetRequiredValue(FilePath);
         var baseName = Path.GetFileNameWithoutExtension(inputPath);
@@ -141,18 +141,16 @@ public sealed class FoulFilterCommandLine
             ? explicitOutput
             : Path.Combine(DirectoryOf(inputPath), $"censored_{baseName}{Path.GetExtension(inputPath)}");
 
-        var transcriptDirectory = environment(TranscriptDirectoryVariable);
-
         return new JobRequest
         {
             InputPath = inputPath,
             OutputPath = outputPath,
             BadWordsPath = parsed.GetRequiredValue(BadWordsListPath),
-            TranscriptDirectory = string.IsNullOrWhiteSpace(transcriptDirectory)
-                ? DefaultTranscriptDirectory
-                : transcriptDirectory,
+            TranscriptDirectory = DataLocations.TranscriptDirectory(
+                configuration(ConfigurationKeys.DataDirectory),
+                configuration(ConfigurationKeys.TranscriptDirectory)),
             ScratchDirectory = Path.Combine(DirectoryOf(outputPath), $".{baseName}_scratch"),
-            CensorMethod = ResolveCensorMethod(parsed, environment),
+            CensorMethod = ResolveCensorMethod(parsed, configuration),
             Debug = parsed.GetValue(Debug),
             Rescan = parsed.GetValue(Rescan),
 

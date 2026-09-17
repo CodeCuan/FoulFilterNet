@@ -40,7 +40,15 @@ internal static class Program
         ParseResult parsed,
         CancellationToken cancellationToken)
     {
-        var builder = Host.CreateApplicationBuilder();
+        // Web's appsettings.json is copied beside the executable, and the host
+        // reads it from there rather than from the working directory: one file
+        // configures both hosts, wherever the terminal happens to be.
+        var builder = Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory });
+
+        // DATA_DIR, TRANSCRIPT_DIR, CENSOR_METHOD, WHISPER_MODEL and the rest,
+        // through the translator Web uses too.
+        builder.Configuration.AddLegacyEnvironmentVariables();
 
         // The Python's basicConfig(INFO) put engine chatter on the terminal
         // alongside its own output. Here progress is the terminal's job, so the
@@ -84,8 +92,9 @@ internal static class Program
 
         using var host = builder.Build();
 
-        // Configuration carries the legacy variable names, so CENSOR_METHOD and
-        // TRANSCRIPT_DIR work from the environment and from appsettings alike.
+        LegacyEnvironmentVariables.WarnAboutRetiredVariables(
+            host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("foulfilter"));
+
         var request = commandLine.ToRequest(parsed, key => builder.Configuration[key]);
 
         var runner = new JobRunner(

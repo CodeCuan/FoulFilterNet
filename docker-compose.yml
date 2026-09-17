@@ -1,0 +1,44 @@
+# FoulFilterNet on an NVIDIA card. Needs the NVIDIA Container Toolkit on the
+# host (on Windows: Docker Desktop with the WSL2 backend and a current driver).
+# Docker is a deployment option, not a prerequisite - the app runs natively.
+#
+# NOT YET VERIFIED: see the T32 output section of docs/STATUS.md.
+services:
+  foulfilter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: foulfilternet:latest
+
+    # Legacy variable names work here (WHISPER_MODEL, AI_ENHANCE, ...), as do
+    # Section__Key names. Optional: the image's defaults run without one.
+    # There is deliberately no `environment: X=${X}` pass-through block - it set
+    # every unset variable to an empty string.
+    env_file:
+      - path: .env
+        required: false
+
+    ports:
+      - "8000:8000"
+
+    # Uploads, outputs, transcripts, bad_words.txt and the GGML weights
+    # (/data/models) all live here and survive rebuilds.
+    volumes:
+      - ./data:/data
+
+    # The NVIDIA device reservation replaces the ROCm /dev/kfd + /dev/dri
+    # mapping, the video/render groups and HSA_OVERRIDE_GFX_VERSION.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # Linux Docker does not define host.docker.internal; Smart Cut's Local mode
+    # needs it to reach an LLM server running on the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    restart: unless-stopped

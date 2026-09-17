@@ -12,6 +12,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- One configuration file for both hosts: Web's, copied beside the
+         executable. See the T32 output section of docs/STATUS.md. -->
+    <None Include="../FoulFilterNet.Web/appsettings.json"
+          Link="appsettings.json"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
     <ProjectReference Include="../FoulFilterNet.Media/FoulFilterNet.Media.csproj" />
     <ProjectReference Include="../FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />

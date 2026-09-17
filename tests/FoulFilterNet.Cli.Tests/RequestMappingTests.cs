@@ -1,5 +1,7 @@
 using FoulFilterNet.Cli;
 using FoulFilterNet.Domain;
+using FoulFilterNet.Pipeline;
+using Microsoft.Extensions.Configuration;
 
 namespace FoulFilterNet.Cli.Tests;
 
@@ -35,9 +37,13 @@ public sealed class WhenMappingAMinimalCommandLineToAJobRequest
     public void PutsScratchBesideTheOutput() =>
         _request.ScratchDirectory.ShouldBe(Path.Combine("media", ".clip_scratch"));
 
+    /// <summary>
+    /// The same cache Web uses, rather than the Python's <c>/data/transcripts</c>,
+    /// which on native Windows was the root of whichever drive the terminal was on.
+    /// </summary>
     [Fact]
-    public void FallsBackToTheLegacyTranscriptDirectory() =>
-        _request.TranscriptDirectory.ShouldBe(FoulFilterCommandLine.DefaultTranscriptDirectory);
+    public void SharesWebsDefaultTranscriptDirectory() =>
+        _request.TranscriptDirectory.ShouldBe(Path.Combine(DataLocations.DefaultDataDirectory, "transcripts"));
 
     [Fact]
     public void SilencesByDefault() => _request.CensorMethod.ShouldBe(CensorMethod.Silence);
@@ -101,7 +107,7 @@ public sealed class WhenAnExplicitOutputIsGiven
         _request.ScratchDirectory.ShouldBe(Path.Combine("elsewhere", ".clip_scratch"));
 }
 
-/// <summary>The legacy variable still names the transcript cache.</summary>
+/// <summary>The configured transcript cache wins over the data directory's.</summary>
 public sealed class WhenTheTranscriptDirectoryIsConfigured
 {
     private readonly JobRequest _request;
@@ -111,11 +117,63 @@ public sealed class WhenTheTranscriptDirectoryIsConfigured
         var commandLine = new FoulFilterCommandLine();
         _request = commandLine.ToRequest(
             commandLine.Parse("clip.mp3", "words.txt"),
-            key => key == "TRANSCRIPT_DIR" ? "cache" : null);
+            key => key switch
+            {
+                ConfigurationKeys.TranscriptDirectory => "cache",
+                ConfigurationKeys.DataDirectory => "data",
+                _ => null,
+            });
     }
 
     [Fact]
     public void UsesIt() => _request.TranscriptDirectory.ShouldBe("cache");
+}
+
+/// <summary>Moving the data directory moves the CLI's cache, exactly as it moves Web's.</summary>
+public sealed class WhenOnlyTheDataDirectoryIsConfigured
+{
+    private readonly JobRequest _request;
+
+    public WhenOnlyTheDataDirectoryIsConfigured()
+    {
+        var commandLine = new FoulFilterCommandLine();
+        _request = commandLine.ToRequest(
+            commandLine.Parse("clip.mp3", "words.txt"),
+            key => key == ConfigurationKeys.DataDirectory ? "data" : null);
+    }
+
+    [Fact]
+    public void CachesTranscriptsUnderIt() =>
+        _request.TranscriptDirectory.ShouldBe(Path.Combine("data", "transcripts"));
+}
+
+/// <summary>
+/// The whole route a legacy deployment takes: the Python's variable names,
+/// through the shared translator, into the lookup the host hands the mapper.
+/// </summary>
+public sealed class WhenALegacyEnvironmentDrivesTheCommandLine
+{
+    private readonly JobRequest _request;
+
+    public WhenALegacyEnvironmentDrivesTheCommandLine()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddLegacyEnvironmentVariables(new Dictionary<string, string>
+            {
+                ["TRANSCRIPT_DIR"] = "cache",
+                ["CENSOR_METHOD"] = "delete",
+            })
+            .Build();
+
+        var commandLine = new FoulFilterCommandLine();
+        _request = commandLine.ToRequest(commandLine.Parse("clip.mp3", "words.txt"), key => configuration[key]);
+    }
+
+    [Fact]
+    public void TakesTheTranscriptDirectory() => _request.TranscriptDirectory.ShouldBe("cache");
+
+    [Fact]
+    public void TakesTheCensorMethod() => _request.CensorMethod.ShouldBe(CensorMethod.Remove);
 }
 
 /// <summary>The three analysis flags, and the one that suppresses the edit.</summary>
