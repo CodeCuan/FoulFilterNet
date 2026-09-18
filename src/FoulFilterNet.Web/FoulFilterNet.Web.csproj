@@ -3,6 +3,8 @@
     <ProjectReference Include="../FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
     <ProjectReference Include="../FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />
     <ProjectReference Include="../FoulFilterNet.Jobs/FoulFilterNet.Jobs.csproj" />
+    <ProjectReference Include="../FoulFilterNet.Sources/FoulFilterNet.Sources.csproj" />
+    <ProjectReference Include="../FoulFilterNet.Watch/FoulFilterNet.Watch.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -132,6 +132,14 @@ public sealed partial class WatchSession
     /// <summary>The Web Video this session is for.</summary>
     public VideoRef Video { get; }
 
+    /// <summary>
+    /// Unique to this session, and carried by every snapshot as
+    /// <see cref="WatchSnapshot.SessionId"/>: a replacement session for the same
+    /// video has a different one, which is how a client learns that the
+    /// revisions it holds belong to a session that is gone.
+    /// </summary>
+    public string Id { get; } = Guid.NewGuid().ToString("N");
+
     /// <summary>When the session was made.</summary>
     public DateTimeOffset CreatedAt { get; }
 
@@ -272,7 +280,10 @@ public sealed partial class WatchSession
                 progress?.Plan.Count ?? 0,
                 _realtimeFactor,
                 _fromCache
-            );
+            )
+            {
+                SessionId = Id,
+            };
         }
 
         // Built outside the lock: the first read of a revision runs the rules,

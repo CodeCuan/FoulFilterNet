@@ -54,6 +54,15 @@ public sealed record WatchSnapshot(
     bool FromCache
 )
 {
+    /// <summary>
+    /// The <see cref="WatchSession.Id"/> of the session this came from. Its
+    /// revisions only mean something within it: a session that is dropped and
+    /// made again (a retry after a failure, a cancel, idle expiry) starts its
+    /// revisions again, so "I already have revision 3" has to name whose.
+    /// Empty only for a snapshot built by hand.
+    /// </summary>
+    public string SessionId { get; init; } = string.Empty;
+
     /// <summary>The video's key, <c>youtube-&lt;id&gt;</c>, which is also its Transcript cache key.</summary>
     public string Key => Video.Key;
 

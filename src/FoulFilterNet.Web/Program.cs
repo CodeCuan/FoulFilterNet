@@ -5,7 +5,9 @@ using FoulFilterNet.Jobs;
 using FoulFilterNet.Media;
 using FoulFilterNet.Pipeline;
 using FoulFilterNet.SmartCut;
+using FoulFilterNet.Sources;
 using FoulFilterNet.Transcription;
+using FoulFilterNet.Watch;
 using FoulFilterNet.Web;
 using FoulFilterNet.Web.Endpoints;
 using Microsoft.Extensions.Options;
@@ -94,6 +96,45 @@ builder.Services.AddSingleton(provider =>
 
 builder.Services.AddSingleton<IMediaPipeline, MediaPipeline>();
 
+// Web video (docs/04-web-video-plan.md). yt-dlp and Deno are user-installed
+// prerequisites like FFmpeg, found on PATH unless the Sources section names
+// them. The source runs them through the same process runner FFmpeg uses.
+builder.Services.Configure<SourcesOptions>(
+    builder.Configuration.GetSection(SourcesOptions.SectionName)
+);
+builder.Services.AddSingleton<IProcessRunner, ProcessRunner>();
+builder.Services.AddSingleton<IWebAudioSource>(provider => new YtDlpAudioSource(
+    provider.GetRequiredService<IProcessRunner>(),
+    provider.GetRequiredService<IOptions<SourcesOptions>>().Value
+));
+
+// /config reports whether that works here. Probing starts yt-dlp, which is
+// slow to start, so the answer is kept and the first probe begins with the
+// host rather than with the UI's first page load.
+builder.Services.AddSingleton<WebVideoAvailabilityCache>();
+builder.Services.AddHostedService(provider =>
+    provider.GetRequiredService<WebVideoAvailabilityCache>()
+);
+
+// Watch Sessions share what Jobs use: the one IWhisperEngine singleton above
+// (so both queue on its one priority lane, sessions ahead of jobs), the
+// transcript cache through TranscriptStoreFactory, and the Bad Words List. The
+// Watch section sets only the timings; the paths always follow Storage, so
+// there is one place to move the data rather than two that can disagree. A
+// session's scratch lives under scratch/, which StorageHousekeeping empties at
+// startup, so a crashed session's download goes with the jobs' leftovers.
+builder.Services.AddWatch(builder.Configuration);
+builder
+    .Services.AddOptions<WatchOptions>()
+    .PostConfigure<IOptions<StorageOptions>>(
+        (watch, storage) =>
+        {
+            watch.ScratchDirectory = Path.Combine(storage.Value.ScratchDirectory, "watch");
+            watch.TranscriptDirectory = storage.Value.ResolvedTranscriptDirectory;
+            watch.BadWordsPath = storage.Value.BadWordsPath;
+        }
+    );
+
 var app = builder.Build();
 
 // ALIGN_DEVICE, WHISPER_MULTI_GPU and the other ROCm-era variables do nothing
@@ -105,6 +146,7 @@ app.MapUserInterface();
 app.MapJobEndpoints();
 app.MapConfigEndpoint();
 app.MapEventEndpoint();
+app.MapWatchEndpoints();
 
 app.Run();
 

@@ -72,11 +72,16 @@ public sealed record UploadResponse(IReadOnlyList<string> JobIds, string Message
 public sealed record CancelResponse(bool Cancelled);
 
 /// <summary>The feature flags the UI reads once, at load.</summary>
+/// <param name="WebVideo">
+/// W10, appended after the four fields the batch UI reads so they keep their
+/// names and order: whether the tools web video needs are installed.
+/// </param>
 public sealed record ConfigView(
     IReadOnlyList<string> CensorMethods,
     bool AiEnhance,
     string WhisperModel,
-    int MaxUploadMb
+    int MaxUploadMb,
+    WebVideoView WebVideo
 );
 
 /// <summary>
@@ -84,7 +89,7 @@ public sealed record ConfigView(
 /// an explicit mapping rather than <c>ToString().ToLower()</c> so renaming an
 /// enum member cannot silently change the wire format.
 /// </summary>
-public static class WireNames
+public static partial class WireNames
 {
     public static string Of(JobStatus status) =>
         status switch

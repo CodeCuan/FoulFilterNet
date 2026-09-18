@@ -2,6 +2,8 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using FoulFilterNet.Domain;
 using FoulFilterNet.Domain.Abstractions;
+using FoulFilterNet.Sources;
+using FoulFilterNet.Transcription;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +15,12 @@ namespace FoulFilterNet.Web.Tests;
 /// The real host, over a throwaway data directory and a stub pipeline. Stream E
 /// depends on no engine: everything below <see cref="IMediaPipeline"/> is T21's,
 /// and these tests must pass before a line of it exists.
+/// <para>
+/// W10: yt-dlp, FFmpeg and the GPU are stubbed for Watch Sessions too, so no
+/// test of this host starts a process or reaches the network - including the
+/// availability probe <c>/config</c> reports - and the Bad Words List holds
+/// "damn".
+/// </para>
 /// </summary>
 internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096)
     : WebApplicationFactory<Program>
@@ -20,6 +28,14 @@ internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096)
     private readonly TempDirectory _data = new();
 
     public StubMediaPipeline Pipeline { get; } = new();
+
+    public StubWebAudioSource WebAudio { get; } = new();
+
+    public StubWhisperEngine Engine { get; } = new();
+
+    public string TranscriptDirectory => Path.Combine(_data.Path, "transcripts");
+
+    public string BadWordsPath => Path.Combine(_data.Path, "bad_words.txt");
 
     public string DataDirectory => _data.Path;
 
@@ -30,7 +46,8 @@ internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096)
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Storage:DataDirectory", _data.Path);
-        builder.UseSetting("Storage:BadWordsPath", Path.Combine(_data.Path, "bad_words.txt"));
+        builder.UseSetting("Storage:BadWordsPath", BadWordsPath);
+        File.WriteAllText(BadWordsPath, "damn" + Environment.NewLine);
         builder.UseSetting(
             "Storage:MaxUploadMegabytes",
             maxUploadMegabytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
@@ -40,6 +57,13 @@ internal sealed class FoulFilterApplication(int maxUploadMegabytes = 4096)
         {
             services.RemoveAll<IMediaPipeline>();
             services.AddSingleton<IMediaPipeline>(Pipeline);
+
+            services.RemoveAll<IWebAudioSource>();
+            services.AddSingleton<IWebAudioSource>(WebAudio);
+            services.RemoveAll<IAudioPreparer>();
+            services.AddSingleton<IAudioPreparer>(new StubAudioPreparer());
+            services.RemoveAll<IWhisperEngine>();
+            services.AddSingleton<IWhisperEngine>(Engine);
         });
     }
 

@@ -14,10 +14,12 @@ public static class ConfigEndpoints
 
         app.MapGet(
             "/config",
-            (
+            async (
                 ISmartCutAdvisor smartCut,
                 IOptions<TranscriptionOptions> transcription,
-                IOptions<StorageOptions> storage
+                IOptions<StorageOptions> storage,
+                WebVideoAvailabilityCache webVideo,
+                CancellationToken cancellationToken
             ) =>
                 Results.Ok(
                     new ConfigView(
@@ -30,7 +32,10 @@ public static class ConfigEndpoints
                         // an API key and the no-op advisor is what got resolved.
                         smartCut.IsEnabled,
                         transcription.Value.Model,
-                        storage.Value.MaxUploadMegabytes
+                        storage.Value.MaxUploadMegabytes,
+                        // Cached: probing starts yt-dlp, which is slow to start,
+                        // and this is the first call of every page load.
+                        WebVideoView.From(await webVideo.GetAsync(cancellationToken))
                     )
                 )
         );
