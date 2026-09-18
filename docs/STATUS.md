@@ -15,7 +15,7 @@ Last updated: 2026-09-18
 | Phase | **All 34 tasks merged** — runs natively; the container was dropped. Web video (W00–W18) in progress, see below |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 11 production + 11 test projects, builds clean (plus the `extension/` Node tests) |
-| Tests | 1201 passing, 26 skipped (4 opt-in live-LLM + 20 opt-in GPU + 2 W02 placeholders); extension: 1 passing |
+| Tests | 1371 passing, 25 skipped (4 opt-in live-LLM + 20 opt-in GPU + 1 W02 placeholder in Watch.Tests); extension: 1 passing |
 
 ## Conventions for agents
 
@@ -110,7 +110,7 @@ Same status key and conventions as the port ledger; branches are `task/W<nn>-<sl
 | W00 | Land windowed transcription | ✅ | `task/W00-windowed-transcription` | `ae10529` | `TranscriptionWindows` (28 s windows, 6 s overlap, each word/segment kept by the one window whose share holds its midpoint); `WhisperNetEngine` reads the WAV per window because DTW silently stopped at 30 s. Edge-case `Plan`/`Stitch` tests (empty, exact multiple, just over one window, share-boundary word, every instant owned once) added in the W00 ledger commit. `RUN_GPU_TESTS=1`: all 10 `LiveWhisperTranscriberTests` pass on an RTX 3080 Ti, including `HearsTheProfanityPastTheFirstThirtySeconds` |
 | W01 | Spike: prove the two load-bearing assumptions *(throwaway)* | ✅ | `task/W01-spike` | `efc395a`, `eaa000c` | ADR-0007 accepted. Web Audio on YouTube works (±5 ms); ~0.7 s/window; first play 11–24 s as planned → W17 required, no `--download-sections`. Autoplay, background tab and ads untested → W16 in stock Chrome |
 | W02 | ADR-0007, vocabulary and scaffolding | ✅ | `task/W02-scaffolding` | `ab27f20` | ADR-0007 was already written and accepted in W01. Vocabulary moved to CONTEXT.md (`### Web video`). `FoulFilterNet.Sources` (Domain, Media) and `FoulFilterNet.Watch` (Domain, Pipeline, Transcription, Sources) + test projects, each with a skipped `Scaffolding.cs` placeholder as in T01 - delete it with the first real test. Web does not reference them yet (W10). `extension/`: MV3 manifest with no scripts, `npm test` = `node --test "test/**/*.test.js"` with no dependencies; one smoke test. A bare `node --test test/` fails on Node 22.16 on Windows (treated as a module path), hence the glob. CI runs it on Node 22 |
-| W03 | VideoRef | — | | | |
+| W03 | VideoRef | ✅ | `task/W03-videoref` | (pending) | `VideoRef` (sealed record, private ctor, get-only props so `with` cannot bypass validation): `TryCreate(provider, id, out)` for network input (never throws), `Create` for trusted code (`ArgumentException` naming `provider`/`id`), `Key` = `youtube-<id>`, `WatchUrl` = `https://www.youtube.com/watch?v=<id>`, `TryParseKey`/`ParseKey`, `ToString()` = `Key`, consts `YouTubeProvider`, `YouTubeIdLength`. Provider matched `OrdinalIgnoreCase` and stored lower case, but **not trimmed**; ID is exactly 11 of ASCII `[A-Za-z0-9_-]`, case-sensitive. Key parsing is strict: canonical lower-case provider only, split at the first dash (`youtube--abcdefghij` is id `-abcdefghij`), so every parsed key round-trips byte-for-byte. **W08: an ID can start with `-`; pass `WatchUrl`, never `Id`, to yt-dlp.** 170 tests; Sources.Tests placeholder deleted |
 | W04 | Coverage | — | | | |
 | W05 | Window scheduler | — | | | |
 | W06 | Partial Hit snapshot | — | | | |
