@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 
 namespace FoulFilterNet.Media;
@@ -61,18 +60,28 @@ public interface IFFmpegRunner
     );
 }
 
-/// <summary><see cref="IFFmpegRunner"/> over <see cref="Process"/>.</summary>
+/// <summary>
+/// <see cref="IFFmpegRunner"/> over <see cref="IProcessRunner"/>: the general
+/// runner starts the process, and this adds FFmpeg's policy that anything but a
+/// clean exit is an <see cref="FFmpegException"/>.
+/// </summary>
 public sealed class FFmpegRunner : IFFmpegRunner
 {
     private readonly FFmpegOptions _options;
+    private readonly IProcessRunner _processes;
 
     public FFmpegRunner()
         : this(new FFmpegOptions()) { }
 
     public FFmpegRunner(FFmpegOptions options)
+        : this(options, new ProcessRunner()) { }
+
+    public FFmpegRunner(FFmpegOptions options, IProcessRunner processes)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(processes);
         _options = options;
+        _processes = processes;
     }
 
     public Task<FFmpegResult> RunFFmpegAsync(
@@ -85,7 +94,7 @@ public sealed class FFmpegRunner : IFFmpegRunner
         CancellationToken cancellationToken = default
     ) => RunAsync(_options.FFprobePath, arguments, cancellationToken);
 
-    private static async Task<FFmpegResult> RunAsync(
+    private async Task<FFmpegResult> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken
@@ -94,71 +103,32 @@ public sealed class FFmpegRunner : IFFmpegRunner
         ArgumentNullException.ThrowIfNull(arguments);
         var description = FFmpegProcess.Describe(fileName, arguments);
 
-        using var process = new Process
-        {
-            StartInfo = FFmpegProcess.CreateStartInfo(fileName, arguments),
-        };
-
+        ProcessResult result;
         try
         {
-            process.Start();
+            result = await _processes
+                .RunAsync(fileName, arguments, cancellationToken)
+                .ConfigureAwait(false);
         }
-        catch (Win32Exception exception)
+        catch (ProcessNotStartedException exception)
         {
             throw new FFmpegException(
                 $"Could not start '{fileName}'. Is FFmpeg installed and on PATH? Command was: {description}",
                 -1,
                 string.Empty,
-                exception
+                exception.InnerException ?? exception
             );
         }
 
-        // Both streams are drained concurrently: a process that fills one pipe
-        // while we block reading the other deadlocks.
-        var standardOutput = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var standardError = process.StandardError.ReadToEndAsync(cancellationToken);
-
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            TryKill(process);
-            throw;
-        }
-
-        var output = await standardOutput.ConfigureAwait(false);
-        var error = await standardError.ConfigureAwait(false);
-
-        if (process.ExitCode != 0)
+        if (result.ExitCode != 0)
         {
             throw new FFmpegException(
-                $"{description} exited with code {process.ExitCode}.{Environment.NewLine}{error.Trim()}",
-                process.ExitCode,
-                error
+                $"{description} exited with code {result.ExitCode}.{Environment.NewLine}{result.StandardError.Trim()}",
+                result.ExitCode,
+                result.StandardError
             );
         }
 
-        return new FFmpegResult(process.ExitCode, output, error);
-    }
-
-    private static void TryKill(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-        }
-        catch (InvalidOperationException)
-        {
-            // Already gone.
-        }
-        catch (Win32Exception)
-        {
-            // Nothing useful to do if the kill itself fails.
-        }
+        return new FFmpegResult(result.ExitCode, result.StandardOutput, result.StandardError);
     }
 }
