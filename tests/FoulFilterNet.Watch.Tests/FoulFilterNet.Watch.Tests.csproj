@@ -1,5 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <!-- FakeTimeProvider drives heartbeats, expiry, retention and throughput;
+         Hosting supplies the service collection and configuration AddWatch is
+         tested against. -->
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/FoulFilterNet.Watch/FoulFilterNet.Watch.csproj" />
   </ItemGroup>
 </Project>

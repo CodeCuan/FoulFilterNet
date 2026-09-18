@@ -189,6 +189,53 @@ public sealed class WatchProgress
         );
     }
 
+    /// <summary>
+    /// The finished progress of a video whose whole Transcript is already known
+    /// - a Transcript cache hit - so a cached video is served through exactly
+    /// the same rules, snapshot and <see cref="WithBadWords"/> as one heard
+    /// window by window.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A cached Transcript carries no per-window results, so it is treated as
+    /// one window spanning the file with an unbounded share: stitching it keeps
+    /// every Segment and Word where it is, and the rules run once over the
+    /// whole of it, which is the batch pipeline's result exactly. Revision is 1
+    /// (one "window" finished) and the snapshot reports 1 of 1 windows.
+    /// </para>
+    /// <para>
+    /// <b>Duration.</b> A Transcript does not record the video's length, so it
+    /// is taken as where the last Segment or Word ends (0 for an empty one), and
+    /// Coverage is complete over <c>[0, that]</c>. The real video can run on
+    /// past its last word; a client must read a complete snapshot as covering
+    /// the whole video, not only its intervals.
+    /// </para>
+    /// </remarks>
+    /// <param name="transcript">The Segments and Words, on the file's timeline.</param>
+    /// <param name="badWords">The list to find Hits with.</param>
+    public static WatchProgress FromTranscript(
+        TranscriptionResult transcript,
+        BadWordsList badWords
+    )
+    {
+        ArgumentNullException.ThrowIfNull(transcript);
+        ArgumentNullException.ThrowIfNull(badWords);
+
+        var duration = Math.Max(
+            0.0,
+            Math.Max(
+                transcript.Segments.Select(s => s.End).DefaultIfEmpty(0.0).Max(),
+                transcript.Words.Select(w => w.End).DefaultIfEmpty(0.0).Max()
+            )
+        );
+
+        TranscriptionWindow[] whole =
+        [
+            new(0.0, duration, double.NegativeInfinity, double.PositiveInfinity),
+        ];
+        return Start(whole, duration, badWords).With(0, transcript);
+    }
+
     /// <summary>Whether the window at <paramref name="index"/> is finished.</summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is outside the plan.</exception>
     public bool IsFinished(int index)
