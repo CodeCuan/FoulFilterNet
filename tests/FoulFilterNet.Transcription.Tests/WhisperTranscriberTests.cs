@@ -21,19 +21,25 @@ public sealed class WhenTranscribingAMediaFile : IDisposable
     );
 
     private readonly string _converted;
+    private readonly ScriptedAudio _opened;
     private readonly TranscriptionResult _returned;
+    private bool? _wavExistedWhileClosing;
 
     public WhenTranscribingAMediaFile()
     {
         _converted = Path.Combine(_directory.Path, "analysis.wav");
         File.WriteAllText(_converted, "riff");
 
+        _opened = new ScriptedAudio(8.0, _ => _heard)
+        {
+            OnDispose = () => _wavExistedWhileClosing = File.Exists(_converted),
+        };
         _audio
             .PadStartAsync("book.m4b", Arg.Any<double>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(_converted));
         _engine
-            .TranscribeWavAsync(_converted, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(_heard));
+            .OpenAsync(_converted, Arg.Any<InferencePriority>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IAnalysisAudio>(_opened));
 
         var sut = new WhisperTranscriber(_engine, _audio);
         _returned = sut.TranscribeAsync("book.m4b", TestContext.Current.CancellationToken)
@@ -51,10 +57,39 @@ public sealed class WhenTranscribingAMediaFile : IDisposable
 
     [Fact]
     public async Task HandsTheConvertedAudioToTheEngine() =>
-        await _engine.Received(1).TranscribeWavAsync(_converted, Arg.Any<CancellationToken>());
+        await _engine
+            .Received(1)
+            .OpenAsync(_converted, Arg.Any<InferencePriority>(), Arg.Any<CancellationToken>());
+
+    /// <remarks>
+    /// Normal is the Job priority: a Watch Session opened at High goes ahead of
+    /// this job's windows at every window boundary.
+    /// </remarks>
+    [Fact]
+    public async Task TranscribesAtJobPriority() =>
+        await _engine
+            .Received(1)
+            .OpenAsync(Arg.Any<string>(), InferencePriority.Normal, Arg.Any<CancellationToken>());
 
     [Fact]
-    public void ReportsExactlyWhatTheEngineHeard() => _returned.ShouldBeSameAs(_heard);
+    public void HearsTheOnlyWindowOfAShortFile() => _opened.Asked.ShouldBe([0]);
+
+    [Fact]
+    public void ReportsExactlyTheWordsTheEngineHeard() => _returned.Words.ShouldBe(_heard.Words);
+
+    [Fact]
+    public void ReportsExactlyTheSegmentsTheEngineHeard() =>
+        _returned.Segments.ShouldBe(_heard.Segments);
+
+    [Fact]
+    public void ClosesTheOpenedAudio() => _opened.Disposals.ShouldBe(1);
+
+    /// <remarks>
+    /// The engine holds the WAV open, and Windows will not delete a file that
+    /// is open; closing after the delete would leak every analysis WAV.
+    /// </remarks>
+    [Fact]
+    public void ClosesItBeforeDeletingTheWav() => _wavExistedWhileClosing.ShouldBe(true);
 
     [Fact]
     public void DeletesTheConvertedAudioAfterwards() => File.Exists(_converted).ShouldBeFalse();
@@ -70,6 +105,13 @@ public sealed class WhenTheEngineFailsMidTranscription : IDisposable
     private readonly IAudioPreparer _audio = Substitute.For<IAudioPreparer>();
     private readonly IWhisperEngine _engine = Substitute.For<IWhisperEngine>();
     private readonly string _converted;
+    private readonly ScriptedAudio _opened = new(
+        60.0,
+        index =>
+            index == 1
+                ? throw new InvalidOperationException("cuda oom")
+                : ScriptedAudio.Said("x", 1.0, 1.5)
+    );
     private readonly Exception _thrown;
 
     public WhenTheEngineFailsMidTranscription()
@@ -81,10 +123,12 @@ public sealed class WhenTheEngineFailsMidTranscription : IDisposable
             .PadStartAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(_converted));
         _engine
-            .TranscribeWavAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns<Task<TranscriptionResult>>(_ =>
-                throw new InvalidOperationException("cuda oom")
-            );
+            .OpenAsync(
+                Arg.Any<string>(),
+                Arg.Any<InferencePriority>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Task.FromResult<IAnalysisAudio>(_opened));
 
         var sut = new WhisperTranscriber(_engine, _audio);
         _thrown = Should
@@ -101,6 +145,57 @@ public sealed class WhenTheEngineFailsMidTranscription : IDisposable
 
     [Fact]
     public void ReportsTheFailureTheJobNeedsToSee() => _thrown.Message.ShouldBe("cuda oom");
+
+    [Fact]
+    public void StillDeletesTheConvertedAudio() => File.Exists(_converted).ShouldBeFalse();
+
+    [Fact]
+    public void StillClosesTheOpenedAudio() => _opened.Disposals.ShouldBe(1);
+}
+
+/// <summary>
+/// The engine cannot even open the converted WAV - no weights installed, or a
+/// file that is not 16-bit PCM. The WAV is still this type's to delete.
+/// </summary>
+public sealed class WhenTheEngineCannotOpenTheConvertedAudio : IDisposable
+{
+    private readonly TempDirectory _directory = new();
+    private readonly string _converted;
+    private readonly Exception _thrown;
+
+    public WhenTheEngineCannotOpenTheConvertedAudio()
+    {
+        var audio = Substitute.For<IAudioPreparer>();
+        var engine = Substitute.For<IWhisperEngine>();
+        _converted = Path.Combine(_directory.Path, "analysis.wav");
+        File.WriteAllText(_converted, "riff");
+
+        audio
+            .PadStartAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(_converted));
+        engine
+            .OpenAsync(
+                Arg.Any<string>(),
+                Arg.Any<InferencePriority>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns<Task<IAnalysisAudio>>(_ => throw new FileNotFoundException("ggml-base.bin"));
+
+        _thrown = Should
+            .ThrowAsync<FileNotFoundException>(() =>
+                new WhisperTranscriber(engine, audio).TranscribeAsync(
+                    "book.m4b",
+                    TestContext.Current.CancellationToken
+                )
+            )
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    public void Dispose() => _directory.Dispose();
+
+    [Fact]
+    public void ReportsWhyItCouldNot() => _thrown.Message.ShouldBe("ggml-base.bin");
 
     [Fact]
     public void StillDeletesTheConvertedAudio() => File.Exists(_converted).ShouldBeFalse();
@@ -135,12 +230,15 @@ public sealed class WhenRescanningWithShiftedChunkBoundaries : IDisposable
             )
             .Returns(Task.FromResult(_padded));
         _engine
-            .TranscribeWavAsync(_padded, Arg.Any<CancellationToken>())
+            .OpenAsync(_padded, Arg.Any<InferencePriority>(), Arg.Any<CancellationToken>())
             .Returns(
-                Task.FromResult(
-                    new TranscriptionResult(
-                        [new Segment(0.5, 1.5, "(silence)"), new Segment(7.41, 7.897, "Damn.")],
-                        [new Word("damn", 7.41, 7.897)]
+                Task.FromResult<IAnalysisAudio>(
+                    new ScriptedAudio(
+                        12.0,
+                        _ => new TranscriptionResult(
+                            [new Segment(0.5, 1.5, "(silence)"), new Segment(7.41, 7.897, "Damn.")],
+                            [new Word("damn", 7.41, 7.897)]
+                        )
                     )
                 )
             );

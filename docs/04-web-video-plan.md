@@ -143,7 +143,8 @@ it opened once**:
 ```csharp
 public interface IWhisperEngine
 {
-    Task<IAnalysisAudio> OpenAsync(string wavPath, CancellationToken ct = default);
+    Task<IAnalysisAudio> OpenAsync(string wavPath, InferencePriority priority = Normal,
+                                   CancellationToken ct = default);
     ValueTask ReleaseAsync();
 }
 
@@ -158,6 +159,10 @@ public interface IAnalysisAudio : IAsyncDisposable
 The batch path becomes "open, transcribe every window in order, `Stitch`".
 That is what `WhisperNetEngine` already does inside one method, so batch output
 does not change.
+
+*As built (W07):* the priority is chosen when the audio is opened, not per
+window, because it belongs to who is listening. `TranscribeWavAsync` survives
+as an extension method (open at Normal, every window in order, `Stitch`).
 
 **GPU sharing.** Batch Jobs and Watch Sessions share one engine. Each window
 takes a **priority lane**: a gate that admits waiting Watch windows before

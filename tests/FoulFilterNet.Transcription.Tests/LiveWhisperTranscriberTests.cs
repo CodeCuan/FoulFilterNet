@@ -145,23 +145,7 @@ public sealed class LiveWhisperTranscriberTests
     public async Task HearsTheProfanityPastTheFirstThirtySeconds()
     {
         using var directory = new TempDirectory();
-        var fixture = MediaFixtures.Path("single_hit.mp3");
-        var longFile = System.IO.Path.Combine(directory.Path, "long.wav");
-        await new FFmpegRunner().RunFFmpegAsync(
-            [
-                "-y",
-                "-loglevel",
-                "error",
-                "-i",
-                fixture,
-                "-i",
-                fixture,
-                "-filter_complex",
-                "[1]adelay=75000|75000[late];[0][late]amix=inputs=2:normalize=0",
-                longFile,
-            ],
-            TestContext.Current.CancellationToken
-        );
+        var longFile = await LiveWhisper.LongFileAsync(directory.Path);
 
         var late = (await LiveWhisper.TranscribeFileAsync(longFile)).Words.Single(w =>
             w.Text.StartsWith("damn", StringComparison.Ordinal) && w.Start > 60
@@ -178,6 +162,113 @@ public sealed class LiveWhisperTranscriberTests
 }
 
 /// <summary>
+/// The windowed contract on the real GPU: windows heard out of order, from audio
+/// opened at either priority, stitch to exactly what the batch path produces,
+/// and a release asked for while audio is open waits for it to close.
+/// </summary>
+/// <remarks>Opt-in, for the same reasons as <see cref="LiveWhisperTranscriberTests"/>.</remarks>
+public sealed class LiveWindowedEngineTests
+{
+    private const string OptIn =
+        "opt-in: set RUN_GPU_TESTS=1 with CUDA, FFmpeg and GGML weights installed";
+
+    public static bool GpuTestsEnabled => LiveWhisperTranscriberTests.GpuTestsEnabled;
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task WindowsHeardBackwardsStitchToTheBatchResult()
+    {
+        using var directory = new TempDirectory();
+        var wav = await LiveWhisper.LongAnalysisWavAsync(directory.Path);
+        var batch = await LiveWhisper.Engine.TranscribeWavAsync(
+            wav,
+            TestContext.Current.CancellationToken
+        );
+
+        var heard = new List<(TranscriptionWindow, TranscriptionResult)>();
+        await using (
+            var audio = await LiveWhisper.Engine.OpenAsync(
+                wav,
+                InferencePriority.High,
+                TestContext.Current.CancellationToken
+            )
+        )
+        {
+            audio.Windows.Count.ShouldBe(4);
+            for (var i = audio.Windows.Count - 1; i >= 0; i--)
+            {
+                heard.Add(
+                    (
+                        audio.Windows[i],
+                        await audio.TranscribeWindowAsync(i, TestContext.Current.CancellationToken)
+                    )
+                );
+            }
+        }
+
+        heard.Reverse();
+        TranscriptionWindows.Stitch(heard).Words.ShouldBe(batch.Words);
+    }
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task AWatchAndAJobShareTheGpuAndBothFinish()
+    {
+        using var directory = new TempDirectory();
+        var wav = await LiveWhisper.LongAnalysisWavAsync(directory.Path);
+
+        var job = LiveWhisper.Engine.TranscribeWavAsync(wav, TestContext.Current.CancellationToken);
+        var watch = Task.Run(async () =>
+        {
+            await using var audio = await LiveWhisper.Engine.OpenAsync(
+                wav,
+                InferencePriority.High,
+                TestContext.Current.CancellationToken
+            );
+            var heard = new List<(TranscriptionWindow, TranscriptionResult)>();
+            for (var i = 0; i < audio.Windows.Count; i++)
+            {
+                heard.Add(
+                    (
+                        audio.Windows[i],
+                        await audio.TranscribeWindowAsync(i, TestContext.Current.CancellationToken)
+                    )
+                );
+            }
+
+            return TranscriptionWindows.Stitch(heard);
+        });
+
+        await Task.WhenAll(job, watch);
+
+        (await watch).Words.ShouldBe((await job).Words);
+    }
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task AReleaseWhileAudioIsOpenWaitsForItToClose()
+    {
+        using var directory = new TempDirectory();
+        var wav = await LiveWhisper.LongAnalysisWavAsync(directory.Path);
+        // Its own engine: the shared one may have other tests' audio open,
+        // which would rightly defer this release past the last assertion.
+        using var engine = LiveWhisper.NewEngine();
+
+        var audio = await engine.OpenAsync(
+            wav,
+            InferencePriority.Normal,
+            TestContext.Current.CancellationToken
+        );
+        await engine.ReleaseAsync();
+        engine.IsModelLoaded.ShouldBeTrue();
+
+        (
+            await audio.TranscribeWindowAsync(3, TestContext.Current.CancellationToken)
+        ).Words.ShouldContain(w => w.Text.StartsWith("damn", StringComparison.Ordinal));
+
+        await audio.DisposeAsync();
+        engine.IsModelLoaded.ShouldBeFalse();
+    }
+}
+
+/// <summary>
 /// The real engine over the real fixtures, built once per process. Only the
 /// opt-in facts above touch it, so nothing here runs in CI.
 /// </summary>
@@ -185,7 +276,13 @@ internal static class LiveWhisper
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly Dictionary<string, TranscriptionResult> Heard = [];
-    private static readonly Lazy<WhisperTranscriber> Transcriber = new(Build);
+    private static readonly Lazy<WhisperNetEngine> SharedEngine = new(NewEngine);
+    private static readonly Lazy<WhisperTranscriber> Transcriber = new(() =>
+        new WhisperTranscriber(SharedEngine.Value, new FFmpegAudioPreparer(new FFmpegRunner()))
+    );
+
+    /// <summary>The engine behind <see cref="Transcriber"/>, for the windowed contract.</summary>
+    public static WhisperNetEngine Engine => SharedEngine.Value;
 
     public static async Task<TranscriptionResult> TranscribeAsync(string fixtureFileName)
     {
@@ -222,7 +319,41 @@ internal static class LiveWhisper
             TestContext.Current.CancellationToken
         );
 
-    private static WhisperTranscriber Build()
+    /// <summary>
+    /// The single-hit fixture at the start and again 75 s in, as an 83 s file:
+    /// four windows, and a "damn" in the first and the fourth.
+    /// </summary>
+    public static async Task<string> LongFileAsync(string directory)
+    {
+        var fixture = MediaFixtures.Path("single_hit.mp3");
+        var longFile = System.IO.Path.Combine(directory, "long.wav");
+        await new FFmpegRunner().RunFFmpegAsync(
+            [
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                fixture,
+                "-i",
+                fixture,
+                "-filter_complex",
+                "[1]adelay=75000|75000[late];[0][late]amix=inputs=2:normalize=0",
+                longFile,
+            ],
+            TestContext.Current.CancellationToken
+        );
+        return longFile;
+    }
+
+    /// <summary><see cref="LongFileAsync"/> converted to the 16 kHz mono analysis WAV.</summary>
+    public static async Task<string> LongAnalysisWavAsync(string directory) =>
+        await new FFmpegAudioPreparer(new FFmpegRunner()).PadStartAsync(
+            await LongFileAsync(directory),
+            0.0,
+            TestContext.Current.CancellationToken
+        );
+
+    public static WhisperNetEngine NewEngine()
     {
         var options = new TranscriptionOptions
         {
@@ -234,10 +365,7 @@ internal static class LiveWhisper
         // No acquisition delegate: this must resolve installed weights or fail.
         var models = new WhisperModelSource(MediaFixtures.ModelDirectory);
 
-        return new WhisperTranscriber(
-            new WhisperNetEngine(options, models, NullLogger<WhisperNetEngine>.Instance),
-            new FFmpegAudioPreparer(new FFmpegRunner())
-        );
+        return new WhisperNetEngine(options, models, NullLogger<WhisperNetEngine>.Instance);
     }
 }
 

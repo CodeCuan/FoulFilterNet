@@ -2,7 +2,6 @@ using FoulFilterNet.Domain;
 using Microsoft.Extensions.Logging;
 using Whisper.net;
 using Whisper.net.LibraryLoader;
-using Whisper.net.Wave;
 
 namespace FoulFilterNet.Transcription;
 
@@ -17,12 +16,18 @@ namespace FoulFilterNet.Transcription;
 /// models sharing a card.
 /// </para>
 /// <para>
-/// The model loads on the first transcription rather than in the constructor.
+/// The model loads on the first open rather than in the constructor.
 /// That is what lets the composition root resolve this type without touching a
 /// GPU, and it is what makes releasing after a job that never transcribed - one
 /// that resumed a cached transcript (ADR-0002) - a no-op instead of a failure.
 /// One factory is kept for as many jobs as the release policy allows; each
-/// transcription builds its own processor over it.
+/// opened audio builds its own processor over it.
+/// </para>
+/// <para>
+/// Batch Jobs and Watch Sessions share this one engine, so it owns the one
+/// <see cref="InferenceLane"/> every window of every opened audio takes: one
+/// inference on the card at a time, Watch windows first (W07). The engine is
+/// a singleton in every composition root, which is what makes the lane shared.
 /// </para>
 /// </remarks>
 public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
@@ -31,8 +36,11 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     private readonly WhisperModelSource _models;
     private readonly ILogger<WhisperNetEngine> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly InferenceLane _lane = new();
 
     private WhisperFactory? _factory;
+    private int _open;
+    private bool _releasePending;
 
     public WhisperNetEngine(
         TranscriptionOptions options,
@@ -56,59 +64,47 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     public bool IsModelLoaded => Volatile.Read(ref _factory) is not null;
 
     /// <inheritdoc />
-    public async Task<TranscriptionResult> TranscribeWavAsync(
+    /// <remarks>
+    /// The model loads here, outside the lane, so a Job's first window never
+    /// makes a waiting viewer sit through a model load as well. Each opened
+    /// audio builds its own processor on its first window; the lane keeps them
+    /// from ever running at once.
+    /// </remarks>
+    public async Task<IAnalysisAudio> OpenAsync(
         string wavPath,
+        InferencePriority priority = InferencePriority.Normal,
         CancellationToken cancellationToken = default
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(wavPath);
-
-        var factory = await LoadAsync(cancellationToken).ConfigureAwait(false);
-
-        await using var processor = BuildProcessor(factory);
-        await using var audio = File.OpenRead(wavPath);
-
-        var wave = new WaveParser(audio);
-        await wave.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        if (wave.BitsPerSample != 16)
+        if (!Enum.IsDefined(priority))
         {
-            throw new NotSupportedException(
-                $"Expected 16-bit PCM in '{wavPath}', found {wave.BitsPerSample}-bit."
+            throw new ArgumentOutOfRangeException(
+                nameof(priority),
+                priority,
+                "Only Normal and High exist."
             );
         }
 
-        var frameBytes = wave.Channels * sizeof(short);
-        var frameCount = (long)wave.DataChunkSize / frameBytes;
-        var windows = TranscriptionWindows.Plan((double)frameCount / wave.SampleRate);
-
-        var heard = new List<(TranscriptionWindow, TranscriptionResult)>(windows.Count);
-        foreach (var window in windows)
+        var factory = await AcquireAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var firstFrame = (long)Math.Round(window.Start * wave.SampleRate);
-            var frames = (int)(
-                Math.Min(frameCount, (long)Math.Round(window.End * wave.SampleRate)) - firstFrame
-            );
-            var samples = await ReadWindowAsync(
-                    audio,
-                    (long)wave.DataChunkPosition + firstFrame * frameBytes,
-                    frames,
-                    wave.Channels,
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
+            var wav = await AnalysisWav.OpenAsync(wavPath, cancellationToken).ConfigureAwait(false);
+            LogOpened(wav.DurationSeconds, wav.Windows.Count, priority);
 
-            heard.Add(
-                (
-                    window,
-                    await TranscribeWindowAsync(processor, samples, cancellationToken)
-                        .ConfigureAwait(false)
-                )
+            return new WindowedAudio(
+                wav,
+                _lane,
+                priority,
+                () => new ProcessorListener(BuildProcessor(factory)),
+                CloseAsync
             );
         }
-
-        var result = TranscriptionWindows.Stitch(heard);
-        LogTranscribed(result.Segments.Count, result.Words.Count, windows.Count);
-        return result;
+        catch
+        {
+            await CloseAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -116,21 +112,28 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     /// Idempotent, and cheap when there is nothing to drop: it now sits on the
     /// critical path of every job, because the pipeline releases in a
     /// <c>finally</c> whether the job succeeded, failed or was cancelled.
+    /// With audio still open - a Watch Session using the model while a Job
+    /// ends - disposing the factory would pull it out from under a processor,
+    /// so the release is remembered and carried out when the last audio closes.
     /// </remarks>
     public async ValueTask ReleaseAsync()
     {
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            var factory = _factory;
-            if (factory is null)
+            if (_factory is null)
             {
                 return;
             }
 
-            _factory = null;
-            factory.Dispose();
-            LogReleased();
+            if (_open > 0)
+            {
+                _releasePending = true;
+                LogReleaseDeferred(_open);
+                return;
+            }
+
+            DropFactory();
         }
         finally
         {
@@ -146,118 +149,22 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     }
 
     /// <summary>
-    /// One window's frames as mono samples in [-1, 1), channels averaged the way
-    /// Whisper.net's own parser does.
+    /// The model, loaded if need be, counted as in use by one more opened
+    /// audio - both under the gate, so a release can never land between them.
+    /// Cancellation is checked before anything is resolved or loaded, so a job
+    /// cancelled while it queued stops instead of paying for a model it will
+    /// never use.
     /// </summary>
-    private static async Task<float[]> ReadWindowAsync(
-        FileStream audio,
-        long position,
-        int frames,
-        int channels,
-        CancellationToken cancellationToken
-    )
-    {
-        var bytes = new byte[frames * channels * sizeof(short)];
-        audio.Position = position;
-        var read = await audio
-            .ReadAtLeastAsync(bytes, bytes.Length, throwOnEndOfStream: false, cancellationToken)
-            .ConfigureAwait(false);
-
-        var samples = new float[read / (channels * sizeof(short))];
-        for (var frame = 0; frame < samples.Length; frame++)
-        {
-            var sum = 0;
-            for (var channel = 0; channel < channels; channel++)
-            {
-                sum += BitConverter.ToInt16(bytes, (frame * channels + channel) * sizeof(short));
-            }
-
-            samples[frame] = sum / (channels * 32768f);
-        }
-
-        return samples;
-    }
-
-    /// <summary>What one window heard, on the window's own timeline.</summary>
-    private static async Task<TranscriptionResult> TranscribeWindowAsync(
-        WhisperProcessor processor,
-        float[] samples,
-        CancellationToken cancellationToken
-    )
-    {
-        var segments = new List<Segment>();
-        var tokens = new List<WhisperToken>();
-
-        await foreach (
-            var heard in processor.ProcessAsync(samples, cancellationToken).ConfigureAwait(false)
-        )
-        {
-            var text = (heard.Text ?? string.Empty).Trim();
-            if (text.Length > 0 && heard.End > heard.Start)
-            {
-                segments.Add(
-                    new Segment(
-                        Times.Round(heard.Start.TotalSeconds),
-                        Times.Round(heard.End.TotalSeconds),
-                        text
-                    )
-                );
-            }
-
-            if (heard.Tokens is { Length: > 0 } spoken)
-            {
-                tokens.AddRange(spoken);
-            }
-        }
-
-        // Joined over the whole window rather than segment by segment: a word
-        // starts at the instant of the token before it, and for a segment's
-        // first word that token belongs to the segment before.
-        return new TranscriptionResult(segments, WhisperWords.Join(tokens));
-    }
-
-    /// <summary>
-    /// The model, loaded once. Cancellation is checked before anything is
-    /// resolved or loaded, so a job cancelled while it queued for the GPU stops
-    /// instead of paying for a model it will never use.
-    /// </summary>
-    private async Task<WhisperFactory> LoadAsync(CancellationToken cancellationToken)
+    private async Task<WhisperFactory> AcquireAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        var loaded = _factory;
-        if (loaded is not null)
-        {
-            return loaded;
-        }
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_factory is not null)
-            {
-                return _factory;
-            }
-
-            var path = await _models
-                .ResolveAsync(_options.Model, cancellationToken)
-                .ConfigureAwait(false);
-
-            // Whisper.net picks the first native runtime it can load from this
-            // global order, and only reads it while the first factory loads.
-            WhisperRuntime.Apply(_options.Device, RuntimeOptions.RuntimeLibraryOrder);
-
-            // DTW word timestamps, which need the model's own alignment heads;
-            // a model whose heads whisper.cpp does not know falls back to the
-            // cruder token timestamps (ADR-0006).
-            var heads = WhisperModelFiles.AlignmentHeadsFor(_options.Model);
-            var factoryOptions = WhisperRuntime.FactoryOptions(_options.Device, heads);
-
-            LogLoading(_options.Model, path, _options.Device, heads);
-            _factory = WhisperFactory.FromPath(path, factoryOptions);
-            LogLoaded(RuntimeOptions.LoadedLibrary);
-
-            return _factory;
+            var factory = _factory ?? await LoadAsync(cancellationToken).ConfigureAwait(false);
+            _open++;
+            return factory;
         }
         finally
         {
@@ -265,8 +172,67 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         }
     }
 
+    /// <summary>One opened audio closed; carry out a release that waited for it.</summary>
+    private async ValueTask CloseAsync()
+    {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            _open--;
+            if (_open == 0 && _releasePending)
+            {
+                DropFactory();
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>Under the gate, with no audio open.</summary>
+    private void DropFactory()
+    {
+        _releasePending = false;
+        var factory = _factory;
+        if (factory is null)
+        {
+            return;
+        }
+
+        _factory = null;
+        factory.Dispose();
+        LogReleased();
+    }
+
     /// <summary>
-    /// A processor per transcription. <c>WithTokenTimestamps</c> is the member
+    /// Load the model. Called under the gate, with none resident.
+    /// </summary>
+    private async Task<WhisperFactory> LoadAsync(CancellationToken cancellationToken)
+    {
+        var path = await _models
+            .ResolveAsync(_options.Model, cancellationToken)
+            .ConfigureAwait(false);
+
+        // Whisper.net picks the first native runtime it can load from this
+        // global order, and only reads it while the first factory loads.
+        WhisperRuntime.Apply(_options.Device, RuntimeOptions.RuntimeLibraryOrder);
+
+        // DTW word timestamps, which need the model's own alignment heads;
+        // a model whose heads whisper.cpp does not know falls back to the
+        // cruder token timestamps (ADR-0006).
+        var heads = WhisperModelFiles.AlignmentHeadsFor(_options.Model);
+        var factoryOptions = WhisperRuntime.FactoryOptions(_options.Device, heads);
+
+        LogLoading(_options.Model, path, _options.Device, heads);
+        _factory = WhisperFactory.FromPath(path, factoryOptions);
+        LogLoaded(RuntimeOptions.LoadedLibrary);
+
+        return _factory;
+    }
+
+    /// <summary>
+    /// A processor per opened audio. <c>WithTokenTimestamps</c> is the member
     /// that makes word boundaries available at all - without it every token
     /// carries its segment's times and <see cref="WhisperWords"/> would emit
     /// segment-wide words.
@@ -281,6 +247,58 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
             : builder.WithLanguageDetection();
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// A whisper.cpp processor as an <see cref="IWindowListener"/>: what one
+    /// window heard, on the window's own timeline.
+    /// </summary>
+    private sealed class ProcessorListener(WhisperProcessor processor) : IWindowListener
+    {
+        public async Task<TranscriptionResult> HearAsync(
+            float[] samples,
+            CancellationToken cancellationToken
+        )
+        {
+            var segments = new List<Segment>();
+            var tokens = new List<WhisperToken>();
+
+            await foreach (
+                var heard in processor
+                    .ProcessAsync(samples, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                var text = (heard.Text ?? string.Empty).Trim();
+                if (text.Length > 0 && heard.End > heard.Start)
+                {
+                    segments.Add(
+                        new Segment(
+                            Times.Round(heard.Start.TotalSeconds),
+                            Times.Round(heard.End.TotalSeconds),
+                            text
+                        )
+                    );
+                }
+
+                if (heard.Tokens is { Length: > 0 } spoken)
+                {
+                    tokens.AddRange(spoken);
+                }
+            }
+
+            // Joined over the whole window rather than segment by segment: a word
+            // starts at the instant of the token before it, and for a segment's
+            // first word that token belongs to the segment before.
+            return new TranscriptionResult(segments, WhisperWords.Join(tokens));
+        }
+
+        /// <remarks>
+        /// <c>DisposeAsync</c>, never <c>Dispose</c>: after a cancellation
+        /// Whisper.net's asynchronous disposal waits for the native call to
+        /// stop, where the synchronous one throws.
+        /// </remarks>
+        public ValueTask DisposeAsync() => processor.DisposeAsync();
     }
 
     [LoggerMessage(
@@ -307,9 +325,15 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Transcribed {Segments} segment(s), {Words} word(s) in {Windows} window(s)"
+        Message = "Opened {Duration} s of analysis audio in {Windows} window(s) at {Priority} priority"
     )]
-    private partial void LogTranscribed(int segments, int words, int windows);
+    private partial void LogOpened(double duration, int windows, InferencePriority priority);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Model release deferred until {Open} open analysis audio close"
+    )]
+    private partial void LogReleaseDeferred(int open);
 
     [LoggerMessage(
         Level = LogLevel.Information,

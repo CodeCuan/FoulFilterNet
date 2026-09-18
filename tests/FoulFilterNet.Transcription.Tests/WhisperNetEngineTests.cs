@@ -132,3 +132,82 @@ public sealed class WhenAnEngineIsBuiltWithoutCollaborators
             )
         );
 }
+
+/// <summary>
+/// Opening is where the model loads, so everything that used to stop a
+/// transcription before the GPU was touched stops an open the same way.
+/// </summary>
+public sealed class WhenAudioIsOpenedWithoutAUsableModel : IDisposable
+{
+    private readonly TempDirectory _directory = new();
+    private readonly WhisperNetEngine _sut;
+
+    public WhenAudioIsOpenedWithoutAUsableModel() =>
+        _sut = new WhisperNetEngine(
+            new TranscriptionOptions { Model = "base" },
+            new WhisperModelSource(_directory.Path),
+            NullLogger<WhisperNetEngine>.Instance
+        );
+
+    public void Dispose()
+    {
+        _sut.Dispose();
+        _directory.Dispose();
+    }
+
+    [Fact]
+    public async Task NamesTheWeightsFileItWanted() =>
+        (
+            await Should.ThrowAsync<FileNotFoundException>(() =>
+                _sut.OpenAsync(
+                    "analysis.wav",
+                    InferencePriority.High,
+                    TestContext.Current.CancellationToken
+                )
+            )
+        ).Message.ShouldContain("ggml-base.bin");
+
+    [Fact]
+    public async Task StopsBeforeLoadingWhenAlreadyCancelled() =>
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            _sut.OpenAsync(
+                "analysis.wav",
+                InferencePriority.Normal,
+                new CancellationToken(canceled: true)
+            )
+        );
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RefusesABlankPath(string path) =>
+        await Should.ThrowAsync<ArgumentException>(() =>
+            _sut.OpenAsync(path, InferencePriority.Normal, TestContext.Current.CancellationToken)
+        );
+
+    [Fact]
+    public async Task RefusesAnUnknownPriority() =>
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(() =>
+            _sut.OpenAsync(
+                "analysis.wav",
+                (InferencePriority)7,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+    [Fact]
+    public async Task StillReleasesCleanlyAfterAFailedOpen()
+    {
+        await Should.ThrowAsync<FileNotFoundException>(() =>
+            _sut.OpenAsync(
+                "analysis.wav",
+                InferencePriority.Normal,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        await _sut.ReleaseAsync();
+
+        _sut.IsModelLoaded.ShouldBeFalse();
+    }
+}
