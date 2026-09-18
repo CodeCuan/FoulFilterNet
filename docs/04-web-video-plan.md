@@ -88,7 +88,10 @@ edited Bad Words List takes effect on the next poll, without transcribing again.
 
 ---
 
-## Vocabulary (to add to CONTEXT.md)
+## Vocabulary
+
+*These terms now live in [CONTEXT.md](../CONTEXT.md#web-video) (added in W02),
+which is authoritative; the copy below is kept for reading the plan on its own.*
 
 **Web Video**:
 A video identified by a provider and that provider's ID (`youtube`,

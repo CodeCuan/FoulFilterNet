@@ -1,0 +1,6 @@
+{
+  "manifest_version": 3,
+  "name": "FoulFilter",
+  "version": "0.1.0",
+  "description": "Silences or bleeps profanity in YouTube videos as they play, using a local FoulFilterNet service."
+}

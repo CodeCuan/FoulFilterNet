@@ -114,6 +114,39 @@ The Python's removed first-generation architecture that transcribed the whole
 file twice. Superseded there by the hybrid design in ADR-0001, which the port in
 turn replaced with ADR-0006.
 
+### Web video
+
+Filtering a YouTube video live as it plays, rather than editing a file
+([04-web-video-plan.md](docs/04-web-video-plan.md),
+[ADR-0007](docs/adr/0007-web-video-two-streams.md)).
+
+**Web Video**:
+A video identified by a provider and that provider's ID (`youtube`,
+`dQw4w9WgXcQ`), rather than by a file. Its canonical key is `youtube-<id>`, which
+is also its Transcript cache key.
+_Avoid_: URL (a URL is only one way to name it)
+
+**Watch Session**:
+The server's work to make one Web Video safe to watch: fetching its audio,
+transcribing it window by window, and serving Hits as they are confirmed. It
+lasts only while it is being watched, and ends after a period with no heartbeat.
+The Transcript it builds outlives it (ADR-0002).
+_Avoid_: job (a Job turns one file into another file), stream
+
+**Coverage**:
+The parts of a Web Video's timeline whose Hits are final. It is a set of
+intervals, not one high-water mark, because a seek can have windows transcribed
+out of order.
+
+**Playback Gate**:
+The extension's rule that holds playback while the stretch just ahead of the
+playhead is not covered, and resumes once enough is.
+
+**Live Censoring**:
+Rendering the Censor Method at playback time by automating the page's audio, as
+opposed to rendering a file. Only `silence` and `bleep` exist here. `remove`
+falls back to `silence`, as it already does for video (ADR-0004).
+
 ## What the .NET design changed
 
 ### Speech recognition: Whisper.net instead of the hybrid
@@ -144,6 +177,8 @@ under `tests/`:
 | `FoulFilterNet.SmartCut` | Prompt, response parsing, Gemini and OpenAI-compatible transports, the advisor | Domain |
 | `FoulFilterNet.Pipeline` | `MediaPipeline`, transcript cache, hit reconciliation, data locations, legacy variables | Domain, Media, Transcription, SmartCut |
 | `FoulFilterNet.Jobs` | Job queue (`Channel<T>`), worker, event fan-out | Domain, Pipeline |
+| `FoulFilterNet.Sources` | Web Video sources: `VideoRef` parsing and validation, the `IWebAudioSource` contract, the yt-dlp adapter *(scaffolded; filled from W03)* | Domain, Media |
+| `FoulFilterNet.Watch` | Watch Sessions: Coverage, the window scheduler, partial Hit snapshots, the session manager and worker *(scaffolded; filled from W04)* | Domain, Pipeline, Transcription, Sources |
 | `FoulFilterNet.Web` | ASP.NET Core minimal API, SSE, uploads, static UI; composition root | Domain, Pipeline, Jobs |
 | `FoulFilterNet.Cli` | `foulfilter`, the `find_and_remove.py` equivalent; composition root | Domain, Media, Pipeline, SmartCut, Transcription |
 | `FoulFilterNet.Evaluation` | `foulfilter-eval`, the `eval_misses.py` equivalent: scores the pipeline against the fixture manifest; composition root | Domain, Media, Pipeline, SmartCut, Transcription |
@@ -204,6 +239,8 @@ The port's own decisions are in [`docs/adr/`](docs/adr):
 
 - [ADR-0006](docs/adr/0006-whisper-net-collapses-transcription-and-alignment.md) —
   Whisper.net on CUDA collapses transcription and alignment
+- [ADR-0007](docs/adr/0007-web-video-two-streams.md) — web video runs as two
+  streams: server-side audio acquisition, client-side Live Censoring
 
 The Python's decisions are frozen history in
 [`Legacy/docs/adr/`](Legacy/docs/adr). They still explain behaviour the port

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
+    <ProjectReference Include="../FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />
+    <ProjectReference Include="../FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
+    <ProjectReference Include="../FoulFilterNet.Sources/FoulFilterNet.Sources.csproj" />
+  </ItemGroup>
+</Project>

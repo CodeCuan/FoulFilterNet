@@ -10,7 +10,7 @@ Porting FoulFilter (Python / FastAPI) to .NET 10.
 | [03-parallelisation-review.md](03-parallelisation-review.md) | Which tasks can run concurrently |
 | [04-web-video-plan.md](04-web-video-plan.md) | Filtering YouTube playback live via a Chrome extension (tasks W00–W18) |
 | [STATUS.md](STATUS.md) | **Live progress ledger** — branches, commits, decisions. Read this first when resuming. |
-| [adr/](adr) | The port's architecture decisions, numbered on from the Python's: [ADR-0006](adr/0006-whisper-net-collapses-transcription-and-alignment.md) (Whisper.net collapses transcription and alignment) |
+| [adr/](adr) | The port's architecture decisions, numbered on from the Python's: [ADR-0006](adr/0006-whisper-net-collapses-transcription-and-alignment.md) (Whisper.net collapses transcription and alignment), [ADR-0007](adr/0007-web-video-two-streams.md) (web video runs as two streams) |
 | [../CONTEXT.md](../CONTEXT.md) | Domain vocabulary, and what the .NET design changed |
 | [../README.md](../README.md) | Building, running, configuring and testing the solution |
 

@@ -4,7 +4,7 @@
 as part of the task it completes, in the same commit as the work. If you are
 resuming this project cold, read this file first and trust it over memory.
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 
 ---
 
@@ -12,10 +12,10 @@ Last updated: 2026-09-17
 
 | | |
 |---|---|
-| Phase | **All 34 tasks merged** — runs natively; the container was dropped |
+| Phase | **All 34 tasks merged** — runs natively; the container was dropped. Web video (W00–W18) in progress, see below |
 | Branch | `main` |
-| Solution | `FoulFilterNet.slnx`, 9 production + 9 test projects, builds clean |
-| Tests | 1201 passing, 24 skipped (4 opt-in live-LLM + 20 opt-in GPU) |
+| Solution | `FoulFilterNet.slnx`, 11 production + 11 test projects, builds clean (plus the `extension/` Node tests) |
+| Tests | 1201 passing, 26 skipped (4 opt-in live-LLM + 20 opt-in GPU + 2 W02 placeholders); extension: 1 passing |
 
 ## Conventions for agents
 
@@ -109,7 +109,7 @@ Same status key and conventions as the port ledger; branches are `task/W<nn>-<sl
 |---|---|---|---|---|---|
 | W00 | Land windowed transcription | ✅ | `task/W00-windowed-transcription` | `ae10529` | `TranscriptionWindows` (28 s windows, 6 s overlap, each word/segment kept by the one window whose share holds its midpoint); `WhisperNetEngine` reads the WAV per window because DTW silently stopped at 30 s. Edge-case `Plan`/`Stitch` tests (empty, exact multiple, just over one window, share-boundary word, every instant owned once) added in the W00 ledger commit. `RUN_GPU_TESTS=1`: all 10 `LiveWhisperTranscriberTests` pass on an RTX 3080 Ti, including `HearsTheProfanityPastTheFirstThirtySeconds` |
 | W01 | Spike: prove the two load-bearing assumptions *(throwaway)* | ✅ | `task/W01-spike` | `efc395a`, `eaa000c` | ADR-0007 accepted. Web Audio on YouTube works (±5 ms); ~0.7 s/window; first play 11–24 s as planned → W17 required, no `--download-sections`. Autoplay, background tab and ads untested → W16 in stock Chrome |
-| W02 | ADR-0007, vocabulary and scaffolding | — | | | |
+| W02 | ADR-0007, vocabulary and scaffolding | ✅ | `task/W02-scaffolding` | `HASH` | ADR-0007 was already written and accepted in W01. Vocabulary moved to CONTEXT.md (`### Web video`). `FoulFilterNet.Sources` (Domain, Media) and `FoulFilterNet.Watch` (Domain, Pipeline, Transcription, Sources) + test projects, each with a skipped `Scaffolding.cs` placeholder as in T01 - delete it with the first real test. Web does not reference them yet (W10). `extension/`: MV3 manifest with no scripts, `npm test` = `node --test "test/**/*.test.js"` with no dependencies; one smoke test. A bare `node --test test/` fails on Node 22.16 on Windows (treated as a module path), hence the glob. CI runs it on Node 22 |
 | W03 | VideoRef | — | | | |
 | W04 | Coverage | — | | | |
 | W05 | Window scheduler | — | | | |

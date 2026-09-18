@@ -7,7 +7,9 @@
     <Project Path="src/FoulFilterNet.Media/FoulFilterNet.Media.csproj" />
     <Project Path="src/FoulFilterNet.Pipeline/FoulFilterNet.Pipeline.csproj" />
     <Project Path="src/FoulFilterNet.SmartCut/FoulFilterNet.SmartCut.csproj" />
+    <Project Path="src/FoulFilterNet.Sources/FoulFilterNet.Sources.csproj" />
     <Project Path="src/FoulFilterNet.Transcription/FoulFilterNet.Transcription.csproj" />
+    <Project Path="src/FoulFilterNet.Watch/FoulFilterNet.Watch.csproj" />
     <Project Path="src/FoulFilterNet.Web/FoulFilterNet.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -18,7 +20,9 @@
     <Project Path="tests/FoulFilterNet.Media.Tests/FoulFilterNet.Media.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Pipeline.Tests/FoulFilterNet.Pipeline.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.SmartCut.Tests/FoulFilterNet.SmartCut.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Sources.Tests/FoulFilterNet.Sources.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Transcription.Tests/FoulFilterNet.Transcription.Tests.csproj" />
+    <Project Path="tests/FoulFilterNet.Watch.Tests/FoulFilterNet.Watch.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Web.Tests/FoulFilterNet.Web.Tests.csproj" />
   </Folder>
 </Solution>

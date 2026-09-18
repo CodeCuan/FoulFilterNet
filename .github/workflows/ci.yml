@@ -36,3 +36,14 @@ jobs:
       # reports "Zero tests ran" instead of failing loudly.
       - name: Test
         run: dotnet test FoulFilterNet.slnx --no-build --configuration Release
+
+      # The Chrome extension is plain ES modules with no npm dependencies, so
+      # there is nothing to install: node --test runs the pure-module tests.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test extension
+        working-directory: extension
+        run: npm test
