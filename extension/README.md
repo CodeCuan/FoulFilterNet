@@ -21,6 +21,85 @@ service. The design is in
   only translates between the browser and the pure modules; it holds no logic
   worth testing on its own and is verified by hand.
 
+## Installing (load unpacked)
+
+1. Start FoulFilterNet (by default it listens on `http://localhost:8000`).
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select this `extension/` folder.
+4. Open the extension's **Details → Extension options** and click **Test
+   connection**. It should say web video is ready; if not, it says what is
+   missing (yt-dlp or Deno on the server's `PATH`).
+
+After editing any file, click the reload arrow on the extension's card, then
+**reload any open YouTube tabs**: Chrome does not re-inject content scripts
+into pages that were already open, and the old ones lose their connection to
+the extension.
+
+### A server somewhere other than `localhost:8000`
+
+The manifest grants `http://localhost:8000/*` at install. Any other origin is
+in `optional_host_permissions` (`http://*/*`, `https://*/*`) and is requested
+at run time: saving (or testing) another server URL in the options page asks
+Chrome for that one origin, e.g. `http://127.0.0.1:9000/*`. Refuse and the URL
+is not saved. The options page accepts any http(s) URL but warns about hosts
+other than `localhost`, `127.0.0.1` and `[::1]`, because the service's
+`AllowedHosts` turns every other `Host` header away with a 400. Permissions
+granted for an old URL are not revoked when you change it; remove them on the
+extension's Details page if you care.
+
+## Layout
+
+| File | Kind | Does |
+|---|---|---|
+| `manifest.json` | | MV3 manifest; `test/manifest.test.js` checks every file it names exists |
+| `src/settings.js` | pure + store | Settings schema, defaults, validation, `chrome.storage.sync` store with change subscription |
+| `src/api-client.js` | pure (injected `fetch`, timers) | The W10 HTTP contract: `heartbeat`, `get`, `cancel`, `config`; results as values, never throws |
+| `src/protocol.js` | pure | Messages between pages and the service worker, their validators, and `createMessenger` |
+| `src/relay.js` | pure (injected) | What the service worker does with one message |
+| `src/connection.js` | pure | Sentences for the user about the connection |
+| `src/background.js` | adapter | Service worker: `runtime.onMessage` → relay |
+| `options.html`, `src/options.js` | adapter | Options page and "Test connection" |
+| `src/content-loader.js` | adapter (classic) | Content script: loads `src/content.js` as a module |
+| `src/content.js` | adapter (module) | Content script entry point (empty until W12/W15) |
+
+### Talking to the service
+
+Only the service worker fetches. A content script's requests carry
+`youtube.com` as their origin and the service has no CORS policy (on purpose,
+W10), so a page cannot reach it; the worker can, through `host_permissions`.
+Content scripts and the options page send a message and get the api-client's
+result back:
+
+| Message (`protocol.js` constructor) | Service call | Reply |
+|---|---|---|
+| `heartbeatMessage({provider, videoId, position, since?, session?})` → `ff/heartbeat` | `POST /watch` | `{ok: true, view}` |
+| `getMessage({provider, videoId, since?, session?})` → `ff/get` | `GET /watch/{provider}/{id}` | `{ok: true, view}`; no session is `http` 404 |
+| `cancelMessage({provider, videoId})` → `ff/cancel` | `DELETE /watch/{provider}/{id}` | `{ok: true, cancelled}` (404 → `cancelled: false`) |
+| `configMessage({serverUrl?})` → `ff/config` | `GET /config` (at `serverUrl` if given, else the saved one) | `{ok: true, config}` |
+
+Every failure is `{ok: false, error: {kind, status?, detail?}}` with `kind`
+one of `unreachable`, `timeout` (3 s), `http`, `bad_response`,
+`invalid_request`, or `extension` (the page could not reach the worker; from
+`createMessenger`). Send with `createMessenger((m) => chrome.runtime.sendMessage(m))`,
+which never rejects. `since` and `session` go on the query only when both are
+known; keep both from each view and send them back.
+
+## Module loading (rule for every task)
+
+- **Service worker and extension pages** are ES modules
+  (`"type": "module"`, `<script type="module">`) and `import` normally.
+- **Content scripts** declared in the manifest are classic scripts and cannot
+  `import`. The only manifest content script is `src/content-loader.js`, which
+  does `import(chrome.runtime.getURL('src/content.js'))`. `src/content.js` and
+  everything it imports are ordinary ES modules.
+- A module loaded into the page that way must be **web accessible**: the
+  manifest lists `src/*.js` for `https://www.youtube.com/*` only. Keep content
+  script modules directly in `src/` (the pattern does not promise
+  subdirectories), and `test/manifest.test.js` fails if the content script can
+  reach a module that is not covered. Web accessible files can be fetched by
+  YouTube's pages, so never put anything secret in `src/`.
+- No inline scripts or event handler attributes in HTML (MV3's CSP).
+
 ## Testing
 
 Node 22 or later:

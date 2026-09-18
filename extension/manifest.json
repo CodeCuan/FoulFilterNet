@@ -2,5 +2,32 @@
   "manifest_version": 3,
   "name": "FoulFilter",
   "version": "0.1.0",
-  "description": "Silences or bleeps profanity in YouTube videos as they play, using a local FoulFilterNet service."
+  "description": "Silences or bleeps profanity in YouTube videos as they play, using a local FoulFilterNet service.",
+  "permissions": ["storage"],
+  "host_permissions": ["*://www.youtube.com/*", "http://localhost:8000/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_title": "FoulFilter"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["src/content-loader.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*.js"],
+      "matches": ["https://www.youtube.com/*"]
+    }
+  ]
 }

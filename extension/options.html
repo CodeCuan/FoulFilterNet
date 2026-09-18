@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FoulFilter options</title>
+    <style>
+      :root { color-scheme: light dark; font: 14px/1.45 system-ui, sans-serif; }
+      body { max-width: 36rem; margin: 2rem auto; padding: 0 1rem; }
+      h1 { font-size: 1.4rem; }
+      label { display: block; margin: 1rem 0 0.25rem; font-weight: 600; }
+      label.inline { display: flex; gap: 0.5rem; align-items: center; }
+      input[type='text'], input[type='number'], select { width: 100%; box-sizing: border-box; padding: 0.35rem; }
+      .hint { margin: 0.2rem 0 0; font-size: 0.9em; opacity: 0.75; }
+      .field-message { margin: 0.2rem 0 0; font-size: 0.9em; }
+      .field-message.error, .report.error { color: #c62828; }
+      .field-message.warning, .report.warning { color: #b26a00; }
+      .report.ok { color: #2e7d32; }
+      .buttons { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+      .report { margin-top: 1rem; white-space: pre-line; }
+      @media (prefers-color-scheme: dark) {
+        .field-message.error, .report.error { color: #ef9a9a; }
+        .field-message.warning, .report.warning { color: #ffcc80; }
+        .report.ok { color: #a5d6a7; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>FoulFilter</h1>
+    <form id="settings" novalidate>
+      <label class="inline"><input type="checkbox" name="enabled" /> Filter YouTube videos</label>
+
+      <label for="serverUrl">FoulFilterNet server</label>
+      <input type="text" id="serverUrl" name="serverUrl" spellcheck="false" autocomplete="off" />
+      <p class="hint">Usually http://localhost:8000. Another address asks Chrome for permission to reach it.</p>
+      <p class="field-message" data-for="serverUrl"></p>
+
+      <label for="censorMethod">Censor method</label>
+      <select id="censorMethod" name="censorMethod">
+        <option value="silence">Silence</option>
+        <option value="bleep">Bleep</option>
+      </select>
+      <p class="field-message" data-for="censorMethod"></p>
+
+      <label for="failPolicy">When a video cannot be filtered</label>
+      <select id="failPolicy" name="failPolicy">
+        <option value="closed">Hold it, and offer to watch unfiltered</option>
+      </select>
+      <p class="field-message" data-for="failPolicy"></p>
+
+      <label for="offsetMs">Timing offset (ms)</label>
+      <input type="number" id="offsetMs" name="offsetMs" min="-500" max="500" step="10" />
+      <p class="hint">Positive moves every censored stretch later. Leave at 0 unless words slip through at the edges.</p>
+      <p class="field-message" data-for="offsetMs"></p>
+
+      <div class="buttons">
+        <button type="submit">Save</button>
+        <button type="button" id="test">Test connection</button>
+      </div>
+    </form>
+    <div id="report" class="report" role="status" aria-live="polite"></div>
+    <script type="module" src="src/options.js"></script>
+  </body>
+</html>
