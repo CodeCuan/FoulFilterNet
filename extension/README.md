@@ -68,6 +68,9 @@ extension's Details page if you care.
 | `src/gate.js` | pure | The Playback Gate: `decideGate(input)` → `{action: hold/release/none, reason, heldByUs, resume}` and `gateOverlay(input)` → what the overlay says |
 | `src/gate-controller.js` | adapter (injected video, clock) | Applies gate decisions to the `<video>`: pauses for a hold, plays only its own holds, tells the user's pauses and play presses from its own |
 | `src/overlay.js` | adapter (injected document) | The overlay in `#movie_player` (closed shadow root) with the "Watch unfiltered" button |
+| `src/schedule.js` | pure | Live Censoring's plan: Hits + playhead + rate + audio clock → `{closedNow, events: [{time, gain}]}` on the AudioContext clock for the next 2 s; `isInsideHit`, `samePlan` |
+| `src/audio-graph.js` | adapter (injected AudioContext factory) | One AudioContext per page, never closed; one `MediaElementSource` per `<video>` (WeakMap); programme gain and a 1 kHz bleep gain; `InvalidStateError` → `{kind: 'audio'}` |
+| `src/censor-controller.js` | adapter (injected video, graph, timers) | Re-plans every 100 ms and on media events while really playing (ADR-0007); modes `filter`/`mute`/`open`; skips unchanged plans |
 
 ### Talking to the service
 
