@@ -64,6 +64,10 @@ extension's Details page if you care.
 | `src/video-id.js` | pure | `https://www.youtube.com/watch?v=<id>` → the 11-character ID, anything else → null; `isVideoId` |
 | `src/page-state.js` | pure | Page events → `{phase: idle/leaving/watching, videoId, adShowing, hasVideoElement, generation}`; `shouldMute`, `isFilterable` |
 | `src/page.js` | adapter (injected DOM) | `watchPage({document, window, onChange})`: YouTube's navigation events, the `<video>`, `#movie_player.ad-showing`, pagehide → page-state events |
+| `src/coverage.js` | pure | Coverage intervals: `normaliseCoverage` (sort, merge touching), `coveredAhead`, `coveredRunEnd`, `contains` |
+| `src/gate.js` | pure | The Playback Gate: `decideGate(input)` → `{action: hold/release/none, reason, heldByUs, resume}` and `gateOverlay(input)` → what the overlay says |
+| `src/gate-controller.js` | adapter (injected video, clock) | Applies gate decisions to the `<video>`: pauses for a hold, plays only its own holds, tells the user's pauses and play presses from its own |
+| `src/overlay.js` | adapter (injected document) | The overlay in `#movie_player` (closed shadow root) with the "Watch unfiltered" button |
 
 ### Talking to the service
 
