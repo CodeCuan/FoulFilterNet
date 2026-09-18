@@ -57,17 +57,19 @@ extension's Details page if you care.
 | `src/protocol.js` | pure | Messages between pages and the service worker, their validators, and `createMessenger` |
 | `src/relay.js` | pure (injected) | What the service worker does with one message |
 | `src/connection.js` | pure | Sentences for the user about the connection |
-| `src/background.js` | adapter | Service worker: `runtime.onMessage` → relay |
+| `src/background.js` | adapter | Service worker: `runtime.onMessage` → relay (including `ff/badge`, applied to the sender's tab through `chrome.action`) |
 | `options.html`, `src/options.js` | adapter | Options page and "Test connection" |
 | `src/content-loader.js` | adapter (classic) | Content script: loads `src/content.js` as a module |
-| `src/content.js` | adapter (module) | Content script entry point: starts the page watcher and keeps its state (W15 wires the rest); `localStorage.ffDebug = '1'` on YouTube logs state changes |
+| `src/content.js` | adapter (module) | Content script entry point: hands the real browser to `content-app.js`; `localStorage.ffDebug = '1'` on YouTube logs every session event |
+| `src/content-app.js` | adapter (injected everything) | The wiring (W15): page watcher → session reducer → gate controller, censor controller, overlay, badge and the heartbeat timer; one gate + censor controller per `<video>`; attaches the audio graph on the first `play` |
+| `src/session.js` | pure | The content script's reducer: page, heartbeat replies (generation- and sequence-tagged), settings, "Watch unfiltered", audio attach → state; derives the heartbeat cadence and request, the W13 gate input, censor mode, overlay and badge. Holds the failure policy (error tolerance, miniplayer mute) |
 | `src/video-id.js` | pure | `https://www.youtube.com/watch?v=<id>` → the 11-character ID, anything else → null; `isVideoId` |
 | `src/page-state.js` | pure | Page events → `{phase: idle/leaving/watching, videoId, adShowing, hasVideoElement, generation}`; `shouldMute`, `isFilterable` |
 | `src/page.js` | adapter (injected DOM) | `watchPage({document, window, onChange})`: YouTube's navigation events, the `<video>`, `#movie_player.ad-showing`, pagehide → page-state events |
 | `src/coverage.js` | pure | Coverage intervals: `normaliseCoverage` (sort, merge touching), `coveredAhead`, `coveredRunEnd`, `contains` |
 | `src/gate.js` | pure | The Playback Gate: `decideGate(input)` → `{action: hold/release/none, reason, heldByUs, resume}` and `gateOverlay(input)` → what the overlay says |
 | `src/gate-controller.js` | adapter (injected video, clock) | Applies gate decisions to the `<video>`: pauses for a hold, plays only its own holds, tells the user's pauses and play presses from its own |
-| `src/overlay.js` | adapter (injected document) | The overlay in `#movie_player` (closed shadow root) with the "Watch unfiltered" button |
+| `src/overlay.js` | adapter (injected document) | The overlay in `#movie_player` (closed shadow root) with the "Watch unfiltered" button, and "Enable sound" for a suspended AudioContext |
 | `src/schedule.js` | pure | Live Censoring's plan: Hits + playhead + rate + audio clock → `{closedNow, events: [{time, gain}]}` on the AudioContext clock for the next 2 s; `isInsideHit`, `samePlan` |
 | `src/audio-graph.js` | adapter (injected AudioContext factory) | One AudioContext per page, never closed; one `MediaElementSource` per `<video>` (WeakMap); programme gain and a 1 kHz bleep gain; `InvalidStateError` → `{kind: 'audio'}` |
 | `src/censor-controller.js` | adapter (injected video, graph, timers) | Re-plans every 100 ms and on media events while really playing (ADR-0007); modes `filter`/`mute`/`open`; skips unchanged plans |
@@ -86,6 +88,7 @@ result back:
 | `getMessage({provider, videoId, since?, session?})` → `ff/get` | `GET /watch/{provider}/{id}` | `{ok: true, view}`; no session is `http` 404 |
 | `cancelMessage({provider, videoId})` → `ff/cancel` | `DELETE /watch/{provider}/{id}` | `{ok: true, cancelled}` (404 → `cancelled: false`) |
 | `configMessage({serverUrl?})` → `ff/config` | `GET /config` (at `serverUrl` if given, else the saved one) | `{ok: true, config}` |
+| `badgeMessage({text, color, title})` → `ff/badge` | none: `chrome.action` badge text (≤ 4 characters), `#rrggbb` colour and tooltip on the sender's tab | `{ok: true}`; from a page with no tab, `invalid_request` |
 
 Every failure is `{ok: false, error: {kind, status?, detail?}}` with `kind`
 one of `unreachable`, `timeout` (3 s), `http`, `bad_response`,

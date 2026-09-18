@@ -18,12 +18,13 @@ import {
 const VIDEO = { provider: 'youtube', videoId: 'YwARwww5aFo' };
 
 describe('MessageType', () => {
-  it('names the four messages', () => {
+  it('names the five messages', () => {
     assert.deepEqual({ ...MessageType }, {
       HEARTBEAT: 'ff/heartbeat',
       GET: 'ff/get',
       CANCEL: 'ff/cancel',
       CONFIG: 'ff/config',
+      BADGE: 'ff/badge',
     });
   });
 

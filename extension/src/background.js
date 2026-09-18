@@ -1,7 +1,8 @@
 // The service worker (an ES module). A thin adapter: it relays content-script
 // and options-page messages to the local service and replies with the result.
-// All the logic is in relay.js; nothing is kept between messages, because MV3
-// stops an idle worker.
+// It also sets the toolbar badge a content script asks for (`ff/badge`) on
+// that script's tab. All the logic is in relay.js; nothing is kept between
+// messages, because MV3 stops an idle worker.
 
 import { isFromExtension, isProtocolMessage } from './protocol.js';
 import { createRelay } from './relay.js';
@@ -13,6 +14,7 @@ const relay = createRelay({
   loadSettings: store.load,
   // Wrapped so fetch is always called with the global as `this`.
   fetch: (input, init) => fetch(input, init),
+  action: chrome.action,
 });
 
 // Registered synchronously at the top level, as MV3 requires, so a message
@@ -21,6 +23,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!isProtocolMessage(message) || !isFromExtension(sender, chrome.runtime.id)) {
     return false;
   }
-  relay.handle(message).then(sendResponse);
+  relay.handle(message, sender).then(sendResponse);
   return true; // the reply is sent asynchronously
 });

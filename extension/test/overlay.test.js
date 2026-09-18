@@ -4,7 +4,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createOverlay, OVERLAY_HOST_ID, UNFILTERED_LABEL } from '../src/overlay.js';
+import { createOverlay, ENABLE_LABEL, OVERLAY_HOST_ID, UNFILTERED_LABEL } from '../src/overlay.js';
 import { HIDDEN_OVERLAY } from '../src/gate.js';
 
 class FakeStyle {
@@ -296,5 +296,106 @@ describe('overlay: destroy', () => {
     overlay.render(MODEL, player);
     overlay.destroy();
     assert.doesNotThrow(() => overlay.destroy());
+  });
+});
+
+describe('overlay: the Enable sound button (W15)', () => {
+  function withEnable() {
+    const clicks = { unfiltered: 0, enable: 0 };
+    const overlay = createOverlay({
+      document: fakeDocument,
+      onUnfiltered: () => clicks.unfiltered++,
+      onEnable: () => clicks.enable++,
+    });
+    const player = new FakeElement('div');
+    const buttons = () => [...overlay.host.shadow.walk()].filter((e) => e.tagName === 'BUTTON');
+    const enable = () => buttons().find((b) => b.textContent === ENABLE_LABEL);
+    return { overlay, player, clicks, buttons, enable };
+  }
+
+  it('is labelled Enable sound', () => {
+    assert.equal(ENABLE_LABEL, 'Enable sound');
+  });
+
+  it('comes after the Watch unfiltered button', () => {
+    assert.deepEqual(withEnable().buttons().map((b) => b.textContent), [UNFILTERED_LABEL, ENABLE_LABEL]);
+  });
+
+  it('is hidden before any render', () => {
+    assert.equal(withEnable().enable().hidden, true);
+  });
+
+  it('is hidden for a model that does not ask for it', () => {
+    const s = withEnable();
+    s.overlay.render(MODEL, s.player);
+    assert.equal(s.enable().hidden, true);
+  });
+
+  it('is shown when the model asks for it', () => {
+    const s = withEnable();
+    s.overlay.render({ ...MODEL, showEnable: true }, s.player);
+    assert.equal(s.enable().hidden, false);
+  });
+
+  it('is hidden again by the next model that does not ask', () => {
+    const s = withEnable();
+    s.overlay.render({ ...MODEL, showEnable: true }, s.player);
+    s.overlay.render(MODEL, s.player);
+    assert.equal(s.enable().hidden, true);
+  });
+
+  it('is shown only for exactly true', () => {
+    const s = withEnable();
+    s.overlay.render({ ...MODEL, showEnable: 'yes' }, s.player);
+    assert.equal(s.enable().hidden, true);
+  });
+
+  it('takes pointer events', () => {
+    assert.equal(withEnable().enable().style.get('pointer-events'), 'auto');
+  });
+
+  it('is a plain button', () => {
+    assert.equal(withEnable().enable().type, 'button');
+  });
+
+  it('calls onEnable on click', () => {
+    const s = withEnable();
+    s.enable().dispatchEvent(new Event('click', { cancelable: true }));
+    assert.equal(s.clicks.enable, 1);
+  });
+
+  it('does not call onUnfiltered', () => {
+    const s = withEnable();
+    s.enable().dispatchEvent(new Event('click', { cancelable: true }));
+    assert.equal(s.clicks.unfiltered, 0);
+  });
+
+  it('stops its click reaching the player', () => {
+    const s = withEnable();
+    const event = new Event('click', { cancelable: true });
+    let stopped = false;
+    event.stopPropagation = () => (stopped = true);
+    s.enable().dispatchEvent(event);
+    assert.equal(stopped, true);
+  });
+
+  it('prevents the default action', () => {
+    const s = withEnable();
+    const event = new Event('click', { cancelable: true });
+    s.enable().dispatchEvent(event);
+    assert.equal(event.defaultPrevented, true);
+  });
+
+  it('is harmless to click with no onEnable', () => {
+    const { overlay } = setup();
+    const enable = [...overlay.host.shadow.walk()].find((e) => e.textContent === ENABLE_LABEL);
+    assert.doesNotThrow(() => enable.dispatchEvent(new Event('click', { cancelable: true })));
+  });
+
+  it('stops listening after destroy', () => {
+    const s = withEnable();
+    s.overlay.destroy();
+    s.enable().dispatchEvent(new Event('click'));
+    assert.equal(s.clicks.enable, 0);
   });
 });

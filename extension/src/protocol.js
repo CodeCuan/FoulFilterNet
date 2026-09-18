@@ -16,7 +16,8 @@
  * @typedef {{ type: 'ff/get', provider: string, videoId: string, since: number | null, session: string | null }} GetMessage
  * @typedef {{ type: 'ff/cancel', provider: string, videoId: string }} CancelMessage
  * @typedef {{ type: 'ff/config', serverUrl: string | null }} ConfigMessage
- * @typedef {HeartbeatMessage | GetMessage | CancelMessage | ConfigMessage} Message
+ * @typedef {{ type: 'ff/badge', text: string, color: string, title: string }} BadgeMessage
+ * @typedef {HeartbeatMessage | GetMessage | CancelMessage | ConfigMessage | BadgeMessage} Message
  *
  * @typedef {{ ok: true, [key: string]: unknown } | Failure} Reply
  */
@@ -26,7 +27,17 @@ export const MessageType = Object.freeze({
   GET: /** @type {'ff/get'} */ ('ff/get'),
   CANCEL: /** @type {'ff/cancel'} */ ('ff/cancel'),
   CONFIG: /** @type {'ff/config'} */ ('ff/config'),
+  BADGE: /** @type {'ff/badge'} */ ('ff/badge'),
 });
+
+/** The most characters a badge's text may have (Chrome shows about four). */
+export const BADGE_TEXT_MAX = 4;
+
+/** The most characters a badge's tooltip may have. */
+export const BADGE_TITLE_MAX = 300;
+
+/** A badge colour: `#rrggbb`. */
+const BADGE_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 const TYPES = new Set(Object.values(MessageType));
 
@@ -68,6 +79,17 @@ export function cancelMessage({ provider, videoId }) {
  */
 export function configMessage({ serverUrl = null } = {}) {
   return { type: MessageType.CONFIG, serverUrl };
+}
+
+/**
+ * The toolbar badge a content script wants for its tab (W15). The service
+ * worker applies it to the sender's tab.
+ *
+ * @param {{ text: string, color: string, title: string }} args
+ * @returns {BadgeMessage}
+ */
+export function badgeMessage({ text, color, title }) {
+  return { type: MessageType.BADGE, text, color, title };
 }
 
 /**
@@ -113,6 +135,19 @@ export function parseMessage(raw) {
       return invalid('serverUrl must be a string or null.');
     }
     return { ok: true, message: configMessage({ serverUrl: raw.serverUrl ?? null }) };
+  }
+
+  if (raw.type === MessageType.BADGE) {
+    if (typeof raw.text !== 'string' || [...raw.text].length > BADGE_TEXT_MAX) {
+      return invalid(`text must be a string of at most ${BADGE_TEXT_MAX} characters.`);
+    }
+    if (typeof raw.color !== 'string' || !BADGE_COLOR.test(raw.color)) {
+      return invalid('color must be #rrggbb.');
+    }
+    if (typeof raw.title !== 'string' || raw.title.length > BADGE_TITLE_MAX) {
+      return invalid(`title must be a string of at most ${BADGE_TITLE_MAX} characters.`);
+    }
+    return { ok: true, message: badgeMessage({ text: raw.text, color: raw.color, title: raw.title }) };
   }
 
   if (typeof raw.provider !== 'string' || typeof raw.videoId !== 'string') {

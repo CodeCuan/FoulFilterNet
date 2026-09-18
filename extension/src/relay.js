@@ -10,6 +10,12 @@ import { DEFAULT_SETTINGS, normaliseServerUrl } from './settings.js';
  * @typedef {import('./settings.js').Settings} Settings
  * @typedef {import('./protocol.js').Reply} Reply
  * @typedef {import('./api-client.js').FetchLike} FetchLike
+ * @typedef {import('./protocol.js').BadgeMessage} BadgeMessage
+ *
+ * @typedef {object} ActionLike  The parts of `chrome.action` used for the badge.
+ * @property {(details: { tabId: number, text: string }) => Promise<void> | void} setBadgeText
+ * @property {(details: { tabId: number, color: string }) => Promise<void> | void} setBadgeBackgroundColor
+ * @property {(details: { tabId: number, title: string }) => Promise<void> | void} setTitle
  */
 
 /**
@@ -19,9 +25,10 @@ import { DEFAULT_SETTINGS, normaliseServerUrl } from './settings.js';
  * @param {number} [dependencies.timeoutMs]
  * @param {typeof setTimeout} [dependencies.setTimeout]
  * @param {typeof clearTimeout} [dependencies.clearTimeout]
- * @returns {{ handle: (raw: unknown) => Promise<Reply> }}
+ * @param {ActionLike} [dependencies.action]  `chrome.action`, for `ff/badge`.
+ * @returns {{ handle: (raw: unknown, sender?: unknown) => Promise<Reply> }}
  */
-export function createRelay({ loadSettings, fetch, timeoutMs = DEFAULT_TIMEOUT_MS, setTimeout, clearTimeout }) {
+export function createRelay({ loadSettings, fetch, timeoutMs = DEFAULT_TIMEOUT_MS, setTimeout, clearTimeout, action }) {
   /** @param {string} serverUrl */
   const clientFor = (serverUrl) => createApiClient({ serverUrl, fetch, timeoutMs, setTimeout, clearTimeout });
 
@@ -35,10 +42,35 @@ export function createRelay({ loadSettings, fetch, timeoutMs = DEFAULT_TIMEOUT_M
   }
 
   /**
-   * @param {unknown} raw
+   * Show a content script's badge on its own tab. Only a message from a tab
+   * has one; the options page cannot set a badge.
+   *
+   * @param {BadgeMessage} message
+   * @param {unknown} sender
    * @returns {Promise<Reply>}
    */
-  async function handle(raw) {
+  async function showBadge(message, sender) {
+    const tabId = /** @type {any} */ (sender)?.tab?.id;
+    if (!Number.isSafeInteger(tabId) || tabId < 0) {
+      return failureReply('invalid_request', 'A badge can only be set from a tab.');
+    }
+    if (!action) {
+      return failureReply(EXTENSION_ERROR, 'The toolbar button is not available.');
+    }
+    await Promise.all([
+      action.setBadgeText({ tabId, text: message.text }),
+      action.setBadgeBackgroundColor({ tabId, color: message.color }),
+      action.setTitle({ tabId, title: message.title }),
+    ]);
+    return { ok: true };
+  }
+
+  /**
+   * @param {unknown} raw
+   * @param {unknown} [sender]  The `chrome.runtime.MessageSender`; needed for `ff/badge`.
+   * @returns {Promise<Reply>}
+   */
+  async function handle(raw, sender) {
     const parsed = parseMessage(raw);
     if (!parsed.ok) {
       return parsed;
@@ -46,6 +78,10 @@ export function createRelay({ loadSettings, fetch, timeoutMs = DEFAULT_TIMEOUT_M
     const message = parsed.message;
 
     try {
+      if (message.type === MessageType.BADGE) {
+        return await showBadge(message, sender);
+      }
+
       if (message.type === MessageType.CONFIG && message.serverUrl !== null) {
         const url = normaliseServerUrl(message.serverUrl);
         if (!url.ok) {

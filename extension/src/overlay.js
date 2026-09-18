@@ -14,6 +14,9 @@
 //   otherwise take it as a click on the video (play/pause).
 // - `render(model, player)` moves the host into `player` when the player
 //   changed (YouTube can replace it) and takes it out when `player` is null.
+// - W15 adds a second button, "Enable sound" (`model.showEnable`), for a
+//   suspended AudioContext: its click is the user gesture Chrome's autoplay
+//   policy wants before `resume()` may succeed. Hidden unless asked.
 
 /**
  * @typedef {import('./gate.js').OverlayModel} OverlayModel
@@ -26,6 +29,8 @@
 export const OVERLAY_HOST_ID = 'foulfilter-gate-overlay';
 
 export const UNFILTERED_LABEL = 'Watch unfiltered';
+
+export const ENABLE_LABEL = 'Enable sound';
 
 /**
  * @param {StyledElement} element
@@ -41,8 +46,9 @@ function styleOf(element, properties) {
  * @param {object} options
  * @param {Document} options.document
  * @param {() => void} options.onUnfiltered  The user clicked "Watch unfiltered".
+ * @param {() => void} [options.onEnable]  The user clicked "Enable sound".
  */
-export function createOverlay({ document, onUnfiltered }) {
+export function createOverlay({ document, onUnfiltered, onEnable }) {
   const host = document.createElement('div');
   host.id = OVERLAY_HOST_ID;
   styleOf(host, {
@@ -83,20 +89,30 @@ export function createOverlay({ document, onUnfiltered }) {
   const detail = document.createElement('div');
   styleOf(detail, { 'margin-top': '6px' });
 
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = UNFILTERED_LABEL;
-  styleOf(button, {
-    'margin-top': '12px',
-    padding: '6px 14px',
-    border: '1px solid #fff',
-    'border-radius': '4px',
-    background: 'transparent',
-    color: '#fff',
-    font: 'inherit',
-    cursor: 'pointer',
-    'pointer-events': 'auto',
-  });
+  /** @param {string} label */
+  function makeButton(label) {
+    const made = document.createElement('button');
+    made.type = 'button';
+    made.textContent = label;
+    styleOf(made, {
+      'margin-top': '12px',
+      'margin-left': '4px',
+      'margin-right': '4px',
+      padding: '6px 14px',
+      border: '1px solid #fff',
+      'border-radius': '4px',
+      background: 'transparent',
+      color: '#fff',
+      font: 'inherit',
+      cursor: 'pointer',
+      'pointer-events': 'auto',
+    });
+    return made;
+  }
+
+  const button = makeButton(UNFILTERED_LABEL);
+  const enableButton = makeButton(ENABLE_LABEL);
+  enableButton.hidden = true;
 
   /** @param {Event} event */
   function onClick(event) {
@@ -104,9 +120,16 @@ export function createOverlay({ document, onUnfiltered }) {
     event.preventDefault();
     onUnfiltered();
   }
+  /** @param {Event} event */
+  function onEnableClick(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    onEnable?.();
+  }
   button.addEventListener('click', onClick);
+  enableButton.addEventListener('click', onEnableClick);
 
-  panel.append(title, detail, button);
+  panel.append(title, detail, button, enableButton);
   root.append(panel);
 
   let destroyed = false;
@@ -138,6 +161,7 @@ export function createOverlay({ document, onUnfiltered }) {
       percent.textContent = typeof model.percent === 'number' ? ` ${model.percent}%` : '';
       detail.textContent = model.detail;
       button.hidden = !model.showUnfiltered;
+      enableButton.hidden = !(/** @type {any} */ (model).showEnable === true);
       host.style.setProperty('display', 'block', 'important');
     },
 
@@ -146,6 +170,7 @@ export function createOverlay({ document, onUnfiltered }) {
       if (destroyed) return;
       destroyed = true;
       button.removeEventListener('click', onClick);
+      enableButton.removeEventListener('click', onEnableClick);
       host.remove();
     },
   };
