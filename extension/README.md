@@ -60,7 +60,10 @@ extension's Details page if you care.
 | `src/background.js` | adapter | Service worker: `runtime.onMessage` → relay |
 | `options.html`, `src/options.js` | adapter | Options page and "Test connection" |
 | `src/content-loader.js` | adapter (classic) | Content script: loads `src/content.js` as a module |
-| `src/content.js` | adapter (module) | Content script entry point (empty until W12/W15) |
+| `src/content.js` | adapter (module) | Content script entry point: starts the page watcher and keeps its state (W15 wires the rest); `localStorage.ffDebug = '1'` on YouTube logs state changes |
+| `src/video-id.js` | pure | `https://www.youtube.com/watch?v=<id>` → the 11-character ID, anything else → null; `isVideoId` |
+| `src/page-state.js` | pure | Page events → `{phase: idle/leaving/watching, videoId, adShowing, hasVideoElement, generation}`; `shouldMute`, `isFilterable` |
+| `src/page.js` | adapter (injected DOM) | `watchPage({document, window, onChange})`: YouTube's navigation events, the `<video>`, `#movie_player.ad-showing`, pagehide → page-state events |
 
 ### Talking to the service
 

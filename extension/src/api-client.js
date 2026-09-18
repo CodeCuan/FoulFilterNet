@@ -4,6 +4,8 @@
 // value - `{ ok: true, ... }` or `{ ok: false, error }` - and never rejects,
 // so the service worker can pass the answer straight back to the page.
 
+import { isVideoId } from './video-id.js';
+
 /**
  * @typedef {'queued' | 'fetching' | 'preparing' | 'transcribing' | 'complete' | 'failed' | 'unsupported' | 'cancelled'} WatchState
  *
@@ -85,8 +87,6 @@ export const WATCH_STATES = Object.freeze([
 
 /** Providers the service accepts (VideoRef). */
 export const PROVIDERS = Object.freeze(['youtube']);
-
-const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
 /**
  * @param {object} options
@@ -406,7 +406,7 @@ function checkVideo(args) {
   if (!PROVIDERS.includes(/** @type {string} */ (args.provider))) {
     return `provider must be one of: ${PROVIDERS.join(', ')}.`;
   }
-  if (typeof args.videoId !== 'string' || !VIDEO_ID.test(args.videoId)) {
+  if (!isVideoId(args.videoId)) {
     return 'videoId must be 11 characters from A-Z, a-z, 0-9, _ and -.';
   }
   return null;
