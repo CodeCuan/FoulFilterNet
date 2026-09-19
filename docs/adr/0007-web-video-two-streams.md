@@ -193,6 +193,53 @@ the 60-minute video, long before the playhead needs anything past 120 s.
   treat that warning on stderr as a degraded state) rather than letting it
   surface later as missing formats.
 
+### Measurements after W17
+
+Measured 2026-09-20 on the same machine, through the real HTTP API: a script
+POSTed `/watch` at 1 Hz (the extension's heartbeat) from position 0 and GETed it
+every 50 ms in between, against a published build of `main` (`f403dd1`,
+"before") and of the W17 branch (`3483f2e`, "after"), the same two videos, a
+scratch data directory, and the Transcript cache deleted before every first
+view. "Cold" is a freshly started process (no model resident); "warm" is a
+process that has already transcribed a video. The figure is the **median**, with
+the range and the number of runs.
+
+**Time from the first `POST /watch` to 30 s of Coverage ahead of the playhead** —
+what the Playback Gate waits for before it releases:
+
+| | before | after |
+|---|---|---|
+| 60 min (`2SXr48OYxbA`), cold model | 19.4 s (19.1–20.4, 4) | **9.6 s** (8.0–13.3, 5) |
+| 60 min, warm model | 18.4 s (16.1–18.6, 4) | **9.2 s** (8.5–10.5, 4) |
+| 10 min (`YwARwww5aFo`), cold model | 9.7 s (9.1–10.3, 4) | **6.8 s** (6.6–7.0, 4) |
+| 10 min, warm model | 7.5 s (7.5–8.8, 4) | **6.5 s** (6.0–7.5, 4) |
+
+Where the 60-minute cold time goes, before and after:
+
+| Step | before | after |
+|---|---|---|
+| First answer | `queued` at 0.07 s | `fetching` at 0.08 s |
+| Fetch (one yt-dlp call: metadata + download) | 6.6–7.7 s | 5.8–8.3 s |
+| Prepare → `transcribing` | 10.9 s (whole file converted, **then** the model loaded) | **0.32 s** (120 s head; the model loaded during the fetch) |
+| Windows 0 and 1 (46 s of Coverage) | 1.7 s | 1.6–1.9 s |
+
+**Second view of a cached video** (Transcript on disk, session evicted): before,
+the session is Complete on the server at 0.14 s but the *first* answer is still
+`queued`, so the extension holds until its next heartbeat (about 1 s — harness
+H3). After, the first answer is already `complete` with its Hits, at 0.08 s.
+
+**Whole-video time is unchanged**: 60 minutes completes in 147.4 s before and
+147.9–151.4 s after (four runs); 10 minutes in 29.2–30.4 s before and
+26.6–28.6 s after. The saved Transcripts are byte-identical between the two
+builds for both videos (12 804 and 1 940 words).
+
+What this says: the target — 30 s of Coverage in under 10 s with a cold model on
+a 60-minute video — is met at the median, and a cold model now costs nothing
+measurable, but the spread is real: 3 of the 5 cold runs came in at 8.0, 8.2 and
+9.6 s and two at 10.7 and 13.3 s. Everything W17 could reach is now under a
+second; **the whole remaining budget is yt-dlp's single fetch call** (5.8–8.3 s,
+network-bound), which is where any further work has to go.
+
 ### Browser spike (W01a)
 
 Measured 2026-09-17 on real, signed-out YouTube watch pages (region AU, no

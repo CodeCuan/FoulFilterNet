@@ -143,12 +143,16 @@ Found while running it:
   The extension silences exactly what the service sends; the timing is
   Whisper's. One Hit (97.24–98.40 s) ends only 2 ms after its word, so the
   padding only just covered it.
-- **Finding (latency, for W17):** a seek does not send a heartbeat at once. The
-  next one goes on the 1 s cadence, so the server keeps choosing windows from
-  the old playhead for up to a second (H4).
-- **Finding (latency, for W17):** a cached video's first reply is `queued`,
-  because the cache lookup has not finished when the first heartbeat is
-  answered. The gate therefore holds for one heartbeat, about 1 s (H3).
+- **Finding (latency, for W17) — fixed in W17:** a seek did not send a heartbeat
+  at once. The next one went on the 1 s cadence, so the server kept choosing
+  windows from the old playhead for up to a second (H4). A `seeking` event now
+  makes the next heartbeat due immediately, and the cadence is 250 ms while the
+  session is starting up.
+- **Finding (latency, for W17) — fixed in W17:** a cached video's first reply was
+  `queued`, because the cache lookup had not finished when the first heartbeat
+  was answered. The gate therefore held for one heartbeat, about 1 s (H3). The
+  first reply now waits up to `Watch:FirstAnswerWait` (500 ms) for the lookup
+  and comes back `complete` with its Hits in under 0.1 s.
 - **Measured:** speech onsets in the raw analyser came 40–50 ms after the
   manifest's word starts. That is the analyser block plus clock alignment, well
   inside the 0.15 s lead padding.
@@ -203,8 +207,8 @@ your list in its first minute. A 10–20 minute video is ideal. Note its ID.
 
 | # | Check | How | Expected | Result |
 |---|---|---|---|---|
-| 1 | First view | Open the video in a new tab and press play if it does not start. | The overlay says FoulFilter is preparing, with a percent, and playback is held. It starts by itself within about 10–25 s (W01 measured 11–24 s; W17 will shorten it). The badge goes `…` then `✓`. Every listed word is silent (or bleeped); the words around it are not cut. | |
-| 2 | Second view (cached) | Close the tab. Wait over 30 minutes, or restart the service (the cache is on disk). Open the same video again. | It plays at once, or after at most about 1 s (see H3). No preparing overlay. Every word is still censored. `GET /watch/youtube/<id>` shows `"from_cache": true`. | |
+| 1 | First view | Open the video in a new tab and press play if it does not start. | The overlay says FoulFilter is preparing, with a percent, and playback is held. It starts by itself within about 6–10 s (W17 measured, from opening the video to 30 s of Coverage: 9.6 s median for a 60-minute video with a cold model, 6.8 s for a 10-minute one; most of that is yt-dlp fetching the audio, so a slow connection is slower). The badge goes `…` then `✓`. Every listed word is silent (or bleeped); the words around it are not cut. | |
+| 2 | Second view (cached) | Close the tab. Wait over 30 minutes, or restart the service (the cache is on disk). Open the same video again. | It plays at once: since W17 the very first reply is `complete` with its Hits (measured 0.08 s), so the ~1 s hold H3 saw is gone. No preparing overlay. Every word is still censored. `GET /watch/youtube/<id>` shows `"from_cache": true`. | |
 | 3 | Seek ahead | In a new, uncached video, drag the playhead well ahead, e.g. to 10:00, soon after it starts. | If that point is not covered yet, it holds briefly (`preparing`) and resumes. Words after the seek are censored. It never plays uncovered audio. | |
 | 4 | 2× speed | Settings → Playback speed → 2. | Words are still censored. The gate needs 2× as much coverage ahead (16 s to hold, 60 s to release). | |
 | 5 | Ad break | Play a video with ads, e.g. from the home page while signed out. | During the ad: no overlay, no hold, sound not filtered, badge `AD`. After the ad, filtering resumes on the video (`✓`), and a word right after the ad is censored. | |
