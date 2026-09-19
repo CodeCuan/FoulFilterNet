@@ -1,7 +1,9 @@
 # FoulFilterNet
 
 FoulFilterNet finds profanity in audio and video files and edits it out
-(silence, bleep, or cut), built for long-form media such as audiobooks. It is a
+(silence, bleep, or cut), built for long-form media such as audiobooks; it also
+censors a YouTube video as it plays, through a Chrome extension (see *Web video*
+below). It is a
 .NET 10 port of the Python FoulFilter, which is kept unmodified under
 [`Legacy/`](Legacy) as the behavioural reference; its own vocabulary is in
 [Legacy/CONTEXT.md](Legacy/CONTEXT.md).
@@ -118,7 +120,8 @@ turn replaced with ADR-0006.
 
 Filtering a YouTube video live as it plays, rather than editing a file
 ([04-web-video-plan.md](docs/04-web-video-plan.md),
-[ADR-0007](docs/adr/0007-web-video-two-streams.md)).
+[ADR-0007](docs/adr/0007-web-video-two-streams.md); how to run it is in
+[README.md](README.md#watching-web-video)).
 
 **Web Video**:
 A video identified by a provider and that provider's ID (`youtube`,
@@ -130,17 +133,30 @@ _Avoid_: URL (a URL is only one way to name it)
 The server's work to make one Web Video safe to watch: fetching its audio,
 transcribing it window by window, and serving Hits as they are confirmed. It
 lasts only while it is being watched, and ends after a period with no heartbeat.
-The Transcript it builds outlives it (ADR-0002).
+The Transcript it builds outlives it (ADR-0002). Its states are Queued →
+Fetching → Preparing → Transcribing → Complete, or Failed, Unsupported
+(a livestream, say) or Cancelled — cancelled by the viewer, or by idle expiry.
+One session serves every viewer of the same Web Video.
 _Avoid_: job (a Job turns one file into another file), stream
 
+**Heartbeat**:
+The extension's poll of `POST /watch`, about once a second while a watch page is
+open. It starts the Watch Session if there is none, carries the playhead (which
+decides which window is transcribed next), keeps the session alive, and is
+answered with the current snapshot.
+
 **Coverage**:
-The parts of a Web Video's timeline whose Hits are final. It is a set of
-intervals, not one high-water mark, because a seek can have windows transcribed
-out of order.
+The parts of a Web Video's timeline whose Hits are final: the union of the
+finished windows' shares, trimmed by a 1 s **guard** at an edge whose
+neighbouring window is not finished, where a phrase or its padding could still
+run across. It is a set of intervals, not one high-water mark, because a seek
+can have windows transcribed out of order.
 
 **Playback Gate**:
 The extension's rule that holds playback while the stretch just ahead of the
-playhead is not covered, and resumes once enough is.
+playhead is not covered, and resumes once enough is. The thresholds are
+wall-clock seconds — hold under 8, release at 30 — so they scale with the
+playback rate.
 
 **Live Censoring**:
 Rendering the Censor Method at playback time by automating the page's audio, as
@@ -177,9 +193,9 @@ under `tests/`:
 | `FoulFilterNet.SmartCut` | Prompt, response parsing, Gemini and OpenAI-compatible transports, the advisor | Domain |
 | `FoulFilterNet.Pipeline` | `MediaPipeline`, transcript cache, hit reconciliation, data locations, legacy variables | Domain, Media, Transcription, SmartCut |
 | `FoulFilterNet.Jobs` | Job queue (`Channel<T>`), worker, event fan-out | Domain, Pipeline |
-| `FoulFilterNet.Sources` | Web Video sources: `VideoRef` parsing and validation, the `IWebAudioSource` contract, the yt-dlp adapter *(scaffolded; filled from W03)* | Domain, Media |
-| `FoulFilterNet.Watch` | Watch Sessions: Coverage, the window scheduler, partial Hit snapshots, the session manager and worker *(scaffolded; filled from W04)* | Domain, Pipeline, Transcription, Sources |
-| `FoulFilterNet.Web` | ASP.NET Core minimal API, SSE, uploads, static UI; composition root | Domain, Pipeline, Jobs |
+| `FoulFilterNet.Sources` | Web Video sources: `VideoRef` parsing and validation, the `IWebAudioSource` contract, the yt-dlp adapter, the development-only `file` provider | Domain, Media |
+| `FoulFilterNet.Watch` | Watch Sessions: Coverage, the window scheduler, partial Hit snapshots (`WatchProgress`), the session, the manager and its sweeper | Domain, Pipeline, Transcription, Sources |
+| `FoulFilterNet.Web` | ASP.NET Core minimal API, SSE, uploads, static UI, the Watch endpoints; composition root | Domain, Pipeline, Jobs, Sources, Watch |
 | `FoulFilterNet.Cli` | `foulfilter`, the `find_and_remove.py` equivalent; composition root | Domain, Media, Pipeline, SmartCut, Transcription |
 | `FoulFilterNet.Evaluation` | `foulfilter-eval`, the `eval_misses.py` equivalent: scores the pipeline against the fixture manifest; composition root | Domain, Media, Pipeline, SmartCut, Transcription |
 
@@ -201,7 +217,9 @@ The Python's deque, lock and 0.5 s poll loop became a `Channel<T>` that one
 unnamed events as jobs progress, with the stage names and percentages the
 unchanged front end expects. A slow subscriber cannot stall the worker. The HTTP
 surface (`/upload`, `/jobs`, `/status/{id}`, `/download/{id}`, `/download_zip`,
-`/events`, `/config`) is the Python's, plus `/health`.
+`/events`, `/config`) is the Python's, plus `/health` and the web video
+endpoints the extension drives (`POST /watch`, `GET`/`DELETE
+/watch/{provider}/{id}`).
 
 ### Configuration and legacy variables
 
@@ -231,7 +249,9 @@ hash that disagrees with its name is a cache miss, never a failed job — and
 writes go to a temporary file moved into place, so an interrupted save cannot
 poison the cache. The Python wrote schema version 3 and the port writes version
 1, so a Transcript left by the Python is a miss and the file is transcribed
-again.
+again. A Web Video has no file to hash, so a Watch Session stores its Transcript
+under the Web Video's key instead (`youtube-<id>_<title>.json`) in the same
+directory; that is what makes a second viewing instant.
 
 ## Architecture decisions
 

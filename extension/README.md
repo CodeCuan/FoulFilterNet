@@ -4,7 +4,9 @@ The Chrome (Manifest V3) half of web video filtering: it censors a YouTube
 video's own audio as it plays, using Hits served by the local FoulFilterNet
 service. The design is in
 [docs/04-web-video-plan.md](../docs/04-web-video-plan.md) and
-[ADR-0007](../docs/adr/0007-web-video-two-streams.md).
+[ADR-0007](../docs/adr/0007-web-video-two-streams.md); what the feature does,
+what it needs installed and how it behaves is in
+[README.md](../README.md#watching-web-video).
 
 ## Rules
 
@@ -34,6 +36,24 @@ After editing any file, click the reload arrow on the extension's card, then
 **reload any open YouTube tabs**: Chrome does not re-inject content scripts
 into pages that were already open, and the old ones lose their connection to
 the extension.
+
+### Options
+
+All five live under one `chrome.storage.sync` key, `settings`
+(`src/settings.js` owns their defaults and validation):
+
+| Option | Default | Notes |
+|---|---|---|
+| **Filter YouTube videos** (`enabled`) | on | Off means no heartbeats, no overlay, no hold, and the audio graph is never attached |
+| **FoulFilterNet server** (`serverUrl`) | `http://localhost:8000` | Any http(s) URL, trimmed, no credentials, query or fragment; another host is a warning, and another origin is requested as a permission when saved (below) |
+| **Censor method** (`censorMethod`) | `silence` | `silence` or `bleep`; `remove` is not available live and is saved as `silence` with a warning (ADR-0004) |
+| **When a video cannot be filtered** (`failPolicy`) | `closed` | V1's only answer: hold it, say why, and offer **Watch unfiltered** |
+| **Timing offset** (`offsetMs`) | `0` | Shifts every Hit, positive being later; a whole number of milliseconds, clamped to ±500. The padding is already 150 ms before and 250 ms after, so this is an escape hatch for an unusual output latency |
+
+The toolbar badge shows what the extension is doing in that tab: `✓` filtering,
+`…` preparing, `AD` standing aside for an ad, `MUTE` the miniplayer muted,
+`OFF` disabled or watching unfiltered, `!` something is wrong. The overlay in
+the player appears only while playback is held.
 
 ### A server somewhere other than `localhost:8000`
 
