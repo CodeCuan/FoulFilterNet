@@ -108,14 +108,54 @@ public sealed class WatchSessionManager : IDisposable, IAsyncDisposable
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">The position is negative, NaN or infinite.</exception>
     /// <exception cref="ObjectDisposedException">The manager has been disposed.</exception>
-    public WatchSnapshot Heartbeat(VideoRef video, double positionSeconds)
+    public WatchSnapshot Heartbeat(VideoRef video, double positionSeconds) =>
+        Beat(video, positionSeconds, out _).Snapshot();
+
+    /// <summary>
+    /// <see cref="Heartbeat"/>, except that a heartbeat which starts a session
+    /// waits up to <see cref="WatchOptions.FirstAnswerWait"/> for the session's
+    /// Transcript cache lookup before answering (W17). A video in the cache is
+    /// then answered <see cref="WatchState.Complete"/> by the very first
+    /// reply, not <see cref="WatchState.Queued"/>, and a miss as soon as it is
+    /// known to be one. A heartbeat for a session that already exists never
+    /// waits.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The position is negative, NaN or infinite.</exception>
+    /// <exception cref="ObjectDisposedException">The manager has been disposed.</exception>
+    /// <exception cref="OperationCanceledException">The caller gave up while it waited.</exception>
+    public async Task<WatchSnapshot> HeartbeatAsync(
+        VideoRef video,
+        double positionSeconds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var session = Beat(video, positionSeconds, out var created);
+
+        if (created && !session.LeftQueue.IsCompleted)
+        {
+            try
+            {
+                await session
+                    .LeftQueue.WaitAsync(_options.FirstAnswerWait, _time, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // A slow cache: answer queued, as a plain heartbeat would.
+            }
+        }
+
+        return session.Snapshot();
+    }
+
+    private WatchSession Beat(VideoRef video, double positionSeconds, out bool created)
     {
         ArgumentNullException.ThrowIfNull(video);
         WatchSession.ThrowIfNotAPosition(positionSeconds);
 
         WatchSession session;
         WatchSession? expired = null;
-        var created = false;
+        created = false;
 
         lock (_gate)
         {
@@ -145,7 +185,7 @@ public sealed class WatchSessionManager : IDisposable, IAsyncDisposable
             session.Start();
         }
 
-        return session.Snapshot();
+        return session;
     }
 
     /// <summary>

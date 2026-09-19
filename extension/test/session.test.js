@@ -12,6 +12,7 @@ import {
   INITIAL_SESSION,
   NO_MEDIA,
   SETTLED_HEARTBEAT_MS,
+  FAST_HEARTBEAT_MS,
   deriveSession,
   gateError,
   gateInput,
@@ -19,11 +20,12 @@ import {
   heartbeatDue,
   heartbeatRequest,
   isMiniplayerMuted,
+  isStartingUp,
   nextHeartbeatAt,
   reduceSession,
   shouldHeartbeat,
 } from '../src/session.js';
-import { HIDDEN_OVERLAY, decideGate, gateOverlay } from '../src/gate.js';
+import { HIDDEN_OVERLAY, RESUME_SECONDS, decideGate, gateOverlay } from '../src/gate.js';
 import { INITIAL_PAGE_STATE } from '../src/page-state.js';
 import { DEFAULT_SETTINGS } from '../src/settings.js';
 
@@ -730,11 +732,15 @@ describe('session: heartbeat cadence', () => {
     assert.equal(heartbeatCadence(watching()), HEARTBEAT_MS);
   });
 
-  for (const state of ['queued', 'fetching', 'preparing', 'transcribing', 'cancelled']) {
-    it(`is 1 s while ${state}`, () => {
-      assert.equal(heartbeatCadence(answered(watching(), view({ state }))), HEARTBEAT_MS);
+  for (const state of ['queued', 'fetching', 'preparing', 'cancelled']) {
+    it(`is 250 ms while ${state} (W17)`, () => {
+      assert.equal(heartbeatCadence(answered(watching(), view({ state }))), FAST_HEARTBEAT_MS);
     });
   }
+
+  it('is 1 s while transcribing with enough covered ahead', () => {
+    assert.equal(heartbeatCadence(answered(watching(), view({ state: 'transcribing' }))), HEARTBEAT_MS);
+  });
 
   for (const state of ['complete', 'failed', 'unsupported']) {
     it(`is 5 s once ${state}`, () => {
@@ -1506,5 +1512,176 @@ describe('session: badge', () => {
 
   it('is frozen', () => {
     assert.ok(Object.isFrozen(badge(watching())));
+  });
+});
+
+describe('session: fast heartbeats while starting up (W17)', () => {
+  it('beats every 250 ms', () => {
+    assert.equal(FAST_HEARTBEAT_MS, 250);
+  });
+
+  it('is faster than the working cadence', () => {
+    assert.ok(FAST_HEARTBEAT_MS < HEARTBEAT_MS);
+  });
+
+  it('is not starting up before any view', () => {
+    assert.equal(isStartingUp(watching()), false);
+  });
+
+  it('is starting up while queued', () => {
+    assert.equal(isStartingUp(answered(watching(), view({ state: 'queued', coverage: [] }))), true);
+  });
+
+  it('is starting up while transcribing with less than the resume threshold ahead', () => {
+    assert.equal(isStartingUp(answered(watching(), view({ coverage: [[0, 24]] }))), true);
+  });
+
+  it('is starting up while transcribing with nothing covered yet', () => {
+    assert.equal(isStartingUp(answered(watching(), view({ coverage: [] }))), true);
+  });
+
+  it('is not once the resume threshold is covered', () => {
+    assert.equal(isStartingUp(answered(watching(), view({ coverage: [[0, RESUME_SECONDS]] }))), false);
+  });
+
+  it('is just short of the resume threshold', () => {
+    assert.equal(isStartingUp(answered(watching(), view({ coverage: [[0, RESUME_SECONDS - 0.01]] }))), true);
+  });
+
+  it('measures from the playhead last reported', () => {
+    const s = reply(sent(watching(), 1000, 20), { ok: true, view: view({ coverage: [[0, 46]] }) });
+    assert.equal(isStartingUp(s), true);
+  });
+
+  it('is not when the covered run reaches the end of the video', () => {
+    const s = reply(sent(watching(), 1000, 630), { ok: true, view: view({ coverage: [[0, 648.8]], duration: 649 }) });
+    assert.equal(isStartingUp(s), false);
+  });
+
+  it('is when the run stops short of the end', () => {
+    const s = reply(sent(watching(), 1000, 630), { ok: true, view: view({ coverage: [[0, 647]], duration: 649 }) });
+    assert.equal(isStartingUp(s), true);
+  });
+
+  it('is when the duration is not known yet', () => {
+    const s = reply(sent(watching(), 1000, 630), { ok: true, view: view({ coverage: [[0, 648.8]], duration: null }) });
+    assert.equal(isStartingUp(s), true);
+  });
+
+  for (const state of ['complete', 'failed', 'unsupported']) {
+    it(`is not once ${state}, even with little covered`, () => {
+      assert.equal(isStartingUp(answered(watching(), view({ state, coverage: [[0, 5]] }))), false);
+    });
+
+    it(`keeps the settled cadence once ${state}`, () => {
+      assert.equal(heartbeatCadence(answered(watching(), view({ state, coverage: [] }))), SETTLED_HEARTBEAT_MS);
+    });
+  }
+
+  it('is not after an error, however early', () => {
+    assert.equal(isStartingUp(errored(answered(watching(), view({ state: 'fetching' })))), false);
+  });
+
+  it('falls back to 1 s after an error', () => {
+    assert.equal(heartbeatCadence(errored(answered(watching(), view({ state: 'fetching' })))), HEARTBEAT_MS);
+  });
+
+  it('speeds up again after a good reply', () => {
+    const s = answered(errored(answered(watching(), view({ state: 'fetching' }))), view({ state: 'fetching' }), 3000);
+    assert.equal(heartbeatCadence(s), FAST_HEARTBEAT_MS);
+  });
+
+  it('keeps the fast cadence across an unchanged reply', () => {
+    const first = answered(watching(), view({ state: 'transcribing', coverage: [[0, 24]] }));
+    const s = answered(first, unchanged({ state: 'transcribing', coverage: [[0, 24]] }), 2000);
+    assert.equal(heartbeatCadence(s), FAST_HEARTBEAT_MS);
+  });
+
+  it('makes the next heartbeat due 250 ms after the last', () => {
+    assert.equal(nextHeartbeatAt(answered(watching(), view({ state: 'fetching' }), 1000)), 1250);
+  });
+
+  it('is not due at 249 ms', () => {
+    assert.equal(heartbeatDue(answered(watching(), view({ state: 'fetching' }), 1000), 1249), false);
+  });
+
+  it('is due at 250 ms', () => {
+    assert.equal(heartbeatDue(answered(watching(), view({ state: 'fetching' }), 1000), 1250), true);
+  });
+});
+
+describe('session: a seek (W17)', () => {
+  const seek = { type: 'seek' };
+
+  it('marks a heartbeat as wanted at once', () => {
+    assert.equal(reduceSession(answered(watching()), seek).seekPending, true);
+  });
+
+  it('starts with none wanted', () => {
+    assert.equal(watching().seekPending, false);
+  });
+
+  it('is ignored when not watching', () => {
+    const idle = run(loaded(), onPage({ phase: 'idle', videoId: null }));
+    assert.equal(reduceSession(idle, seek), idle);
+  });
+
+  it('changes nothing when one is already wanted', () => {
+    const s = reduceSession(answered(watching()), seek);
+    assert.equal(reduceSession(s, seek), s);
+  });
+
+  it('makes the next heartbeat due now', () => {
+    assert.equal(nextHeartbeatAt(reduceSession(answered(watching(), view(), 1000), seek)), 0);
+  });
+
+  it('makes a heartbeat due straight after the last one', () => {
+    assert.equal(heartbeatDue(reduceSession(answered(watching(), view(), 1000), seek), 1001), true);
+  });
+
+  it('does so once settled too', () => {
+    const s = reduceSession(answered(watching(), view({ state: 'complete' }), 1000), seek);
+    assert.equal(heartbeatDue(s, 1001), true);
+  });
+
+  it('waits for the heartbeat in flight', () => {
+    const s = reduceSession(sent(answered(watching(), view(), 1000), 1500), seek);
+    assert.deepEqual([heartbeatDue(s, 1600), nextHeartbeatAt(s)], [false, 1500 + INFLIGHT_TIMEOUT_MS]);
+  });
+
+  it('is due as soon as the heartbeat in flight is answered', () => {
+    const inFlight = reduceSession(sent(answered(watching(), view(), 1000), 1500), seek);
+    const s = reply(inFlight, { ok: true, view: view() });
+    assert.deepEqual([heartbeatDue(s, 1600), nextHeartbeatAt(s)], [true, 0]);
+  });
+
+  it('is cleared by the heartbeat that goes out', () => {
+    const s = sent(reduceSession(answered(watching(), view(), 1000), seek), 1001, 300);
+    assert.equal(s.seekPending, false);
+  });
+
+  it('returns to the cadence after that heartbeat is answered', () => {
+    const s = answered(reduceSession(answered(watching(), view(), 1000), seek), view(), 1001);
+    assert.equal(nextHeartbeatAt(s), 1001 + HEARTBEAT_MS);
+  });
+
+  it('is forgotten by a navigation', () => {
+    const s = reduceSession(reduceSession(answered(watching()), seek), onPage({ generation: 2, videoId: B }));
+    assert.equal(s.seekPending, false);
+  });
+
+  it('sends nothing when heartbeats are off', () => {
+    const s = reduceSession(run(loaded({ enabled: false }), onPage()), seek);
+    assert.deepEqual([nextHeartbeatAt(s), heartbeatDue(s, 1e9)], [null, false]);
+  });
+
+  it('sends nothing once unfiltered', () => {
+    const s = reduceSession(reduceSession(answered(watching()), { type: 'unfiltered' }), seek);
+    assert.equal(heartbeatDue(s, 1e9), false);
+  });
+
+  it('carries the new playhead', () => {
+    const s = reduceSession(answered(watching(), view(), 1000), seek);
+    assert.equal(heartbeatRequest(s, media({ position: 300 })).position, 300);
   });
 });

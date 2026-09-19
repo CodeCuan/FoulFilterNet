@@ -19,7 +19,8 @@
 //   It belongs to the element, not the video, so a navigation keeps it.
 // - `inflight`: the heartbeat awaiting its reply, `{generation, seq, at}`;
 //   `nextSeq`; `lastSentAt` (this generation); `lastPosition` (the playhead
-//   last reported, reused during an ad).
+//   last reported, reused during an ad); `seekPending` (the viewer seeked
+//   since the last heartbeat went out: the next one is due at once).
 //
 // Events:
 //   {type: 'page', page}                         the page watcher's state changed
@@ -31,6 +32,7 @@
 //   {type: 'heartbeat-sent', at, position}       a heartbeat went out (ms clock)
 //   {type: 'heartbeat-reply', generation, seq, result}   its reply (a protocol Reply)
 //   {type: 'tick', at}                           time passes: expires a lost heartbeat
+//   {type: 'seek'}                               the element started seeking
 //
 // Decided (W15):
 // - A new generation, or leaving `watching`, forgets the video: view, hits,
@@ -76,8 +78,32 @@
 //   queue), and a wrong guess is audible. The cost: the miniplayer is silent.
 // - `enabled: false`: censor mode `open`, no heartbeats, no overlay, no hold
 //   (the gate sees it as unfiltered), badge OFF.
+//
+// Decided (W17, time to first play):
+// - A seek makes the next heartbeat due at once (or as soon as the one in
+//   flight is answered), so the server picks its next window from the new
+//   playhead without waiting up to a second. Only `seeking` counts:
+//   `currentTime` is already the target then, so `seeked` has nothing new.
+// - While the session is starting up, heartbeats come every
+//   FAST_HEARTBEAT_MS (250 ms) instead of every second: while the view is
+//   `queued`, `fetching`, `preparing` or `cancelled`, and while it is
+//   `transcribing` with less than RESUME_SECONDS covered ahead of the last
+//   playhead reported (short of a run that reaches the end). That is when the
+//   gate is waiting for the next answer to release, so a quicker answer is
+//   a quicker first play. Not after an error (a server that is down is not
+//   asked four times a second), and never once settled.
 
-import { HIDDEN_OVERLAY, HOLD_SECONDS, decideGate, effectiveRate, gateOverlay, mediaAhead } from './gate.js';
+import { coveredAhead, coveredRunEnd } from './coverage.js';
+import {
+  END_TOLERANCE,
+  HIDDEN_OVERLAY,
+  HOLD_SECONDS,
+  RESUME_SECONDS,
+  decideGate,
+  effectiveRate,
+  gateOverlay,
+  mediaAhead,
+} from './gate.js';
 import { INITIAL_PAGE_STATE, isFilterable } from './page-state.js';
 import { DEFAULT_SETTINGS, normaliseSettings } from './settings.js';
 
@@ -114,6 +140,7 @@ import { DEFAULT_SETTINGS, normaliseSettings } from './settings.js';
  * @property {number} nextSeq
  * @property {number | null} lastSentAt
  * @property {number} lastPosition
+ * @property {boolean} seekPending
  *
  * @typedef {object} Media  What the element and the gate controller say now.
  * @property {number} position  `video.currentTime`.
@@ -147,6 +174,9 @@ import { DEFAULT_SETTINGS, normaliseSettings } from './settings.js';
 /** Heartbeat period while the session is working, ms. */
 export const HEARTBEAT_MS = 1000;
 
+/** Heartbeat period while the session is starting up (see "Decided (W17)"), ms. */
+export const FAST_HEARTBEAT_MS = 250;
+
 /** Heartbeat period once the view is complete, failed or unsupported, ms. */
 export const SETTLED_HEARTBEAT_MS = 5000;
 
@@ -158,6 +188,9 @@ export const ERROR_TOLERANCE = 3;
 
 /** View states after which nothing more is coming quickly. */
 const SETTLED_STATES = Object.freeze(['complete', 'failed', 'unsupported']);
+
+/** View states before any Coverage can exist. */
+const STARTING_STATES = Object.freeze(['queued', 'fetching', 'preparing', 'cancelled']);
 
 /** Badge colours. */
 export const BADGE_COLORS = Object.freeze({
@@ -199,6 +232,7 @@ const FRESH_VIDEO = Object.freeze({
   inflight: null,
   lastSentAt: null,
   lastPosition: 0,
+  seekPending: false,
 });
 
 /** @type {Readonly<SessionState>} */
@@ -268,6 +302,8 @@ export function reduceSession(state, event) {
       return onReply(state, event);
     case 'tick':
       return onTick(state, event.at);
+    case 'seek':
+      return state.page.phase === 'watching' ? with_(state, { seekPending: true }) : state;
     default:
       return state;
   }
@@ -313,6 +349,7 @@ function onSent(state, event) {
     nextSeq: state.nextSeq + 1,
     lastSentAt: event.at,
     lastPosition: position,
+    seekPending: false,
   });
 }
 
@@ -400,7 +437,24 @@ export function shouldHeartbeat(state) {
  * @param {SessionState} state
  */
 export function heartbeatCadence(state) {
-  return state.view !== null && SETTLED_STATES.includes(state.view.state) ? SETTLED_HEARTBEAT_MS : HEARTBEAT_MS;
+  if (state.view !== null && SETTLED_STATES.includes(state.view.state)) return SETTLED_HEARTBEAT_MS;
+  return isStartingUp(state) ? FAST_HEARTBEAT_MS : HEARTBEAT_MS;
+}
+
+/**
+ * Whether the session is still getting to its first release (or back to one
+ * after a seek past its coverage): see "Decided (W17)".
+ *
+ * @param {SessionState} state
+ */
+export function isStartingUp(state) {
+  const view = state.view;
+  if (view === null || state.consecutiveErrors > 0) return false;
+  if (STARTING_STATES.includes(view.state)) return true;
+  if (view.state !== 'transcribing') return false;
+  const end = coveredRunEnd(view.coverage, state.lastPosition);
+  if (end !== null && typeof view.duration === 'number' && end >= view.duration - END_TOLERANCE) return false;
+  return coveredAhead(view.coverage, state.lastPosition) < RESUME_SECONDS;
 }
 
 /**
@@ -413,7 +467,7 @@ export function heartbeatCadence(state) {
 export function nextHeartbeatAt(state) {
   if (!shouldHeartbeat(state)) return null;
   if (state.inflight !== null) return state.inflight.at + INFLIGHT_TIMEOUT_MS;
-  if (state.lastSentAt === null) return 0;
+  if (state.lastSentAt === null || state.seekPending) return 0;
   return state.lastSentAt + heartbeatCadence(state);
 }
 
@@ -425,7 +479,7 @@ export function nextHeartbeatAt(state) {
  */
 export function heartbeatDue(state, now) {
   if (!shouldHeartbeat(state) || state.inflight !== null) return false;
-  return state.lastSentAt === null || now >= state.lastSentAt + heartbeatCadence(state);
+  return state.lastSentAt === null || state.seekPending || now >= state.lastSentAt + heartbeatCadence(state);
 }
 
 /**

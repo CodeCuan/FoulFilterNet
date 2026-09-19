@@ -118,6 +118,9 @@ public sealed partial class WatchSession
     private readonly TaskCompletionSource _completion = new(
         TaskCreationOptions.RunContinuationsAsynchronously
     );
+    private readonly TaskCompletionSource _leftQueue = new(
+        TaskCreationOptions.RunContinuationsAsynchronously
+    );
     private readonly Queue<(double Seconds, TimeSpan Elapsed)> _recentWindows = new();
 
     private int _started;
@@ -164,6 +167,15 @@ public sealed partial class WatchSession
 
     /// <summary>Finishes, never faulted, once the run has ended and cleaned up (or was cancelled before it started).</summary>
     public Task Completion => _completion.Task;
+
+    /// <summary>
+    /// Finishes, never faulted, once the session is no longer
+    /// <see cref="WatchState.Queued"/>: the Transcript cache has been looked up
+    /// (a hit is Complete by then, a miss is Fetching) or the session ended.
+    /// A manager waits on it briefly so a cached video's first answer is
+    /// already complete (W17).
+    /// </summary>
+    public Task LeftQueue => _leftQueue.Task;
 
     /// <summary>Where the session is now.</summary>
     public WatchState State
@@ -828,6 +840,8 @@ public sealed partial class WatchSession
         {
             _state = state;
         }
+
+        _leftQueue.TrySetResult();
     }
 
     private void End(WatchState state, string? reason, WebAudioFailure? failureKind = null)
@@ -844,6 +858,8 @@ public sealed partial class WatchSession
             _failureKind = failureKind;
             _endedAt = _services.Time.GetUtcNow();
         }
+
+        _leftQueue.TrySetResult();
     }
 
     private static DateTimeOffset Later(DateTimeOffset? first, DateTimeOffset second) =>

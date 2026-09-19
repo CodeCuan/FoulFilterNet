@@ -7,10 +7,10 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { startContent } from '../src/content-app.js';
+import { SEEK_EVENT, startContent } from '../src/content-app.js';
 import { PLAYER_SELECTOR, VIDEO_SELECTOR } from '../src/page.js';
 import { DEFAULT_SETTINGS } from '../src/settings.js';
-import { HEARTBEAT_MS, SETTLED_HEARTBEAT_MS } from '../src/session.js';
+import { FAST_HEARTBEAT_MS, HEARTBEAT_MS, SETTLED_HEARTBEAT_MS } from '../src/session.js';
 
 const A = 'YwARwww5aFo';
 const B = 'jNQXAC9IVRw';
@@ -1093,5 +1093,130 @@ describe('content app: stop', () => {
     h.app.stop();
     await h.answer({ ok: true, view: view() });
     assert.equal(h.app.state.view, null);
+  });
+});
+
+describe('content app: a seek (W17)', () => {
+  it('listens for seeking', () => {
+    assert.equal(SEEK_EVENT, 'seeking');
+  });
+
+  it('sends a heartbeat at once rather than at the next second', async () => {
+    const h = await start();
+    await h.clock.advance(0);
+    await h.clock.advance(100);
+    h.video.currentTime = 300;
+    h.video.fire(SEEK_EVENT);
+    await h.clock.advance(0);
+    assert.deepEqual(
+      h.heartbeats.map((m) => m.position),
+      [0, 300],
+    );
+  });
+
+  it('then keeps the cadence from the seek', async () => {
+    const h = await start();
+    await h.clock.advance(0);
+    await h.clock.advance(100);
+    h.video.fire(SEEK_EVENT);
+    await h.clock.advance(0);
+    await h.clock.advance(HEARTBEAT_MS - 1);
+    assert.equal(h.heartbeats.length, 2);
+  });
+
+  it('waits for a heartbeat in flight', async () => {
+    const h = await start({ manual: true });
+    await h.clock.advance(0);
+    h.video.currentTime = 300;
+    h.video.fire(SEEK_EVENT);
+    await h.clock.advance(0);
+    assert.equal(h.heartbeats.length, 1);
+  });
+
+  it('sends the seek as soon as the heartbeat in flight is answered', async () => {
+    const h = await start({ manual: true });
+    await h.clock.advance(0);
+    h.video.currentTime = 300;
+    h.video.fire(SEEK_EVENT);
+    await h.answer({ ok: true, view: view() });
+    await h.clock.advance(0);
+    assert.deepEqual(
+      h.heartbeats.map((m) => m.position),
+      [0, 300],
+    );
+  });
+
+  it('sends nothing for a seek when disabled', async () => {
+    const h = await start({ settings: { enabled: false } });
+    h.video.fire(SEEK_EVENT);
+    await h.clock.advance(0);
+    assert.equal(h.heartbeats.length, 0);
+  });
+
+  it('stops listening for seeks once stopped', async () => {
+    const h = await start();
+    await h.clock.advance(0);
+    h.app.stop();
+    h.video.fire(SEEK_EVENT);
+    await h.clock.advance(0);
+    assert.equal(h.heartbeats.length, 1);
+  });
+});
+
+describe('content app: fast heartbeats while starting up (W17)', () => {
+  it('polls every 250 ms while the service is fetching', async () => {
+    const h = await start({ server: () => ({ ok: true, view: view({ state: 'fetching', coverage: [], hits: [] }) }) });
+    await h.clock.advance(1000);
+    assert.equal(h.heartbeats.length, 1 + 1000 / FAST_HEARTBEAT_MS);
+  });
+
+  it('polls every 250 ms while too little is covered', async () => {
+    const h = await start({ server: () => ({ ok: true, view: view({ coverage: [[0, 24]] }) }) });
+    await h.clock.advance(1000);
+    assert.equal(h.heartbeats.length, 5);
+  });
+
+  it('slows to 1 s once enough is covered', async () => {
+    let covered = [[0, 24]];
+    const h = await start({ server: () => ({ ok: true, view: view({ coverage: covered }) }) });
+    await h.clock.advance(250);
+    covered = [[0, 46]];
+    await h.clock.advance(250);
+    const at = h.heartbeats.length;
+    await h.clock.advance(HEARTBEAT_MS - 1);
+    assert.equal(h.heartbeats.length, at);
+  });
+
+  it('releases a held play within one fast poll of the coverage arriving', async () => {
+    let covered = [];
+    const h = await start({ server: () => ({ ok: true, view: view({ state: 'transcribing', coverage: covered }) }) });
+    await h.clock.advance(0);
+    await h.play();
+    const heldAtFirst = h.video.paused;
+    covered = [[0, 46]];
+    await h.clock.advance(FAST_HEARTBEAT_MS);
+    assert.deepEqual([heldAtFirst, h.video.paused], [true, false]);
+  });
+
+  it('releases a cached video on its first answer', async () => {
+    const h = await start({ server: () => ({ ok: true, view: view({ state: 'complete', fromCache: true }) }) });
+    await h.play();
+    await h.clock.advance(0);
+    assert.equal(h.video.paused, false);
+  });
+
+  it('asks a queued video again after 250 ms', async () => {
+    let state = 'queued';
+    const h = await start({ server: () => ({ ok: true, view: view({ state, coverage: [] }) }) });
+    await h.clock.advance(0);
+    state = 'complete';
+    await h.clock.advance(FAST_HEARTBEAT_MS);
+    assert.equal(h.app.state.view.state, 'complete');
+  });
+
+  it('does not poll fast while the server is down', async () => {
+    const h = await start({ server: () => ({ ok: false, error: { kind: 'unreachable' } }) });
+    await h.clock.advance(1000);
+    assert.equal(h.heartbeats.length, 2);
   });
 });

@@ -937,3 +937,63 @@ public sealed class WhenTheVideoIsInTheTranscriptCache : WatchScenario
     [Fact]
     public void CoversEverything() => _view.GetProperty("progress").GetDouble().ShouldBe(1.0);
 }
+
+/// <summary>
+/// W17: a video watched before is answered complete by the very first POST,
+/// so the extension can release the gate without a second poll.
+/// </summary>
+public sealed class WhenACachedVideoIsFirstPosted : WatchScenario
+{
+    private readonly JsonElement _first;
+
+    public WhenACachedVideoIsFirstPosted()
+    {
+        var heard = StubWhisperEngine.Swearing;
+        new TranscriptStore(App.TranscriptDirectory)
+            .SaveAsync(
+                new Transcript(
+                    Transcript.CurrentVersion,
+                    "youtube-" + WatchApi.Video,
+                    heard.Segments,
+                    heard.Words
+                ),
+                "Me at the zoo",
+                WatchApi.Token
+            )
+            .GetAwaiter()
+            .GetResult();
+
+        _first = WatchApi.StartAsync(Client).GetAwaiter().GetResult();
+    }
+
+    [Fact]
+    public void IsCompleteInTheFirstAnswer() =>
+        _first.GetProperty("state").GetString().ShouldBe("complete");
+
+    [Fact]
+    public void SaysItCameFromTheCache() =>
+        _first.GetProperty("from_cache").GetBoolean().ShouldBeTrue();
+
+    [Fact]
+    public void CarriesTheHitsInTheFirstAnswer() =>
+        _first.GetProperty("hits")[0].GetProperty("phrase").GetString().ShouldBe("damn");
+
+    [Fact]
+    public void FetchesNothing() => App.WebAudio.Fetches.ShouldBe(0);
+}
+
+/// <summary>W17: a miss is answered as soon as it is known to be one.</summary>
+public sealed class WhenAMissIsFirstPosted : WatchScenario
+{
+    private readonly JsonElement _first;
+
+    public WhenAMissIsFirstPosted()
+    {
+        App.WebAudio.Hold = new Gate();
+        _first = WatchApi.StartAsync(Client).GetAwaiter().GetResult();
+    }
+
+    [Fact]
+    public void IsFetchingInTheFirstAnswer() =>
+        _first.GetProperty("state").GetString().ShouldBe("fetching");
+}

@@ -65,6 +65,7 @@ import {
  * @property {AudioGraph | null} graph
  * @property {() => void} onMedia
  * @property {() => void} onPlay
+ * @property {() => void} onSeek
  * @property {unknown} hits  The Hits last given to the censor controller.
  * @property {string | null} method  The method last given to it.
  * @property {number | null} offsetMs  The offset last given to it.
@@ -83,6 +84,12 @@ export const GATE_EVENTS = Object.freeze([
   'ended',
   'emptied',
 ]);
+
+/**
+ * The media event that sends a heartbeat at once (W17): `currentTime` is the
+ * seek's target by then.
+ */
+export const SEEK_EVENT = 'seeking';
 
 /**
  * Start filtering the page.
@@ -178,10 +185,25 @@ export function startContent({
       attachAudio(true);
       sync();
     };
+    // W17: a seek is heartbeated at once, so the server re-plans from the new playhead.
+    const onSeek = () => dispatch({ type: 'seek' });
     const gate = createGateController({ video, now, onPlayWhileHeld: onMedia, onUserPause: onMedia, onPlayError: onMedia });
     for (const type of GATE_EVENTS) video.addEventListener(type, onMedia);
     video.addEventListener('play', onPlay);
-    bound = { video, gate, censor: null, graph: null, onMedia, onPlay, hits: null, method: null, offsetMs: null, mode: null };
+    video.addEventListener(SEEK_EVENT, onSeek);
+    bound = {
+      video,
+      gate,
+      censor: null,
+      graph: null,
+      onMedia,
+      onPlay,
+      onSeek,
+      hits: null,
+      method: null,
+      offsetMs: null,
+      mode: null,
+    };
     log?.('bound', video);
   }
 
@@ -195,6 +217,7 @@ export function startContent({
     old.graph?.muteNow();
     for (const type of GATE_EVENTS) old.video.removeEventListener(type, old.onMedia);
     old.video.removeEventListener('play', old.onPlay);
+    old.video.removeEventListener(SEEK_EVENT, old.onSeek);
     dispatch({ type: 'audio-detached' });
   }
 

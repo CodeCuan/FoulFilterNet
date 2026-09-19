@@ -51,6 +51,16 @@ public sealed class WatchOptions
     /// </summary>
     public double HeadSeconds { get; set; } = DefaultHeadSeconds;
 
+    /// <summary>
+    /// How long the heartbeat that starts a session may wait for its
+    /// Transcript cache lookup before answering (W17). A cached video is then
+    /// answered complete in the very first reply instead of queued, so the
+    /// extension does not hold it for a second poll; a miss is answered as
+    /// soon as it is known to be one. Later heartbeats never wait. Zero
+    /// answers at once, as before.
+    /// </summary>
+    public TimeSpan FirstAnswerWait { get; set; } = TimeSpan.FromMilliseconds(500);
+
     /// <summary>How often the sweeper looks for sessions to drop.</summary>
     public TimeSpan SweepInterval { get; set; } = TimeSpan.FromSeconds(15);
 
@@ -76,6 +86,7 @@ public sealed class WatchOptions
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(CompletedRetention, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(FailedRetention, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(SweepInterval, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThan(FirstAnswerWait, TimeSpan.Zero);
         if (!double.IsFinite(HeadSeconds) || HeadSeconds < 0.0)
         {
             throw new ArgumentOutOfRangeException(

@@ -418,9 +418,20 @@ internal sealed class RecordingStore : ITranscriptStore
         CancellationToken cancellationToken = default
     ) => throw new NotSupportedException("A Web Video is keyed by its VideoRef, not hashed.");
 
-    public Task<Transcript?> FindAsync(string digest, CancellationToken cancellationToken = default)
+    /// <summary>When set, a lookup waits here first.</summary>
+    public Gate? FindHold { get; set; }
+
+    public async Task<Transcript?> FindAsync(
+        string digest,
+        CancellationToken cancellationToken = default
+    )
     {
         Interlocked.Increment(ref _finds);
+        if (FindHold is { } gate)
+        {
+            await gate.PassAsync(cancellationToken);
+        }
+
         var saved = Saves
             .Select(s => s.Transcript)
             .LastOrDefault(t => string.Equals(t.FileHash, digest, StringComparison.Ordinal));
@@ -428,7 +439,7 @@ internal sealed class RecordingStore : ITranscriptStore
             Cached is { } c && string.Equals(c.FileHash, digest, StringComparison.OrdinalIgnoreCase)
                 ? c
                 : null;
-        return Task.FromResult(saved ?? cached);
+        return saved ?? cached;
     }
 
     public Task SaveAsync(

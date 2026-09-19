@@ -119,7 +119,7 @@ public static class WatchEndpoints
         WatchSnapshot snapshot;
         try
         {
-            snapshot = sessions.Heartbeat(video, position);
+            snapshot = await sessions.HeartbeatAsync(video, position, cancellationToken);
         }
         catch (ObjectDisposedException)
         {
