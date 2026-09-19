@@ -74,6 +74,23 @@ extension's Details page if you care.
 | `src/audio-graph.js` | adapter (injected AudioContext factory) | One AudioContext per page, never closed; one `MediaElementSource` per `<video>` (WeakMap); programme gain and a 1 kHz bleep gain; `InvalidStateError` → `{kind: 'audio'}` |
 | `src/censor-controller.js` | adapter (injected video, graph, timers) | Re-plans every 100 ms and on media events while really playing (ADR-0007); modes `filter`/`mute`/`open`; skips unchanged plans |
 
+### The end-to-end harness (`harness/`, development only)
+
+Not part of the extension: nothing in `manifest.json` or `src/` refers to it
+(`test/harness-integrity.test.js` checks). The service serves it at
+`/dev/harness/` only when `Watch:DevFileProvider:Enabled` is on, with
+`src/*.js` at `/dev/src/`, and it runs `content-app.js` unchanged on a local
+`<video>` against fixture media, with Chrome's glue replaced. How to run it and
+its recorded results: [docs/web-video-checklist.md](../docs/web-video-checklist.md).
+
+| File | Kind | Does |
+|---|---|---|
+| `harness/index.html`, `harness/harness.css`, `harness/harness.js` | adapter | The page: `#movie_player` + `video.html5-main-video`, the wiring, the sampling loop, the report and `window.__ffHarnessResult` |
+| `harness/file-bridge.js` | pure (injected fetch) | The fetch the relay uses: fake YouTube ID `ffHarness01` ⇄ dev file; the fake `window`, memory settings store and badge recorder |
+| `harness/tap.js` | adapter (injected AudioContext) | The context `audio-graph.js` is given: its destination is a tap with raw / out / notched / band-passed analysers |
+| `harness/self-check.js` | pure | Samples + manifest spans → PASS / FAIL / NOT PLAYED per span, extra silence as warnings |
+| `harness/timeline.js` | pure | What happened in a run: holds, releases, the wait before playing, states, badges |
+
 ### Talking to the service
 
 Only the service worker fetches. A content script's requests carry
