@@ -106,13 +106,16 @@ export function createTap(createContext) {
     },
     /**
      * One sample of all four levels, stamped with the media time the block
-     * describes.
+     * describes (`t`, its middle) and how much media it covered (`w`).
      *
      * @param {{ currentTime: number, playbackRate: number }} video
      */
     read(video) {
+      const seconds = FFT_SIZE / (real.sampleRate || 48000);
+      const rate = Number.isFinite(video.playbackRate) && video.playbackRate > 0 ? video.playbackRate : 1;
       return {
-        t: sampleTime(video.currentTime, FFT_SIZE / (real.sampleRate || 48000), video.playbackRate),
+        t: sampleTime(video.currentTime, seconds, rate),
+        w: seconds * rate,
         raw: level(raw),
         out: level(out),
         programme: level(programme),

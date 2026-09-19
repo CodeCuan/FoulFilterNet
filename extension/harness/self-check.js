@@ -10,8 +10,12 @@
 //   tone       `out` through a narrow 1 kHz band-pass (is the bleep sounding?)
 //
 // Rules (decided):
-// - A span is judged on the samples whose media time lies inside its
-//   ground-truth [start, end] - the word itself, not the service's padding.
+// - A span is judged on the samples whose analyser block lies wholly inside
+//   its ground-truth [start, end] - the word itself, not the service's
+//   padding. A block is `w` media seconds wide (about 21 ms, 42 ms at 2x), so
+//   one stamped near an edge also heard the audio beyond it and cannot vouch
+//   for the span (found running the harness: a Hit ending 2 ms after the word
+//   failed at 2x on the audio after it).
 //   Fewer than MIN_SAMPLES there means it was not played (a seek skipped it):
 //   NOT PLAYED, which is not a failure.
 // - silence: every sample's `out` is below SILENCE_DB.
@@ -62,6 +66,7 @@ export const ONSET_LOOKBACK = 0.3;
  * @property {number} out
  * @property {number} programme
  * @property {number} tone
+ * @property {number} [w]  Media seconds the analyser block covered (block length × rate), centred on `t`.
  *
  * @typedef {object} Span  A ground-truth word from the manifest.
  * @property {string} phrase
@@ -187,6 +192,11 @@ function checkedLevel(method, sample) {
   return method === 'bleep' ? sample.programme : sample.out;
 }
 
+/** @param {Sample} sample @returns {number} Half the media the sample's block covered. */
+function halfWidth(sample) {
+  return Number.isFinite(sample.w) && /** @type {number} */ (sample.w) > 0 ? /** @type {number} */ (sample.w) / 2 : 0;
+}
+
 /** @param {number} x */
 const round3 = (x) => Math.round(x * 1000) / 1000;
 
@@ -210,7 +220,7 @@ export function evaluate({ samples, spans, method: requested }) {
   const warnings = [];
 
   const results = truth.map((span) => {
-    const inside = valid.filter((s) => s.t >= span.start && s.t <= span.end);
+    const inside = valid.filter((s) => s.t - halfWidth(s) >= span.start && s.t + halfWidth(s) <= span.end);
     const onsetSample = valid.find((s) => s.t >= span.start - ONSET_LOOKBACK && s.t <= span.end && s.raw > SPEECH_DB);
     const base = {
       phrase: span.phrase,

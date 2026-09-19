@@ -304,6 +304,49 @@ describe('evaluate: span edges', () => {
   });
 });
 
+describe('evaluate: the analyser window straddles a span edge', () => {
+  // Found running the harness (W16): at 2x each analyser block covers about
+  // 42 ms of media, so a sample stamped just inside the span's end also heard
+  // the audio after it, and a Hit ending 2 ms after the word failed.
+  const half = 0.021;
+  const straddling = (t, levels) => ({ ...sample(t, levels), w: 2 * half });
+
+  it('does not judge a sample whose block reaches past the end', () => {
+    const samples = [...censored(), straddling(3.42, { out: -45 })];
+    assert.equal(evaluate({ samples, spans: [DAMN] }).verdict, 'PASS');
+  });
+
+  it('does not judge a sample whose block starts before the start', () => {
+    const samples = [...censored(), straddling(2.95, { out: -45 })];
+    assert.equal(evaluate({ samples, spans: [DAMN] }).verdict, 'PASS');
+  });
+
+  it('judges a sample whose block lies wholly inside', () => {
+    const samples = [...censored(), straddling(3.2, { out: -45 })];
+    assert.equal(evaluate({ samples, spans: [DAMN] }).verdict, 'FAIL');
+  });
+
+  it('judges a block that ends exactly at the end', () => {
+    const samples = [...censored(), straddling(DAMN.end - half, { out: -45 })];
+    assert.equal(evaluate({ samples, spans: [DAMN] }).verdict, 'FAIL');
+  });
+
+  it('treats a sample with no width as a point', () => {
+    const samples = [...censored(), sample(3.42, { out: -45 })];
+    assert.equal(evaluate({ samples, spans: [DAMN] }).verdict, 'FAIL');
+  });
+
+  it('treats a bad width as a point', () => {
+    const samples = [...censored(), { ...sample(3.42, { out: -45 }), w: NaN }];
+    assert.equal(evaluate({ samples, spans: [DAMN] }).verdict, 'FAIL');
+  });
+
+  it('does not count the straddling samples', () => {
+    const samples = [...censored(), straddling(3.42, { out: QUIET })];
+    assert.equal(evaluate({ samples, spans: [DAMN] }).spans[0].samples, 24);
+  });
+});
+
 describe('evaluate: a span that was not played', () => {
   const samples = [...every(0, 1, 0.02), ...every(4, 5.6, 0.02)];
   const result = evaluate({ samples, spans: [DAMN] });

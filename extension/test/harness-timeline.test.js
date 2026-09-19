@@ -57,6 +57,17 @@ describe('createTimeline', () => {
     assert.equal(t.entries.length, 2);
   });
 
+  it('skips a repeated coverage', () => {
+    const t = timeline();
+    t.note('coverage', '[[0,24]]');
+    t.note('coverage', '[[0,24]]');
+    t.note('coverage', '[[0,46]]');
+    assert.deepEqual(
+      t.entries.map((e) => e.value),
+      ['[[0,24]]', '[[0,46]]'],
+    );
+  });
+
   it('keeps repeated events of other kinds', () => {
     const t = timeline();
     t.note('seek', '1');

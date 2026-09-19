@@ -7,7 +7,8 @@
  * @typedef {object} Entry
  * @property {number} at  Milliseconds since the run started.
  * @property {number | null} media  The media time then, if known.
- * @property {string} kind  'gate', 'state', 'badge', 'play', 'pause', 'seek', 'rate', 'ended', 'note'.
+ * @property {string} kind  'gate', 'state', 'badge', 'coverage', or a media event ('play', 'playing', 'pause',
+ *   'seeking', 'seeked', 'ratechange', 'waiting', 'ended'), or 'note'.
  * @property {string} value
  *
  * @typedef {object} Summary
@@ -37,7 +38,7 @@ export function createTimeline(now) {
      */
     note(kind, value, media = null) {
       const last = entries.findLast((e) => e.kind === kind);
-      if (last && last.value === value && (kind === 'gate' || kind === 'state' || kind === 'badge')) return;
+      if (last && last.value === value && (kind === 'gate' || kind === 'state' || kind === 'badge' || kind === 'coverage')) return;
       entries.push(Object.freeze({ at: Math.round(now() - started), media: Number.isFinite(media) ? media : null, kind, value }));
     },
   };

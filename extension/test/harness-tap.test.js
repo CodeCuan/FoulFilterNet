@@ -164,6 +164,24 @@ describe('createTap: read', () => {
     assert.equal(tap.read({ currentTime: 3, playbackRate: 2 }).t, 3 - FFT_SIZE / 48000);
   });
 
+  it('says how much media the block covered', () => {
+    const fake = fakeContext();
+    const tap = createTap(() => fake.ctx);
+    assert.equal(tap.read({ currentTime: 3, playbackRate: 1 }).w, FFT_SIZE / 48000);
+  });
+
+  it('covers twice the media at 2x', () => {
+    const fake = fakeContext();
+    const tap = createTap(() => fake.ctx);
+    assert.equal(tap.read({ currentTime: 3, playbackRate: 2 }).w, (2 * FFT_SIZE) / 48000);
+  });
+
+  it('treats a bad rate as 1', () => {
+    const fake = fakeContext();
+    const tap = createTap(() => fake.ctx);
+    assert.equal(tap.read({ currentTime: 3, playbackRate: 0 }).w, FFT_SIZE / 48000);
+  });
+
   it('uses the context sample rate', () => {
     const fake = fakeContext({ sampleRate: 44100 });
     const tap = createTap(() => fake.ctx);

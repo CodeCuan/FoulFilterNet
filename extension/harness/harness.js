@@ -136,8 +136,9 @@ setInterval(() => {
   const view = app.state.view;
   if (d) timeline.note('gate', `${d.gate.action}:${d.gate.reason ?? ''}`, video.currentTime);
   if (view) timeline.note('state', `${view.state}${view.fromCache ? ' (cache)' : ''}`, video.currentTime);
+  if (view) timeline.note('coverage', JSON.stringify(view.coverage.map(([a, b]) => [Math.round(a), Math.round(b)])), video.currentTime);
   status.textContent = [
-    `session: ${view ? `${view.state}, ${view.windowsDone}/${view.windowsTotal} windows, ${view.hits?.length ?? 0} hits${view.fromCache ? ', from cache' : ''}` : '(none yet)'}`,
+    `session: ${view ? `${view.state}, ${view.windowsDone}/${view.windowsTotal} windows, ${app.state.hits?.length ?? 0} hits${view.fromCache ? ', from cache' : ''}` : '(none yet)'}`,
     `gate: ${d ? `${d.gate.action} (${d.gate.reason ?? ''})` : '-'} · censor: ${d?.mode ?? '-'} · audio: ${app.state.audio.status}`,
     `playhead: ${video.currentTime.toFixed(2)}s of ${Number.isFinite(video.duration) ? video.duration.toFixed(2) : '?'}s at ${video.playbackRate}× · samples: ${samples.length}`,
   ].join('\n');
@@ -189,7 +190,8 @@ function finish() {
           state: view.state,
           fromCache: view.fromCache,
           windowsTotal: view.windowsTotal,
-          hits: view.hits,
+          // The view's own hits are null on an `unchanged` answer; the session keeps the last ones.
+          hits: app.state.hits,
           realtimeFactor: view.realtimeFactor,
         }
       : null,
