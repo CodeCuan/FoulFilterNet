@@ -14,9 +14,11 @@ namespace FoulFilterNet.Web.Endpoints;
 /// <remarks>
 /// <para>
 /// <b>Everything the extension sends is untrusted.</b> The provider and ID only
-/// ever become a <see cref="VideoRef"/> through <see cref="VideoRef.TryCreate"/>,
-/// so nothing but a validated 11-character ID reaches the session, and yt-dlp
-/// only ever sees the watch URL built from it. A refusal is a 400 with the
+/// ever become a <see cref="VideoRef"/> through <see cref="VideoRef.TryCreate"/>
+/// (by way of <see cref="WatchVideos"/>), so nothing but a validated
+/// 11-character ID reaches the session, and yt-dlp only ever sees the watch URL
+/// built from it. The one exception is the development-only <c>file</c>
+/// provider (W16), accepted only when the host was configured with it. A refusal is a 400 with the
 /// same <c>{ "detail": … }</c> body as the batch endpoints.
 /// </para>
 /// <para>
@@ -59,6 +61,7 @@ public static class WatchEndpoints
     private static async Task<IResult> HeartbeatAsync(
         HttpRequest request,
         WatchSessionManager sessions,
+        WatchVideos videos,
         string? since,
         string? session,
         CancellationToken cancellationToken
@@ -98,7 +101,7 @@ public static class WatchEndpoints
             );
         }
 
-        if (!VideoRef.TryCreate(body.Provider, body.VideoId, out var video))
+        if (!videos.TryRead(body.Provider, body.VideoId, out var video))
         {
             return Problem(StatusCodes.Status400BadRequest, InvalidVideo);
         }
@@ -136,10 +139,11 @@ public static class WatchEndpoints
         string id,
         string? since,
         string? session,
-        WatchSessionManager sessions
+        WatchSessionManager sessions,
+        WatchVideos videos
     )
     {
-        if (!VideoRef.TryCreate(provider, id, out var video))
+        if (!videos.TryRead(provider, id, out var video))
         {
             return Problem(StatusCodes.Status400BadRequest, InvalidVideo);
         }
@@ -158,9 +162,14 @@ public static class WatchEndpoints
     /// Cancel the session and drop it: 204, or 404 when there was none. The
     /// work stops in the background; the next heartbeat starts afresh.
     /// </summary>
-    private static IResult Cancel(string provider, string id, WatchSessionManager sessions)
+    private static IResult Cancel(
+        string provider,
+        string id,
+        WatchSessionManager sessions,
+        WatchVideos videos
+    )
     {
-        if (!VideoRef.TryCreate(provider, id, out var video))
+        if (!videos.TryRead(provider, id, out var video))
         {
             return Problem(StatusCodes.Status400BadRequest, InvalidVideo);
         }

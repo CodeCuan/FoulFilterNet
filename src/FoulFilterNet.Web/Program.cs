@@ -103,10 +103,32 @@ builder.Services.Configure<SourcesOptions>(
     builder.Configuration.GetSection(SourcesOptions.SectionName)
 );
 builder.Services.AddSingleton<IProcessRunner, ProcessRunner>();
-builder.Services.AddSingleton<IWebAudioSource>(provider => new YtDlpAudioSource(
-    provider.GetRequiredService<IProcessRunner>(),
-    provider.GetRequiredService<IOptions<SourcesOptions>>().Value
-));
+builder.Services.AddKeyedSingleton<IWebAudioSource>(
+    DevFileProvider.RealSourceKey,
+    (provider, _) =>
+        new YtDlpAudioSource(
+            provider.GetRequiredService<IProcessRunner>(),
+            provider.GetRequiredService<IOptions<SourcesOptions>>().Value
+        )
+);
+
+// W16: the development-only `file` provider (Watch:DevFileProvider), off unless
+// configured. On, Watch Sessions also accept provider "file" for the files in a
+// directory, and /dev/harness/ serves the end-to-end harness page. Read here,
+// at startup, because it decides what is composed and mapped; misconfigured,
+// the host refuses to start.
+var devFiles = DevFileProvider.Read(
+    builder.Configuration,
+    builder.Environment.ContentRootPath,
+    AppContext.BaseDirectory
+);
+builder.Services.AddSingleton(devFiles);
+builder.Services.AddSingleton(new WatchVideos(allowFiles: devFiles.Enabled));
+builder.Services.AddSingleton<IWebAudioSource>(provider =>
+{
+    var real = provider.GetRequiredKeyedService<IWebAudioSource>(DevFileProvider.RealSourceKey);
+    return devFiles.Files is { } files ? new DevFileAudioSource(real, files) : real;
+});
 
 // /config reports whether that works here. Probing starts yt-dlp, which is
 // slow to start, so the answer is kept and the first probe begins with the
@@ -140,6 +162,7 @@ var app = builder.Build();
 // ALIGN_DEVICE, WHISPER_MULTI_GPU and the other ROCm-era variables do nothing
 // now. An old .env that sets them is told so rather than silently ignored.
 LegacyEnvironmentVariables.WarnAboutRetiredVariables(app.Logger);
+DevFileProvider.WarnIfEnabled(devFiles, app.Logger);
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapUserInterface();
@@ -147,6 +170,7 @@ app.MapJobEndpoints();
 app.MapConfigEndpoint();
 app.MapEventEndpoint();
 app.MapWatchEndpoints();
+app.MapDevHarness(devFiles);
 
 app.Run();
 

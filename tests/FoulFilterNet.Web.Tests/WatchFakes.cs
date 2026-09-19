@@ -280,13 +280,14 @@ internal static class WatchApi
     public static async Task<JsonElement> WaitForStateAsync(
         HttpClient client,
         string state,
-        string videoId = Video
+        string videoId = Video,
+        string provider = "youtube"
     )
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
         {
-            using var response = await GetAsync(client, videoId);
+            using var response = await GetAsync(client, videoId, provider);
             if (response.IsSuccessStatusCode)
             {
                 var view = await Api.ReadAsync(response);

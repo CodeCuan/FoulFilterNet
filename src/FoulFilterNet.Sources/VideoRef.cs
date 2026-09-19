@@ -41,6 +41,17 @@ public sealed record VideoRef
     /// <summary>The length of every YouTube video ID.</summary>
     public const int YouTubeIdLength = 11;
 
+    /// <summary>
+    /// The development-only provider (W16): a media file in a configured
+    /// directory, named by its file name. Only <see cref="TryCreateFile"/>
+    /// makes one, and only a host with the dev file provider switched on calls
+    /// it; <see cref="TryCreate"/> never accepts it.
+    /// </summary>
+    public const string FileProvider = "file";
+
+    /// <summary>The longest file name the <see cref="FileProvider"/> accepts.</summary>
+    public const int MaxFileNameLength = 128;
+
     /// <summary>Separates the provider from the ID in <see cref="Key"/>.</summary>
     private const char KeySeparator = '-';
 
@@ -69,12 +80,21 @@ public sealed record VideoRef
     /// </summary>
     public string Key => Provider + KeySeparator + Id;
 
+    /// <summary>Whether this is a YouTube video (rather than a dev file).</summary>
+    public bool IsYouTube => string.Equals(Provider, YouTubeProvider, StringComparison.Ordinal);
+
     /// <summary>
     /// The canonical watch URL, <c>https://www.youtube.com/watch?v=&lt;id&gt;</c>.
     /// Built by us from a validated ID, so it is the one form that is safe to
     /// hand to yt-dlp. The ID needs no escaping: its alphabet is URL-safe.
     /// </summary>
-    public string WatchUrl => YouTubeWatchUrlPrefix + Id;
+    /// <exception cref="InvalidOperationException">A dev file video has no watch URL.</exception>
+    public string WatchUrl =>
+        IsYouTube
+            ? YouTubeWatchUrlPrefix + Id
+            : throw new InvalidOperationException(
+                $"'{Key}' is not a YouTube video and has no watch URL."
+            );
 
     /// <summary>
     /// Validate a provider and ID from an untrusted source. Never throws.
@@ -95,6 +115,25 @@ public sealed record VideoRef
             IsSupportedProvider(provider) && IsValidYouTubeId(id)
                 ? new VideoRef(YouTubeProvider, id)
                 : null;
+        return video is not null;
+    }
+
+    /// <summary>
+    /// A development-only file video (W16): <paramref name="name"/> names a
+    /// file directly inside the dev file directory. Never throws. The name is
+    /// 1 to <see cref="MaxFileNameLength"/> ASCII characters from
+    /// <c>[A-Za-z0-9._-]</c>, starting with a letter, digit or <c>_</c> (so
+    /// never an option or a dot file), with no <c>..</c> anywhere, so it cannot
+    /// name a path. Whether the file exists is the dev source's check, against
+    /// the directory's listing.
+    /// </summary>
+    /// <remarks>
+    /// Network input reaches this only through a host that switched the dev
+    /// file provider on; <see cref="TryCreate"/> refuses <c>file</c> always.
+    /// </remarks>
+    public static bool TryCreateFile(string? name, [NotNullWhen(true)] out VideoRef? video)
+    {
+        video = IsValidFileName(name) ? new VideoRef(FileProvider, name) : null;
         return video is not null;
     }
 
@@ -170,6 +209,34 @@ public sealed record VideoRef
 
     /// <summary>The <see cref="Key"/>, which is how a video appears in logs.</summary>
     public override string ToString() => Key;
+
+    private static bool IsValidFileName([NotNullWhen(true)] string? name)
+    {
+        if (name is null || name.Length is 0 or > MaxFileNameLength)
+        {
+            return false;
+        }
+
+        if (!char.IsAsciiLetterOrDigit(name[0]) && name[0] != '_')
+        {
+            return false;
+        }
+
+        if (name.Contains("..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (var c in name)
+        {
+            if (!char.IsAsciiLetterOrDigit(c) && c != '_' && c != '-' && c != '.')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private static bool IsSupportedProvider(string? provider) =>
         string.Equals(provider, YouTubeProvider, StringComparison.OrdinalIgnoreCase);

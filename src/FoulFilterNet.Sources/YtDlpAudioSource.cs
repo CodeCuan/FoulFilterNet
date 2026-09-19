@@ -63,6 +63,13 @@ public sealed class YtDlpAudioSource : IWebAudioSource
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         cancellationToken.ThrowIfCancellationRequested();
 
+        // A dev file video (W16) has no watch URL; only DevFileAudioSource serves it.
+        if (!video.IsYouTube)
+        {
+            const string reason = "yt-dlp only fetches YouTube videos.";
+            throw new WebAudioException(video, WebAudioFailure.Unsupported, reason, reason);
+        }
+
         var fullDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
         Directory.CreateDirectory(fullDirectory);
         await DeleteOwnFilesAsync(fullDirectory).ConfigureAwait(false);
