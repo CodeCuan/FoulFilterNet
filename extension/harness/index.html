@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FoulFilter harness</title>
+    <link rel="stylesheet" href="harness.css" />
+  </head>
+  <body>
+    <header>
+      <h1>FoulFilter end-to-end harness</h1>
+      <p id="title"></p>
+      <p class="warning">
+        Development only (W16). Served because <code>Watch:DevFileProvider:Enabled</code> is on. The page runs the
+        extension's real content-script modules from <code>extension/src</code> against this service, with Chrome's
+        glue replaced: see <code>extension/harness/harness.js</code>.
+      </p>
+    </header>
+
+    <!-- The YouTube player, as page.js finds it. The overlay is appended here. -->
+    <div id="movie_player">
+      <video class="html5-main-video" controls preload="auto" playsinline></video>
+    </div>
+
+    <p class="controls">
+      <button id="play" type="button">Play</button>
+      <button id="again" type="button">Record again from 0</button>
+      <button id="forget" type="button">Forget session</button>
+      <button id="method" type="button">Switch method</button>
+      <span>Badge: <span id="badge">(none)</span></span>
+    </p>
+
+    <p class="links">
+      <a data-query="file=sample_video.mp4">sample_video.mp4</a> ·
+      <a data-query="file=sample_video.mp4&amp;method=bleep">bleep</a> ·
+      <a data-query="file=sample_video.mp4&amp;rate=2">2×</a> ·
+      <a data-query="file=repeated_hits.mp3">repeated_hits.mp3</a> ·
+      <a data-query="file=audiobook.m4b">audiobook.m4b</a> ·
+      <a data-query="file=clean_speech.mp3">clean_speech.mp3</a>
+    </p>
+
+    <p id="truth"></p>
+    <pre id="status"></pre>
+    <pre id="report"></pre>
+
+    <script type="module" src="harness.js"></script>
+  </body>
+</html>
