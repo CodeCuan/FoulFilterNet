@@ -211,3 +211,88 @@ public sealed class WhenAudioIsOpenedWithoutAUsableModel : IDisposable
         _sut.IsModelLoaded.ShouldBeFalse();
     }
 }
+
+/// <summary>
+/// A warm-up is the open's model load on its own (W17): it fails the same way
+/// an open would, and stops before loading when it is already cancelled.
+/// </summary>
+public sealed class WhenTheModelIsWarmedUpWithoutUsableWeights : IDisposable
+{
+    private readonly TempDirectory _directory = new();
+    private readonly WhisperNetEngine _sut;
+
+    public WhenTheModelIsWarmedUpWithoutUsableWeights() =>
+        _sut = new WhisperNetEngine(
+            new TranscriptionOptions { Model = "base" },
+            new WhisperModelSource(_directory.Path),
+            NullLogger<WhisperNetEngine>.Instance
+        );
+
+    public void Dispose()
+    {
+        _sut.Dispose();
+        _directory.Dispose();
+    }
+
+    [Fact]
+    public async Task NamesTheWeightsFileItWanted() =>
+        (
+            await Should.ThrowAsync<FileNotFoundException>(() =>
+                _sut.WarmUpAsync(TestContext.Current.CancellationToken)
+            )
+        ).Message.ShouldContain("ggml-base.bin");
+
+    [Fact]
+    public async Task StopsBeforeLoadingWhenAlreadyCancelled() =>
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            _sut.WarmUpAsync(new CancellationToken(canceled: true))
+        );
+
+    [Fact]
+    public async Task LeavesNoModelBehindWhenCancelled()
+    {
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            _sut.WarmUpAsync(new CancellationToken(canceled: true))
+        );
+
+        _sut.IsModelLoaded.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task LeavesNoModelBehindWhenTheWeightsAreMissing()
+    {
+        await Should.ThrowAsync<FileNotFoundException>(() =>
+            _sut.WarmUpAsync(TestContext.Current.CancellationToken)
+        );
+
+        _sut.IsModelLoaded.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task StillReleasesCleanlyAfterAFailedWarmUp()
+    {
+        await Should.ThrowAsync<FileNotFoundException>(() =>
+            _sut.WarmUpAsync(TestContext.Current.CancellationToken)
+        );
+
+        await _sut.ReleaseAsync();
+
+        _sut.IsModelLoaded.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task LetsAnOpenFailTheSameWayAfterwards()
+    {
+        await Should.ThrowAsync<FileNotFoundException>(() =>
+            _sut.WarmUpAsync(TestContext.Current.CancellationToken)
+        );
+
+        await Should.ThrowAsync<FileNotFoundException>(() =>
+            _sut.OpenAsync(
+                "analysis.wav",
+                InferencePriority.High,
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+}

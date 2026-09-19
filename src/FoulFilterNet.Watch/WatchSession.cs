@@ -335,6 +335,7 @@ public sealed partial class WatchSession
     {
         string? scratch = null;
         string? wav = null;
+        var warming = Task.CompletedTask;
 
         try
         {
@@ -344,6 +345,10 @@ public sealed partial class WatchSession
             {
                 return;
             }
+
+            // A miss: the model is needed, and loading it takes as long again
+            // as a short video's fetch, so it loads while the audio is fetched.
+            warming = WarmUpAsync(cancellationToken);
 
             scratch = Path.Combine(_services.ScratchDirectory, $"{Video.Key}-{Guid.NewGuid():N}");
 
@@ -363,6 +368,7 @@ public sealed partial class WatchSession
                 .Audio.PadStartAsync(audio.AudioPath, 0.0, cancellationToken)
                 .ConfigureAwait(false);
 
+            await warming.ConfigureAwait(false);
             var analysis = await _services
                 .Engine.OpenAsync(wav, InferencePriority.High, cancellationToken)
                 .ConfigureAwait(false);
@@ -417,9 +423,39 @@ public sealed partial class WatchSession
             // WAV is no longer held open.
             TryDeleteFile(wav);
             TryDeleteDirectory(scratch);
+
+            // Never faults. Waited for so that a session that has finished has
+            // nothing of its own still running on the engine.
+            await warming.ConfigureAwait(false);
             _completion.TrySetResult();
         }
     }
+
+    /// <summary>
+    /// Load the model in the background, on a thread of its own because
+    /// whisper.cpp loads synchronously. Never faults: a model that cannot load
+    /// fails the open that follows with the same error, which is where the
+    /// session reports it.
+    /// </summary>
+    private Task WarmUpAsync(CancellationToken cancellationToken) =>
+        Task.Run(
+            async () =>
+            {
+                try
+                {
+                    await _services.Engine.WarmUpAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // The session is ending anyway.
+                }
+                catch (Exception exception)
+                {
+                    LogWarmUpFailed(exception, Video.Key);
+                }
+            },
+            CancellationToken.None
+        );
 
     /// <summary>
     /// Complete straight from the Transcript cache, if it holds this video.
@@ -647,6 +683,12 @@ public sealed partial class WatchSession
         Message = "Watch Session {Key}: every window heard, Transcript saved"
     )]
     private partial void LogComplete(string key);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Watch Session {Key}: the model could not be loaded ahead of the audio; opening it will try again"
+    )]
+    private partial void LogWarmUpFailed(Exception exception, string key);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Watch Session {Key}: cancelled")]
     private partial void LogCancelled(string key);

@@ -177,6 +177,8 @@ internal sealed class FakePreparer(string directory) : IAudioPreparer
 internal sealed class FakeEngine(Script script, FakeTimeProvider time) : IWhisperEngine
 {
     private readonly ConcurrentDictionary<int, Gate> _holds = new();
+    private int _warmUps;
+    private int _warm;
 
     public Script Script => script;
 
@@ -202,6 +204,7 @@ internal sealed class FakeEngine(Script script, FakeTimeProvider time) : IWhispe
         CancellationToken cancellationToken = default
     )
     {
+        WarmWhenOpened.Enqueue(IsWarm);
         Opened.Enqueue((wavPath, priority));
         if (OpenFailure is { } failure)
         {
@@ -211,6 +214,40 @@ internal sealed class FakeEngine(Script script, FakeTimeProvider time) : IWhispe
         var audio = new FakeAnalysisAudio(this, time);
         Audios.Enqueue(audio);
         return Task.FromResult<IAnalysisAudio>(audio);
+    }
+
+    /// <summary>How many warm-ups were asked for.</summary>
+    public int WarmUps => Volatile.Read(ref _warmUps);
+
+    /// <summary>What each warm-up was told to stop on.</summary>
+    public ConcurrentQueue<CancellationToken> WarmUpTokens { get; } = new();
+
+    /// <summary>When set, a warm-up waits here before finishing.</summary>
+    public Gate? WarmUpHold { get; set; }
+
+    public Exception? WarmUpFailure { get; set; }
+
+    /// <summary>Whether a warm-up had finished when each audio was opened.</summary>
+    public ConcurrentQueue<bool> WarmWhenOpened { get; } = new();
+
+    public bool IsWarm => Volatile.Read(ref _warm) == 1;
+
+    public async Task WarmUpAsync(CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref _warmUps);
+        WarmUpTokens.Enqueue(cancellationToken);
+
+        if (WarmUpHold is { } gate)
+        {
+            await gate.PassAsync(cancellationToken);
+        }
+
+        if (WarmUpFailure is { } failure)
+        {
+            throw failure;
+        }
+
+        Interlocked.Exchange(ref _warm, 1);
     }
 
     public ValueTask ReleaseAsync() => ValueTask.CompletedTask;

@@ -109,6 +109,31 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
+    /// The same load <see cref="OpenAsync"/> does, under the same gate, but
+    /// without counting an open audio. whisper.cpp loads synchronously, so the
+    /// caller should run this off its own thread if it has other work to get on
+    /// with.
+    /// </remarks>
+    public async Task WarmUpAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_factory is null)
+            {
+                await LoadAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Idempotent, and cheap when there is nothing to drop: it now sits on the
     /// critical path of every job, because the pipeline releases in a
     /// <c>finally</c> whether the job succeeded, failed or was cancelled.

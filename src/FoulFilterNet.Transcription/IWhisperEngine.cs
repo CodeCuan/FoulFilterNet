@@ -47,6 +47,17 @@ public interface IWhisperEngine
     );
 
     /// <summary>
+    /// Load the model now if it is not resident, so that a later
+    /// <see cref="OpenAsync"/> finds it ready. A Watch Session calls this as
+    /// soon as it misses the Transcript cache, so the load runs while the
+    /// audio is still being fetched and converted instead of after (W17).
+    /// Cheap when the model is already resident. Holds nothing open: a
+    /// <see cref="ReleaseAsync"/> afterwards drops the model as usual.
+    /// </summary>
+    /// <param name="cancellationToken">Stops a warm-up still waiting to start; a load under way finishes.</param>
+    Task WarmUpAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Drop the model and hand its VRAM back. Called after every job, so it has
     /// to be cheap, repeatable, and safe when no model was ever loaded. While
     /// any audio is still open - a Watch Session outliving the Job that asked -

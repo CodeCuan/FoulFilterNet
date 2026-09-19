@@ -266,6 +266,39 @@ public sealed class LiveWindowedEngineTests
         await audio.DisposeAsync();
         engine.IsModelLoaded.ShouldBeFalse();
     }
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task AWarmUpLoadsTheModelWithoutHoldingItOpen()
+    {
+        using var engine = LiveWhisper.NewEngine();
+
+        await engine.WarmUpAsync(TestContext.Current.CancellationToken);
+        engine.IsModelLoaded.ShouldBeTrue();
+
+        await engine.ReleaseAsync();
+        engine.IsModelLoaded.ShouldBeFalse();
+    }
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task AWarmedUpEngineHearsTheSameWords()
+    {
+        using var directory = new TempDirectory();
+        var wav = await LiveWhisper.LongAnalysisWavAsync(directory.Path);
+        using var engine = LiveWhisper.NewEngine();
+
+        await engine.WarmUpAsync(TestContext.Current.CancellationToken);
+        await engine.WarmUpAsync(TestContext.Current.CancellationToken);
+        var warmed = await engine.TranscribeWavAsync(wav, TestContext.Current.CancellationToken);
+
+        warmed.Words.ShouldBe(
+            (
+                await LiveWhisper.Engine.TranscribeWavAsync(
+                    wav,
+                    TestContext.Current.CancellationToken
+                )
+            ).Words
+        );
+    }
 }
 
 /// <summary>

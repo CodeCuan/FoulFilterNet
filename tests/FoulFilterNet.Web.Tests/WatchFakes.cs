@@ -172,6 +172,8 @@ internal sealed class StubWhisperEngine : IWhisperEngine
             ? Task.FromException<IAnalysisAudio>(failure)
             : Task.FromResult<IAnalysisAudio>(new Audio(this));
 
+    public Task WarmUpAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     public ValueTask ReleaseAsync() => ValueTask.CompletedTask;
 
     private Gate? HoldFor(int window)
