@@ -67,3 +67,31 @@ public interface IMediaEditor
         CancellationToken cancellationToken = default
     );
 }
+
+/// <summary>
+/// An <see cref="IAudioPreparer"/> that can also convert just the start of a
+/// file: exactly the first seconds of what
+/// <see cref="IAudioPreparer.PadStartAsync"/> writes with no offset, sample for
+/// sample, in a fraction of the time the whole file takes.
+/// </summary>
+/// <remarks>
+/// A Watch Session uses it to hear the first windows of a long video while
+/// the whole file is still converting (W17). It is a separate interface so a
+/// preparer that cannot promise identical samples simply does not offer it,
+/// and the session converts the whole file first as before.
+/// </remarks>
+public interface IAudioHeadPreparer
+{
+    /// <summary>
+    /// The first <paramref name="seconds"/> of the analysis WAV
+    /// <see cref="IAudioPreparer.PadStartAsync"/> would write for
+    /// <paramref name="audioPath"/> with an offset of zero - the whole of it
+    /// when the file is shorter. Returns the path of a temporary file the
+    /// caller owns and must delete.
+    /// </summary>
+    Task<string> ConvertHeadAsync(
+        string audioPath,
+        double seconds,
+        CancellationToken cancellationToken = default
+    );
+}

@@ -67,6 +67,10 @@ public sealed class WhenWatchIsAddedFromConfiguration : IDisposable
         _manager.Options.CompletedRetention.ShouldBe(TimeSpan.FromMinutes(30));
 
     [Fact]
+    public void KeepsTheDefaultHeadLength() =>
+        _manager.Options.HeadSeconds.ShouldBe(WatchOptions.DefaultHeadSeconds);
+
+    [Fact]
     public void MakesOneManager() =>
         _provider.GetRequiredService<WatchSessionManager>().ShouldBeSameAs(_manager);
 

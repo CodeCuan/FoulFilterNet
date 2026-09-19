@@ -255,3 +255,103 @@ public class WhenStitchingAWordWhoseMidpointIsExactlyOnAShareBoundary
     public void KeepsItOnlyFromTheLaterWindow() =>
         _stitched.Words.Select(w => w.Text).ShouldBe(["second"]);
 }
+
+/// <summary>
+/// W17: the windows a Watch Session may hear from the first stretch of a file
+/// before it knows how long the file is. They must be exactly the windows the
+/// whole file will be planned with, however long it turns out to be.
+/// </summary>
+public class WhenCountingTheWindowsFixedByAKnownLength
+{
+    [Theory]
+    [InlineData(0.0, 0)]
+    [InlineData(28.0, 0)]
+    [InlineData(50.0, 0)]
+    [InlineData(50.001, 1)]
+    [InlineData(72.0, 1)]
+    [InlineData(72.5, 2)]
+    [InlineData(94.0, 2)]
+    [InlineData(116.0, 3)]
+    [InlineData(119.99, 4)]
+    [InlineData(120.0, 4)]
+    [InlineData(138.0, 4)]
+    [InlineData(138.01, 5)]
+    [InlineData(600.0, 25)]
+    public void CountsTheWindowsNeitherLastNorNextToLast(double known, int expected) =>
+        TranscriptionWindows.FixedPrefixCount(known).ShouldBe(expected);
+
+    [Fact]
+    public void GivesFourForTheTwoMinuteHead() =>
+        TranscriptionWindows.FixedPrefixCount(120.0).ShouldBe(4);
+
+    [Fact]
+    public void FixesTheFirstFourSharesUpToNinetyOneSeconds() =>
+        TranscriptionWindows.Plan(120.0)[3].KeepTo.ShouldBe(91.0);
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    [InlineData(-0.5)]
+    public void RefusesALengthThatIsNotOne(double known) =>
+        Should.Throw<ArgumentOutOfRangeException>(() =>
+            TranscriptionWindows.FixedPrefixCount(known)
+        );
+
+    [Fact]
+    public void KeepsThoseWindowsIdenticalForEveryLongerFile()
+    {
+        for (var known = 0.0; known < 400.0; known += 0.73)
+        {
+            var count = TranscriptionWindows.FixedPrefixCount(known);
+            var head = TranscriptionWindows.Plan(known);
+            for (var whole = known; whole < known + 300.0; whole += 1.37)
+            {
+                var plan = TranscriptionWindows.Plan(whole);
+                plan.Take(count).ShouldBe(head.Take(count), $"known {known}, whole {whole}");
+            }
+        }
+    }
+
+    [Fact]
+    public void CountsNoWindowThatALongerFileWouldPlanDifferently()
+    {
+        for (var known = 0.0; known < 400.0; known += 0.73)
+        {
+            var count = TranscriptionWindows.FixedPrefixCount(known);
+            var head = TranscriptionWindows.Plan(known);
+            var longer = TranscriptionWindows.Plan(known + 1000.0);
+
+            head.Count.ShouldBeGreaterThan(count, $"known {known}");
+            head[count].ShouldNotBe(longer[count], $"known {known}");
+        }
+    }
+
+    [Fact]
+    public void HasTheHeadReadEveryFixedWindowFromTheSameAudio()
+    {
+        for (var known = 0.0; known < 400.0; known += 0.73)
+        {
+            var count = TranscriptionWindows.FixedPrefixCount(known);
+            var head = TranscriptionWindows.Plan(known);
+            for (var i = 0; i < count; i++)
+            {
+                head[i].End.ShouldBeLessThanOrEqualTo(known, $"known {known}, window {i}");
+            }
+        }
+    }
+
+    [Fact]
+    public void LeavesAtLeastAStepOfHeadAfterTheLastFixedWindow()
+    {
+        for (var known = 51.0; known < 400.0; known += 0.73)
+        {
+            var count = TranscriptionWindows.FixedPrefixCount(known);
+            var last = TranscriptionWindows.Plan(known)[count - 1];
+            (known - last.End).ShouldBeGreaterThan(
+                TranscriptionWindows.LengthSeconds - TranscriptionWindows.OverlapSeconds,
+                $"known {known}"
+            );
+        }
+    }
+}

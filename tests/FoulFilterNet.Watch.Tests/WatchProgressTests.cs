@@ -31,6 +31,13 @@ internal sealed class Script(double duration, params Utterance[] utterances)
 {
     public double Duration => duration;
 
+    /// <summary>
+    /// The same speech cut off at <paramref name="seconds"/>, as the head of the
+    /// analysis WAV holds it: what it says up to there, planned for its own length.
+    /// </summary>
+    public Script Head(double seconds) =>
+        new(seconds, [.. utterances.Where(u => u.End <= seconds)]);
+
     public IReadOnlyList<TranscriptionWindow> Plan { get; } = TranscriptionWindows.Plan(duration);
 
     public TranscriptionResult Heard(int index)

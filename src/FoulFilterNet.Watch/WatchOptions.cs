@@ -38,6 +38,19 @@ public sealed class WatchOptions
     /// </summary>
     public TimeSpan FailedRetention { get; set; } = TimeSpan.FromMinutes(1);
 
+    /// <summary>The default for <see cref="HeadSeconds"/>: two minutes.</summary>
+    public const double DefaultHeadSeconds = 120.0;
+
+    /// <summary>
+    /// How much of a video's audio is converted on its own, ahead of the whole
+    /// file, so its first windows can be heard while the rest converts (W17).
+    /// Two minutes converts in about 0.3 s and fixes the first four windows
+    /// (91 s of Coverage); the whole of a 60-minute video takes about 8.6 s.
+    /// A video yt-dlp says is no longer than this is converted whole at once.
+    /// 0 turns the head off.
+    /// </summary>
+    public double HeadSeconds { get; set; } = DefaultHeadSeconds;
+
     /// <summary>How often the sweeper looks for sessions to drop.</summary>
     public TimeSpan SweepInterval { get; set; } = TimeSpan.FromSeconds(15);
 
@@ -55,7 +68,7 @@ public sealed class WatchOptions
     public string BadWordsPath { get; set; } = DataLocations.BadWordsPath(null, null);
 
     /// <summary>Throws when a value could not work.</summary>
-    /// <exception cref="ArgumentOutOfRangeException">A time span is zero or negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A time span is zero or negative, or <see cref="HeadSeconds"/> is negative or not finite.</exception>
     /// <exception cref="ArgumentException">A path is blank.</exception>
     public void Validate()
     {
@@ -63,6 +76,15 @@ public sealed class WatchOptions
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(CompletedRetention, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(FailedRetention, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(SweepInterval, TimeSpan.Zero);
+        if (!double.IsFinite(HeadSeconds) || HeadSeconds < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(HeadSeconds),
+                HeadSeconds,
+                "Must be a finite number of seconds, 0 or more (0 turns the head off)."
+            );
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(ScratchDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(TranscriptDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(BadWordsPath);

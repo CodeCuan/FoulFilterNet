@@ -81,7 +81,8 @@ public sealed class WatchSessionManager : IDisposable, IAsyncDisposable
             badWords,
             options.ScratchDirectory,
             _time,
-            (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<WatchSession>()
+            (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<WatchSession>(),
+            options.HeadSeconds
         );
     }
 

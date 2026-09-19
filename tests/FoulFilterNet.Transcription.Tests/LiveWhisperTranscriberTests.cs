@@ -268,6 +268,51 @@ public sealed class LiveWindowedEngineTests
     }
 
     [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task TheWindowsAHeadFixesHearWhatTheWholeFileDoes()
+    {
+        using var directory = new TempDirectory();
+        var source = await LiveWhisper.LongFileAsync(directory.Path);
+        var preparer = new FFmpegAudioPreparer(new FFmpegRunner(), directory.Path);
+        var wholeWav = await preparer.PadStartAsync(
+            source,
+            0.0,
+            TestContext.Current.CancellationToken
+        );
+        var headWav = await preparer.ConvertHeadAsync(
+            source,
+            80.0,
+            TestContext.Current.CancellationToken
+        );
+
+        await using var whole = await LiveWhisper.Engine.OpenAsync(
+            wholeWav,
+            InferencePriority.High,
+            TestContext.Current.CancellationToken
+        );
+        await using var head = await LiveWhisper.Engine.OpenAsync(
+            headWav,
+            InferencePriority.High,
+            TestContext.Current.CancellationToken
+        );
+        var fixedCount = TranscriptionWindows.FixedPrefixCount(head.DurationSeconds);
+        fixedCount.ShouldBe(2);
+
+        for (var i = 0; i < fixedCount; i++)
+        {
+            var fromHead = await head.TranscribeWindowAsync(
+                i,
+                TestContext.Current.CancellationToken
+            );
+            var fromWhole = await whole.TranscribeWindowAsync(
+                i,
+                TestContext.Current.CancellationToken
+            );
+            fromHead.Words.ShouldBe(fromWhole.Words, $"window {i}");
+            fromHead.Segments.ShouldBe(fromWhole.Segments, $"window {i}");
+        }
+    }
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
     public async Task AWarmUpLoadsTheModelWithoutHoldingItOpen()
     {
         using var engine = LiveWhisper.NewEngine();

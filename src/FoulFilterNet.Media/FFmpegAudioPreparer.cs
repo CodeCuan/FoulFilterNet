@@ -20,7 +20,7 @@ namespace FoulFilterNet.Media;
 /// name instead, so concurrent jobs over the same file cannot collide.
 /// </para>
 /// </remarks>
-public sealed class FFmpegAudioPreparer : IAudioPreparer
+public sealed class FFmpegAudioPreparer : IAudioPreparer, IAudioHeadPreparer
 {
     /// <summary>
     /// Seconds of silence the Rescan Pass prepends. Mirrors
@@ -73,6 +73,27 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
     }
 
     /// <summary>
+    /// Arguments for the head of the analysis WAV (W17): exactly
+    /// <see cref="BuildPadArguments"/> with no offset, plus <c>-t</c> as an
+    /// <em>output</em> option in front of the output path. FFmpeg then decodes,
+    /// filters and resamples just as it does for the whole file and stops
+    /// writing after <paramref name="seconds"/>, so every sample it writes is
+    /// the whole conversion's sample at the same place. Seeking the input
+    /// instead (<c>-ss</c>/<c>-t</c> before <c>-i</c>, as
+    /// <see cref="BuildCropArguments"/> does) is not the same conversion: on
+    /// the W01 video it wrote 112 samples fewer and its last 7 ms differed.
+    /// </summary>
+    public static IReadOnlyList<string> BuildHeadArguments(
+        string audioPath,
+        double seconds,
+        string outputPath
+    )
+    {
+        var whole = BuildPadArguments(audioPath, 0.0, outputPath);
+        return [.. whole.Take(whole.Count - 1), "-t", Times.ToFixed(seconds), outputPath];
+    }
+
+    /// <summary>
     /// Arguments for a cropped span. <c>-ss</c> and <c>-t</c> precede <c>-i</c>
     /// so FFmpeg seeks the container rather than decoding everything before the
     /// span and discarding it.
@@ -120,6 +141,29 @@ public sealed class FFmpegAudioPreparer : IAudioPreparer
         return RenderTemporaryAsync(
             "rescan",
             outputPath => BuildPadArguments(audioPath, offsetSeconds, outputPath),
+            cancellationToken
+        );
+    }
+
+    public Task<string> ConvertHeadAsync(
+        string audioPath,
+        double seconds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(audioPath);
+        if (!double.IsFinite(seconds) || seconds <= 0.0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(seconds),
+                seconds,
+                "The head must be a finite, positive number of seconds."
+            );
+        }
+
+        return RenderTemporaryAsync(
+            "head",
+            outputPath => BuildHeadArguments(audioPath, seconds, outputPath),
             cancellationToken
         );
     }

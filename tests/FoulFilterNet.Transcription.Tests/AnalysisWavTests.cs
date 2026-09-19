@@ -371,3 +371,78 @@ public sealed class WhenAnAnalysisWavCannotBeUsed : IDisposable
         );
     }
 }
+
+/// <summary>
+/// W17: the first two minutes of a video's analysis audio, converted on their
+/// own, read exactly the same samples for every window the head fixes as the
+/// whole file does - which is why a Watch Session may hear those windows
+/// before the whole conversion has finished. The head is the whole file's
+/// first frames, as FFmpeg's <c>-t</c> writes them (measured byte-identical
+/// on the 60-minute W01 video).
+/// </summary>
+public sealed class WhenReadingTheFixedWindowsOfAHead : IDisposable
+{
+    private const int Rate = 16000;
+
+    private readonly TempDirectory _directory = new();
+    private readonly AnalysisWav _whole;
+    private readonly AnalysisWav _head;
+    private readonly int _fixed;
+
+    public WhenReadingTheFixedWindowsOfAHead()
+    {
+        var whole = Path.Combine(_directory.Path, "whole.wav");
+        var head = Path.Combine(_directory.Path, "head.wav");
+
+        // Noise, so a window read from the wrong place cannot match by chance.
+        static short Sample(long frame, int channel) =>
+            (short)((frame * 7919 + channel * 104729) % 65536 - 32768);
+        TestWav.Write(whole, 400L * Rate + 1234, Sample, withListChunk: true);
+        TestWav.Write(head, 120L * Rate, Sample, withListChunk: true);
+
+        _whole = AnalysisWav.OpenAsync(whole, TestContext.Current.CancellationToken).Result;
+        _head = AnalysisWav.OpenAsync(head, TestContext.Current.CancellationToken).Result;
+        _fixed = TranscriptionWindows.FixedPrefixCount(_head.DurationSeconds);
+    }
+
+    public void Dispose()
+    {
+        _whole.Dispose();
+        _head.Dispose();
+        _directory.Dispose();
+    }
+
+    [Fact]
+    public void FixesFourWindows() => _fixed.ShouldBe(4);
+
+    [Fact]
+    public void PlansThemAsTheWholeFileDoes() =>
+        _head.Windows.Take(_fixed).ShouldBe(_whole.Windows.Take(_fixed));
+
+    [Fact]
+    public async Task ReadsTheSameSamplesForEachOfThem()
+    {
+        for (var i = 0; i < _fixed; i++)
+        {
+            (await _head.ReadWindowAsync(i, TestContext.Current.CancellationToken)).ShouldBe(
+                await _whole.ReadWindowAsync(i, TestContext.Current.CancellationToken),
+                $"window {i}"
+            );
+        }
+    }
+
+    [Fact]
+    public async Task ReadsWholeWindowsForEachOfThem()
+    {
+        for (var i = 0; i < _fixed; i++)
+        {
+            (await _head.ReadWindowAsync(i, TestContext.Current.CancellationToken)).Length.ShouldBe(
+                (int)(TranscriptionWindows.LengthSeconds * Rate)
+            );
+        }
+    }
+
+    [Fact]
+    public void PlansTheNextWindowDifferently() =>
+        _head.Windows[_fixed].ShouldNotBe(_whole.Windows[_fixed]);
+}

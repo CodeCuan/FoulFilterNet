@@ -90,6 +90,49 @@ public static class TranscriptionWindows
     }
 
     /// <summary>
+    /// How many of the first windows <see cref="Plan"/> gives exactly the same
+    /// - start, end and share - for <em>every</em> file at least
+    /// <paramref name="minimumDurationSeconds"/> long.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only the end of a plan depends on the file's length: the last window is
+    /// pulled back to end with the file, and each share ends halfway into the
+    /// overlap with the next window. So a window is fixed once neither it nor
+    /// the next one can be the last, which for window <c>i</c> means the window
+    /// after it, <c>i + 1</c>, ends before the known length.
+    /// </para>
+    /// <para>
+    /// This is what lets a Watch Session hear the start of a video from the
+    /// first stretch of its audio, converted on its own, before the whole file
+    /// exists to say how long it is (W17): the windows it hears then are the
+    /// very windows, with the very audio, it would have heard from the whole
+    /// file. Every one of them ends more than a step before the known length.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The length is negative, NaN or infinite.</exception>
+    public static int FixedPrefixCount(double minimumDurationSeconds)
+    {
+        if (!double.IsFinite(minimumDurationSeconds) || minimumDurationSeconds < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(minimumDurationSeconds),
+                minimumDurationSeconds,
+                "Must be a finite, non-negative number of seconds."
+            );
+        }
+
+        var step = LengthSeconds - OverlapSeconds;
+        var count = 0;
+        while ((count + 1) * step + LengthSeconds < minimumDurationSeconds)
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>
     /// Join what each window heard, on its own timeline starting at zero, into
     /// one result on the file's timeline.
     /// </summary>

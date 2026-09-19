@@ -115,9 +115,52 @@ internal sealed class FakeAudioSource : IWebAudioSource
         new(Harness.Video, kind, reason, $"yt-dlp failed: {reason}", exitCode: 1);
 }
 
-internal sealed class FakePreparer(string directory) : IAudioPreparer
+internal sealed class FakePreparer(string directory) : IAudioPreparer, IAudioHeadPreparer
 {
+    /// <summary>What the head WAVs this preparer writes are called, so the fake engine knows one.</summary>
+    public const string HeadPrefix = "ffn_head_";
+
     private int _calls;
+    private int _headCalls;
+
+    public int HeadCalls => Volatile.Read(ref _headCalls);
+
+    public Exception? HeadFailure { get; set; }
+
+    public Gate? HeadHold { get; set; }
+
+    public ConcurrentQueue<(string Input, double Seconds)> HeadRequests { get; } = new();
+
+    public ConcurrentQueue<string> Heads { get; } = new();
+
+    /// <summary>The token the whole conversion was given.</summary>
+    public CancellationToken WholeToken { get; private set; }
+
+    public async Task<string> ConvertHeadAsync(
+        string audioPath,
+        double seconds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Interlocked.Increment(ref _headCalls);
+        HeadRequests.Enqueue((audioPath, seconds));
+
+        if (HeadHold is { } gate)
+        {
+            await gate.PassAsync(cancellationToken);
+        }
+
+        if (HeadFailure is { } failure)
+        {
+            throw failure;
+        }
+
+        Directory.CreateDirectory(directory);
+        var wav = Path.Combine(directory, $"{HeadPrefix}{Guid.NewGuid():N}.wav");
+        await File.WriteAllTextAsync(wav, "not really the head of a wav", CancellationToken.None);
+        Heads.Enqueue(wav);
+        return wav;
+    }
 
     public Exception? Failure { get; set; }
 
@@ -137,6 +180,7 @@ internal sealed class FakePreparer(string directory) : IAudioPreparer
     {
         Interlocked.Increment(ref _calls);
         Requests.Enqueue((audioPath, offsetSeconds));
+        WholeToken = cancellationToken;
 
         if (Hold is { } gate)
         {
@@ -169,6 +213,29 @@ internal sealed class FakePreparer(string directory) : IAudioPreparer
     ) => throw new NotSupportedException("A Watch Session never crops.");
 }
 
+/// <summary>A preparer that cannot convert a head: the session converts the whole file first.</summary>
+internal sealed class WholeFileOnlyPreparer(FakePreparer inner) : IAudioPreparer
+{
+    public Task<string> PadStartAsync(
+        string audioPath,
+        double offsetSeconds,
+        CancellationToken cancellationToken = default
+    ) => inner.PadStartAsync(audioPath, offsetSeconds, cancellationToken);
+
+    public Task ExtractAudioTrackAsync(
+        string videoPath,
+        string outputPath,
+        CancellationToken cancellationToken = default
+    ) => inner.ExtractAudioTrackAsync(videoPath, outputPath, cancellationToken);
+
+    public Task<string> CropAsync(
+        string audioPath,
+        double offsetSeconds,
+        double durationSeconds,
+        CancellationToken cancellationToken = default
+    ) => inner.CropAsync(audioPath, offsetSeconds, durationSeconds, cancellationToken);
+}
+
 /// <summary>
 /// An engine whose audio is a <see cref="Script"/>: each window returns what
 /// the script says it hears, after any <see cref="Gate"/> set for it, moving
@@ -194,6 +261,18 @@ internal sealed class FakeEngine(Script script, FakeTimeProvider time) : IWhispe
 
     public ConcurrentQueue<int> Requested { get; } = new();
 
+    /// <summary>Every window asked for, with whether it was the head's or the whole file's.</summary>
+    public ConcurrentQueue<(bool FromHead, int Index)> RequestedFrom { get; } = new();
+
+    /// <summary>What a head WAV (<see cref="FakePreparer.HeadPrefix"/>) holds; null refuses to open one.</summary>
+    public Script? HeadScript { get; set; }
+
+    public IEnumerable<int> HeardFromHead =>
+        RequestedFrom.Where(r => r.FromHead).Select(r => r.Index);
+
+    public IEnumerable<int> HeardFromWhole =>
+        RequestedFrom.Where(r => !r.FromHead).Select(r => r.Index);
+
     public ConcurrentQueue<int> Abandoned { get; } = new();
 
     public Gate Hold(int window) => _holds.GetOrAdd(window, _ => new Gate());
@@ -211,7 +290,12 @@ internal sealed class FakeEngine(Script script, FakeTimeProvider time) : IWhispe
             throw failure;
         }
 
-        var audio = new FakeAnalysisAudio(this, time);
+        var fromHead = Path.GetFileName(wavPath)
+            .StartsWith(FakePreparer.HeadPrefix, StringComparison.Ordinal);
+        var heard = fromHead
+            ? HeadScript ?? throw new InvalidOperationException("No head script was set.")
+            : script;
+        var audio = new FakeAnalysisAudio(this, time, heard, fromHead);
         Audios.Enqueue(audio);
         return Task.FromResult<IAnalysisAudio>(audio);
     }
@@ -255,15 +339,22 @@ internal sealed class FakeEngine(Script script, FakeTimeProvider time) : IWhispe
     internal bool TryGetHold(int window, out Gate gate) => _holds.TryGetValue(window, out gate!);
 }
 
-internal sealed class FakeAnalysisAudio(FakeEngine engine, FakeTimeProvider time) : IAnalysisAudio
+internal sealed class FakeAnalysisAudio(
+    FakeEngine engine,
+    FakeTimeProvider time,
+    Script script,
+    bool fromHead
+) : IAnalysisAudio
 {
     private int _disposed;
 
     public bool IsDisposed => Volatile.Read(ref _disposed) == 1;
 
-    public double DurationSeconds => engine.Script.Duration;
+    public bool FromHead => fromHead;
 
-    public IReadOnlyList<TranscriptionWindow> Windows => engine.Script.Plan;
+    public double DurationSeconds => script.Duration;
+
+    public IReadOnlyList<TranscriptionWindow> Windows => script.Plan;
 
     public async Task<TranscriptionResult> TranscribeWindowAsync(
         int index,
@@ -271,7 +362,9 @@ internal sealed class FakeAnalysisAudio(FakeEngine engine, FakeTimeProvider time
     )
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, script.Plan.Count);
         engine.Requested.Enqueue(index);
+        engine.RequestedFrom.Enqueue((fromHead, index));
 
         try
         {
@@ -294,7 +387,7 @@ internal sealed class FakeAnalysisAudio(FakeEngine engine, FakeTimeProvider time
         }
 
         time.Advance(engine.WindowTime(index));
-        return engine.Script.Heard(index);
+        return script.Heard(index);
     }
 
     public ValueTask DisposeAsync()
@@ -385,19 +478,33 @@ internal sealed class Harness : IDisposable
     public static readonly DateTimeOffset Epoch = new(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
 
     public Harness()
+        : this(HundredSecondVideo.Script) { }
+
+    /// <param name="script">The video every whole WAV holds.</param>
+    public Harness(Script script)
     {
+        VideoScript = script;
         Root = Path.Combine(Path.GetTempPath(), "ffn-watch-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
 
         Time = new FakeTimeProvider(Epoch);
         Source = new FakeAudioSource();
         Preparer = new FakePreparer(Path.Combine(Root, "prepared"));
-        Engine = new FakeEngine(HundredSecondVideo.Script, Time);
+        Engine = new FakeEngine(script, Time);
         Store = new RecordingStore();
         BadWords = new FakeBadWords(HundredSecondVideo.BadWords);
     }
 
     public string Root { get; }
+
+    /// <summary>The video this harness's whole WAVs hold.</summary>
+    public Script VideoScript { get; }
+
+    /// <summary>What <see cref="WatchSessionServices.HeadSeconds"/> the sessions get.</summary>
+    public double HeadSeconds { get; set; } = WatchOptions.DefaultHeadSeconds;
+
+    /// <summary>What the sessions convert with; the fake preparer unless replaced.</summary>
+    public IAudioPreparer? AudioPreparer { get; set; }
 
     public string ScratchRoot => Path.Combine(Root, "scratch");
 
@@ -426,13 +533,14 @@ internal sealed class Harness : IDisposable
     public WatchSessionServices Services(ITranscriptStore? store = null) =>
         new(
             Source,
-            Preparer,
+            AudioPreparer ?? Preparer,
             Engine,
             store ?? Store,
             BadWords,
             ScratchRoot,
             Time,
-            NullLogger.Instance
+            NullLogger.Instance,
+            HeadSeconds
         );
 
     public WatchSession Session(ITranscriptStore? store = null) => new(Video, Services(store));
@@ -455,7 +563,8 @@ internal sealed class Harness : IDisposable
     public bool ScratchIsEmpty =>
         !Directory.Exists(ScratchRoot) || !Directory.EnumerateFileSystemEntries(ScratchRoot).Any();
 
-    public bool EveryPreparedWavIsDeleted => Preparer.Prepared.All(p => !File.Exists(p));
+    public bool EveryPreparedWavIsDeleted =>
+        Preparer.Prepared.Concat(Preparer.Heads).All(p => !File.Exists(p));
 
     public bool EveryAudioIsDisposed => Engine.Audios.All(a => a.IsDisposed);
 

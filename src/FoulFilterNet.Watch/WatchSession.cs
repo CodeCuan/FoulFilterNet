@@ -19,6 +19,10 @@ namespace FoulFilterNet.Watch;
 /// <param name="ScratchDirectory">Under which each session makes, and deletes, its own directory.</param>
 /// <param name="Time">The clock for heartbeats, expiry and throughput.</param>
 /// <param name="Logger">Where sessions log.</param>
+/// <param name="HeadSeconds">
+/// How much audio to convert ahead of the whole file when <paramref name="Audio"/>
+/// can (<see cref="IAudioHeadPreparer"/>); 0 converts the whole file first.
+/// </param>
 public sealed record WatchSessionServices(
     IWebAudioSource Source,
     IAudioPreparer Audio,
@@ -27,7 +31,8 @@ public sealed record WatchSessionServices(
     IBadWordsSource BadWords,
     string ScratchDirectory,
     TimeProvider Time,
-    ILogger Logger
+    ILogger Logger,
+    double HeadSeconds = WatchOptions.DefaultHeadSeconds
 );
 
 /// <summary>
@@ -56,6 +61,20 @@ public sealed record WatchSessionServices(
 /// watched at once share the GPU window by window - each at half speed. That is
 /// fine for V1's one viewer; <see cref="WatchSnapshot.IsKeepingUp"/> says when
 /// it is not.
+/// </para>
+/// <para>
+/// <b>Time to first play (W17).</b> On a cache miss the model loads in the
+/// background while the audio is fetched. Once it is fetched, the whole file
+/// starts converting and, alongside, its first
+/// <see cref="WatchSessionServices.HeadSeconds"/> are converted on their own
+/// (<see cref="IAudioHeadPreparer"/>), which takes a fraction of a second. The
+/// windows <see cref="TranscriptionWindows.FixedPrefixCount"/> says the head
+/// fixes are heard from the head, against a provisional plan of yt-dlp's
+/// duration, while the whole file converts; they are the very windows, with the
+/// very samples, the whole file would give. When the whole WAV is ready its
+/// real plan is swapped in (<see cref="WatchProgress.WithPlan"/>, one revision)
+/// and the rest is heard from it. Only while the viewer is inside the head's
+/// windows: a viewer who starts past them waits for the whole file.
 /// </para>
 /// <para>
 /// <b>Cleanup.</b> Whatever the outcome - complete, failed, cancelled - the
@@ -335,7 +354,9 @@ public sealed partial class WatchSession
     {
         string? scratch = null;
         string? wav = null;
+        Task<string>? converting = null;
         var warming = Task.CompletedTask;
+        using var conversion = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         try
         {
@@ -364,9 +385,26 @@ public sealed partial class WatchSession
             }
 
             MoveTo(WatchState.Preparing);
-            wav = await _services
-                .Audio.PadStartAsync(audio.AudioPath, 0.0, cancellationToken)
-                .ConfigureAwait(false);
+            var source = audio.AudioPath;
+            converting = Task.Run(
+                () => _services.Audio.PadStartAsync(source, 0.0, conversion.Token),
+                CancellationToken.None
+            );
+
+            if (_services.Audio is IAudioHeadPreparer head && WantsAHead(audio))
+            {
+                await HearTheHeadAsync(
+                        head,
+                        audio,
+                        converting,
+                        warming,
+                        badWords,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
+
+            wav = await converting.ConfigureAwait(false);
 
             await warming.ConfigureAwait(false);
             var analysis = await _services
@@ -374,20 +412,28 @@ public sealed partial class WatchSession
                 .ConfigureAwait(false);
             await using (analysis.ConfigureAwait(false))
             {
-                var progress = WatchProgress.Start(
-                    analysis.Windows,
-                    analysis.DurationSeconds,
-                    badWords
-                );
-
                 lock (_gate)
                 {
-                    _progress = progress;
+                    // After a head, the real plan replaces the provisional one;
+                    // the windows heard from the head are in it unchanged.
+                    _progress =
+                        _progress?.WithPlan(analysis.Windows, analysis.DurationSeconds)
+                        ?? WatchProgress.Start(
+                            analysis.Windows,
+                            analysis.DurationSeconds,
+                            badWords
+                        );
                     _durationSeconds = analysis.DurationSeconds;
                     _state = WatchState.Transcribing;
                 }
 
-                await TranscribeAsync(analysis, cancellationToken).ConfigureAwait(false);
+                await TranscribeAsync(
+                        analysis,
+                        analysis.Windows.Count,
+                        static () => true,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
 
             await SaveAsync(cancellationToken).ConfigureAwait(false);
@@ -419,6 +465,22 @@ public sealed partial class WatchSession
         }
         finally
         {
+            if (converting is not null)
+            {
+                // A conversion the session no longer needs is stopped, and one
+                // that finished is deleted whether or not it was used.
+                await conversion.CancelAsync().ConfigureAwait(false);
+                try
+                {
+                    wav = await converting.ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Its failure, if it mattered, has been reported already;
+                    // the preparer deletes a render that failed.
+                }
+            }
+
             // The audio was disposed on the way out of its using block, so the
             // WAV is no longer held open.
             TryDeleteFile(wav);
@@ -497,12 +559,135 @@ public sealed partial class WatchSession
     }
 
     /// <summary>
-    /// Every window, one at a time, each chosen from the latest playhead and
-    /// the windows finished so far.
+    /// Whether to convert and hear a head first: when there is a head to
+    /// speak of and yt-dlp does not say the video is no longer than it (then
+    /// the whole file converts as fast as the head would).
     /// </summary>
-    private async Task TranscribeAsync(IAnalysisAudio analysis, CancellationToken cancellationToken)
+    private bool WantsAHead(WebAudio audio) =>
+        _services.HeadSeconds > 0.0
+        && (audio.DurationSeconds is not { } claimed || claimed > _services.HeadSeconds);
+
+    /// <summary>
+    /// Convert the head and hear the windows it fixes from it, while
+    /// <paramref name="converting"/> makes the whole WAV; stop as soon as that
+    /// is ready. Leaves <see cref="_progress"/> on a provisional plan whose
+    /// fixed windows are exactly the real plan's, or null when nothing was
+    /// heard. A head that cannot be converted is logged and skipped: the whole
+    /// file is still coming.
+    /// </summary>
+    private async Task HearTheHeadAsync(
+        IAudioHeadPreparer preparer,
+        WebAudio audio,
+        Task<string> converting,
+        Task warming,
+        BadWordsList badWords,
+        CancellationToken cancellationToken
+    )
     {
-        while (true)
+        string head;
+        try
+        {
+            head = await preparer
+                .ConvertHeadAsync(audio.AudioPath, _services.HeadSeconds, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            LogHeadFailed(exception, Video.Key);
+            return;
+        }
+
+        try
+        {
+            if (converting.IsCompleted)
+            {
+                return;
+            }
+
+            await warming.ConfigureAwait(false);
+            var analysis = await _services
+                .Engine.OpenAsync(head, InferencePriority.High, cancellationToken)
+                .ConfigureAwait(false);
+            await using (analysis.ConfigureAwait(false))
+            {
+                // The whole file is at least as long as its head, which is
+                // all that is known of its length yet; yt-dlp's figure plans
+                // the rest provisionally.
+                var known = analysis.DurationSeconds;
+                var provisional = Math.Max(known, audio.DurationSeconds ?? 0.0);
+                var plan = TranscriptionWindows.Plan(provisional);
+                var usable = FixedWindows(analysis.Windows, plan, known);
+
+                lock (_gate)
+                {
+                    if (usable == 0 || _playheadSeconds >= plan[usable - 1].KeepTo)
+                    {
+                        // Nothing the viewer needs yet is in the head.
+                        return;
+                    }
+
+                    _progress = WatchProgress.Start(plan, provisional, badWords);
+                    _durationSeconds = provisional;
+                    _state = WatchState.Transcribing;
+                }
+
+                LogHearingHead(Video.Key, usable, known);
+                await TranscribeAsync(
+                        analysis,
+                        usable,
+                        () => !converting.IsCompleted,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            TryDeleteFile(head);
+        }
+    }
+
+    /// <summary>
+    /// How many of the first windows the head fixes: those
+    /// <see cref="TranscriptionWindows.FixedPrefixCount"/> allows for its
+    /// length, and - checked rather than assumed - that the head reads from
+    /// the same stretch of audio as <paramref name="plan"/> puts them.
+    /// </summary>
+    private static int FixedWindows(
+        IReadOnlyList<TranscriptionWindow> head,
+        IReadOnlyList<TranscriptionWindow> plan,
+        double known
+    )
+    {
+        var count = Math.Min(
+            TranscriptionWindows.FixedPrefixCount(known),
+            Math.Min(head.Count, plan.Count)
+        );
+        for (var i = 0; i < count; i++)
+        {
+            if (head[i].Start != plan[i].Start || head[i].End != plan[i].End)
+            {
+                return i;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Windows one at a time, each chosen from the latest playhead and the
+    /// windows finished so far, among the first <paramref name="usable"/> of
+    /// the plan (all of them once the whole WAV is open), for as long as
+    /// <paramref name="carryOn"/> says.
+    /// </summary>
+    private async Task TranscribeAsync(
+        IAnalysisAudio analysis,
+        int usable,
+        Func<bool> carryOn,
+        CancellationToken cancellationToken
+    )
+    {
+        while (carryOn())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -511,11 +696,7 @@ public sealed partial class WatchSession
             lock (_gate)
             {
                 progress = _progress!;
-                next = WindowScheduler.Next(
-                    progress.Plan,
-                    progress.FinishedWindows,
-                    _playheadSeconds
-                );
+                next = NextWindow(progress, usable, _playheadSeconds);
             }
 
             if (next is not { } index)
@@ -540,6 +721,32 @@ public sealed partial class WatchSession
                 );
             }
         }
+    }
+
+    /// <summary>
+    /// The window to hear next. With only the first <paramref name="usable"/>
+    /// windows available (a head), none once the viewer is past them - the
+    /// whole file is what they are waiting for - and otherwise the scheduler's
+    /// choice with the rest counted as not to be asked for.
+    /// </summary>
+    private static int? NextWindow(WatchProgress progress, int usable, double playheadSeconds)
+    {
+        var plan = progress.Plan;
+        if (usable >= plan.Count)
+        {
+            return WindowScheduler.Next(plan, progress.FinishedWindows, playheadSeconds);
+        }
+
+        if (playheadSeconds >= plan[usable - 1].KeepTo)
+        {
+            return null;
+        }
+
+        return WindowScheduler.Next(
+            plan,
+            progress.FinishedWindows.Concat(Enumerable.Range(usable, plan.Count - usable)),
+            playheadSeconds
+        );
     }
 
     /// <summary>
@@ -689,6 +896,18 @@ public sealed partial class WatchSession
         Message = "Watch Session {Key}: the model could not be loaded ahead of the audio; opening it will try again"
     )]
     private partial void LogWarmUpFailed(Exception exception, string key);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Watch Session {Key}: hearing the first {Windows} window(s) from the {Seconds} s head while the whole file converts"
+    )]
+    private partial void LogHearingHead(string key, int windows, double seconds);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Watch Session {Key}: the head of the audio could not be converted; waiting for the whole file"
+    )]
+    private partial void LogHeadFailed(Exception exception, string key);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Watch Session {Key}: cancelled")]
     private partial void LogCancelled(string key);

@@ -297,6 +297,70 @@ public sealed class WatchProgress
         return new(Plan, DurationSeconds, badWords, _results, Revision + 1, Coverage);
     }
 
+    /// <summary>
+    /// This progress over <paramref name="plan"/> and
+    /// <paramref name="durationSeconds"/> instead, keeping every finished
+    /// window's result, one revision on - or this same instance when the plan
+    /// and duration are the ones it already has.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// W17: a Watch Session hears the first windows of a long video from the
+    /// head of its audio, against a provisional plan, before the whole WAV
+    /// exists to say how long the video really is. Those are windows
+    /// <see cref="TranscriptionWindows.FixedPrefixCount"/> guarantees the real
+    /// plan has too, so when the whole WAV arrives the session swaps the real
+    /// plan in here and carries on.
+    /// </para>
+    /// <para>
+    /// Every finished window must be in the new plan exactly as it is in this
+    /// one - same audio, same share - because what it heard and the Hits it
+    /// gave are final. Anything else throws rather than quietly re-timing
+    /// heard words. So the result is exactly what hearing the same windows
+    /// against <paramref name="plan"/> from the start would have given.
+    /// </para>
+    /// </remarks>
+    /// <param name="plan">The windows, whose shares tile the file, as <see cref="Coverage.From"/> requires.</param>
+    /// <param name="durationSeconds">The length of the video; finite, not negative.</param>
+    /// <exception cref="ArgumentException">
+    /// A finished window is missing from <paramref name="plan"/> or planned
+    /// differently there, or the plan does not tile the file.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">The duration is negative or not finite.</exception>
+    public WatchProgress WithPlan(IReadOnlyList<TranscriptionWindow> plan, double durationSeconds)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+
+        foreach (var index in FinishedWindows)
+        {
+            if (index >= plan.Count || plan[index] != Plan[index])
+            {
+                throw new ArgumentException(
+                    $"Window {index} is finished, so the new plan must hold it unchanged "
+                        + $"({Plan[index]}); it holds "
+                        + (index >= plan.Count ? "no such window." : $"{plan[index]}."),
+                    nameof(plan)
+                );
+            }
+        }
+
+        // Checks the duration and that the plan tiles the file.
+        var coverage = Coverage.From(plan, durationSeconds, FinishedWindows);
+
+        if (durationSeconds.Equals(DurationSeconds) && plan.SequenceEqual(Plan))
+        {
+            return this;
+        }
+
+        var results = new TranscriptionResult?[plan.Count];
+        foreach (var index in FinishedWindows)
+        {
+            results[index] = _results[index];
+        }
+
+        return new([.. plan], durationSeconds, BadWords, results, Revision + 1, coverage);
+    }
+
     private HitSnapshot BuildSnapshot()
     {
         var segments = new List<Segment>();

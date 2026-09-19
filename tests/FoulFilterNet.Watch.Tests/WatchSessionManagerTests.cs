@@ -811,3 +811,67 @@ public sealed class WhenTheOptionsCouldNotWork : IDisposable
         Should.Throw<ArgumentException>(() => _harness.Manager(options));
     }
 }
+
+public sealed class WhenTheHeadLengthCouldNotWork : IDisposable
+{
+    private readonly Harness _harness = new();
+
+    public void Dispose() => _harness.Dispose();
+
+    [Theory]
+    [InlineData(-1.0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void RefusesIt(double seconds)
+    {
+        var options = _harness.Options();
+        options.HeadSeconds = seconds;
+
+        Should
+            .Throw<ArgumentOutOfRangeException>(() => _harness.Manager(options))
+            .ParamName.ShouldBe(nameof(WatchOptions.HeadSeconds));
+    }
+
+    [Fact]
+    public void TakesZeroAsOff()
+    {
+        var options = _harness.Options();
+        options.HeadSeconds = 0.0;
+
+        Should.NotThrow(() => _harness.Manager(options).Dispose());
+    }
+
+    [Fact]
+    public void DefaultsToTwoMinutes() => new WatchOptions().HeadSeconds.ShouldBe(120.0);
+}
+
+public sealed class WhenTheManagersSessionsHearAHead : IDisposable
+{
+    private readonly Harness _harness = HeadHarness.Create();
+    private readonly WatchSessionManager _manager;
+
+    public WhenTheManagersSessionsHearAHead()
+    {
+        var options = _harness.Options();
+        options.HeadSeconds = 100.0;
+        _harness.Engine.HeadScript = HeadStartVideo.Script.Head(100.0);
+        _manager = _harness.Manager(options);
+
+        _manager.Heartbeat(Harness.Video, 0.0);
+        Waits.Until(() => _manager.Find(Harness.Video)?.State == WatchState.Complete);
+    }
+
+    public void Dispose()
+    {
+        _manager.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _harness.Dispose();
+    }
+
+    [Fact]
+    public void ConvertTheConfiguredLength() =>
+        _harness.Preparer.HeadRequests.Single().Seconds.ShouldBe(100.0);
+
+    [Fact]
+    public void FindTheBatchPipelinesHits() =>
+        _manager.Find(Harness.Video)!.Analysis!.Hits.ShouldBe(HeadHarness.BatchHits);
+}
