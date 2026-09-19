@@ -12,7 +12,7 @@ Last updated: 2026-09-19
 
 | | |
 |---|---|
-| Phase | **All 34 tasks merged** — runs natively; the container was dropped. Web video (W00–W18) in progress, see below |
+| Phase | **All 34 tasks merged** — runs natively; the container was dropped. Web video (W00–W19) in progress, see below |
 | Branch | `main` |
 | Solution | `FoulFilterNet.slnx`, 11 production + 11 test projects, builds clean (plus the `extension/` Node tests) |
 | Tests | 2961 passing, 38 skipped (4 opt-in live-LLM + 23 opt-in GPU + 11 opt-in web); extension: 1958 passing |
@@ -126,6 +126,7 @@ Same status key and conventions as the port ledger; branches are `task/W<nn>-<sl
 | W16 | End-to-end harness and checklist | — | | | |
 | W17 | Time-to-first-play | — | | | |
 | W18 | Documentation | — | | | |
+| W19 | Update the `foulfilter` Claude skill *(outside the repo)* | — | | | |
 
 ## Completed outside the ledger
 

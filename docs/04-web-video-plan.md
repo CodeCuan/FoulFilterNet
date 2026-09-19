@@ -1,6 +1,6 @@
 # 04 — Web Video Filtering (YouTube V1)
 
-Status: **accepted**, in progress (see [STATUS.md](STATUS.md)). Tasks are numbered `W00`–`W18` so they
+Status: **accepted**, in progress (see [STATUS.md](STATUS.md)). Tasks are numbered `W00`–`W19` so they
 cannot be confused with the port's `T01`–`T34`.
 
 ## Goal
@@ -517,6 +517,22 @@ in under 10 s with a cold model.
 README (prerequisites: yt-dlp and its JS runtime; installing the extension;
 configuration; the Terms of Service note), STATUS rows, and the docs index.
 **Depends on:** W16
+
+#### W19 · Update the `foulfilter` Claude skill
+The user's Claude Code skill at `C:\Users\CuanM\.claude\skills\foulfilter\SKILL.md`
+(outside the repo, so not committed here) teaches Claude to run the CLI on
+files. Extend it with what Claude needs for web video: starting the Web server
+with the right environment (model directory, `large-v3-turbo`, yt-dlp and Deno
+on `PATH`), checking `/config`'s `web_video` availability, loading the
+extension, driving a Watch Session through the HTTP API (for example, to
+pre-warm the cache for a YouTube video before watching, or to check which Hits
+a video would get), where web transcripts are cached (`youtube-<id>`), and the
+checklist for troubleshooting. Widen its description so it triggers on
+YouTube and web-video requests too. Keep it short and point to the README as
+the authority.
+**Done when:** the skill describes the web video features accurately against
+the merged code, and a dry read-through of each command in it works.
+**Depends on:** W18
 
 ### Dependency graph
 
