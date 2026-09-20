@@ -117,8 +117,22 @@ public sealed class WhenTranscribingOneWindowOfOpenedAudio : IDisposable
     public void RemembersItsPriority() => _sut.Priority.ShouldBe(InferencePriority.Normal);
 
     [Fact]
-    public void HandsTheListenerTheWholeWindow() =>
-        _rig.Listeners[0].Heard.ShouldHaveSingleItem().Length.ShouldBe(28 * 16000);
+    public void HandsTheListenerTheWholeWindowAndSomeSilence() =>
+        _rig.Listeners[0]
+            .Heard.ShouldHaveSingleItem()
+            .Length.ShouldBe((int)((28 + WindowedAudio.TrailingSilenceSeconds) * 16000));
+
+    /// <summary>
+    /// The silence is what keeps whisper.cpp from ending the window's last
+    /// segment on a sliver too short for DTW to filter, which is a fast-fail
+    /// rather than an exception.
+    /// </summary>
+    [Fact]
+    public void EndsThatWindowInSilence() => _rig.Listeners[0].Heard[0][^1].ShouldBe(0f);
+
+    [Fact]
+    public void KeepsTheWindowsOwnAudioInFront() =>
+        _rig.Listeners[0].Heard[0][28 * 16000 - 1].ShouldNotBe(0f);
 
     [Fact]
     public void HandsTheListenerThatWindowsAudio() =>
@@ -136,6 +150,55 @@ public sealed class WhenTranscribingOneWindowOfOpenedAudio : IDisposable
 
     [Fact]
     public void KeepsTheListenerForTheNextWindow() => _rig.Listeners[0].Disposed.ShouldBeFalse();
+}
+
+/// <summary>
+/// Whatever whisper.cpp says about the silence after a window is not part of
+/// the file, so it is dropped rather than stitched into the transcript - which
+/// matters most for the last window, whose share has no end.
+/// </summary>
+public sealed class WhenTheListenerHearsIntoTheTrailingSilence : IDisposable
+{
+    private readonly WindowedAudioRig _rig = new();
+    private readonly WindowedAudio _sut;
+    private readonly TranscriptionResult _heard;
+
+    public WhenTheListenerHearsIntoTheTrailingSilence()
+    {
+        _rig.Hear = (_, _) =>
+            Task.FromResult(
+                new TranscriptionResult(
+                    [
+                        new Segment(1.0, 2.0, "inside"),
+                        new Segment(27.9, 28.4, "across the end"),
+                        new Segment(28.1, 28.4, "in the silence"),
+                    ],
+                    [
+                        new Word("inside", 1.0, 2.0),
+                        new Word("across", 27.9, 28.4),
+                        new Word("silence", 28.1, 28.4),
+                    ]
+                )
+            );
+
+        _sut = _rig.Open();
+
+        _heard = _sut.TranscribeWindowAsync(0, TestContext.Current.CancellationToken).Result;
+    }
+
+    public void Dispose()
+    {
+        _sut.DisposeAsync().AsTask().Wait();
+        _rig.Dispose();
+    }
+
+    [Fact]
+    public void KeepsWhatBeganInsideTheWindow() =>
+        _heard.Segments.Select(segment => segment.Text).ShouldBe(["inside", "across the end"]);
+
+    [Fact]
+    public void KeepsTheWordsThatBeganInsideTheWindow() =>
+        _heard.Words.Select(word => word.Text).ShouldBe(["inside", "across"]);
 }
 
 /// <summary>

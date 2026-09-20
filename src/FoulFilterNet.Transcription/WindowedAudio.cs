@@ -47,6 +47,25 @@ public interface IWindowListener : IAsyncDisposable
 /// </remarks>
 public sealed class WindowedAudio : IAnalysisAudio
 {
+    /// <summary>
+    /// Silence appended to every window before it is heard, in seconds.
+    /// </summary>
+    /// <remarks>
+    /// Without it, whisper.cpp ends the last segment wherever the samples run
+    /// out, which can leave a sliver of a segment a few frames long. DTW then
+    /// median-filters that sliver and trips a native assertion -
+    /// <c>filter_width &lt; a-&gt;ne[2]</c> at whisper.cpp:8793 - which is a
+    /// <em>fast-fail</em>: the process dies on the spot, with no exception to
+    /// catch (seen on a real video, 2026-09-20; reproduced and measured, and
+    /// still present in Whisper.net 1.9.2-preview1). A little silence lets the
+    /// last real segment end on its own instead, and what is heard is
+    /// otherwise identical.
+    /// </remarks>
+    public const double TrailingSilenceSeconds = 0.5;
+
+    /// <summary>What whisper.cpp reads, and what <see cref="AnalysisWav"/> produces.</summary>
+    private const int SampleRate = 16000;
+
     private readonly AnalysisWav _wav;
     private readonly InferenceLane _lane;
     private readonly Func<IWindowListener> _listen;
@@ -124,6 +143,9 @@ public sealed class WindowedAudio : IAnalysisAudio
             var samples = await _wav.ReadWindowAsync(index, cancellationToken)
                 .ConfigureAwait(false);
 
+            var heardFor = (double)samples.Length / SampleRate;
+            samples = WithTrailingSilence(samples);
+
             using var lease = await _lane
                 .EnterAsync(Priority, cancellationToken)
                 .ConfigureAwait(false);
@@ -131,9 +153,10 @@ public sealed class WindowedAudio : IAnalysisAudio
             _listener ??= _listen();
             try
             {
-                var heard = await _listener
-                    .HearAsync(samples, cancellationToken)
-                    .ConfigureAwait(false);
+                var heard = Within(
+                    heardFor,
+                    await _listener.HearAsync(samples, cancellationToken).ConfigureAwait(false)
+                );
 
                 if (CrashTrace.IsEnabled)
                 {
@@ -159,6 +182,35 @@ public sealed class WindowedAudio : IAnalysisAudio
         {
             _turn.Release();
         }
+    }
+
+    /// <summary>The window's samples, followed by <see cref="TrailingSilenceSeconds"/> of quiet.</summary>
+    private static float[] WithTrailingSilence(float[] samples)
+    {
+        var padded = new float[samples.Length + (int)(TrailingSilenceSeconds * SampleRate)];
+        samples.CopyTo(padded, 0);
+
+        return padded;
+    }
+
+    /// <summary>
+    /// What was heard of the window itself, dropping anything that begins in
+    /// the silence after it.
+    /// </summary>
+    /// <remarks>
+    /// The silence is not part of the file, so nothing whisper.cpp says about
+    /// it belongs in a transcript. Stitching would drop most of it anyway - it
+    /// falls outside the window's share - but not for the last window, whose
+    /// share runs to the end of time.
+    /// </remarks>
+    private static TranscriptionResult Within(double seconds, TranscriptionResult heard)
+    {
+        var segments = heard.Segments.Where(segment => segment.Start < seconds).ToList();
+        var words = heard.Words.Where(word => word.Start < seconds).ToList();
+
+        return segments.Count == heard.Segments.Count && words.Count == heard.Words.Count
+            ? heard
+            : new TranscriptionResult(segments, words);
     }
 
     /// <summary>

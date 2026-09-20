@@ -1,5 +1,11 @@
 # Catching the native crash
 
+> **Solved once already.** The first crash this caught was whisper.cpp's DTW
+> median filter asserting on a sliver of a segment
+> (`filter_width < a->ne[2]`); the engine now pads every window with silence so
+> that sliver never forms. See ADR-0006's consequences. The trace stays for the
+> next one.
+
 Watching a web video sometimes ends the Web process outright, with exit code
 `3221226505` (`0xC0000409`, `STATUS_STACK_BUFFER_OVERRUN`). That is a native
 *fast-fail* from inside whisper.cpp: it is not an exception, nothing managed

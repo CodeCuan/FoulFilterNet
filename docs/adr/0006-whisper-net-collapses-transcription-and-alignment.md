@@ -157,3 +157,19 @@ comes from reconciliation rather than from DTW's accuracy.
   each word from the window whose share its midpoint falls in. The fixture
   evaluation is unchanged by this, and the opt-in
   `HearsTheProfanityPastTheFirstThirtySeconds` test covers audio past 30 s.
+- **DTW kills the process on a sliver of a segment (found 2026-09-20).** On a
+  real video, window 126 of 153 ended the Web process with no exception and no
+  managed stack: exit code `0xC0000409`, a native fast-fail. whisper.cpp's own
+  log named it — `WHISPER_ASSERT: whisper.cpp:8793: filter_width < a->ne[2]` —
+  in the median filter DTW runs over each segment. A segment only a few frames
+  long fails that assertion, and whisper.cpp ends the last segment of a buffer
+  wherever the samples stop, so a window that cuts mid-phrase can leave one.
+  Reproduced from the leftover WAV in 1.4 s, and still present in Whisper.net
+  1.9.2-preview1, so it is not something an upgrade fixes today. Turning DTW off
+  avoids it and costs the accuracy this ADR measured; `large-v3-turbo` happened
+  to survive that window, which is luck rather than a fix. What the engine does
+  instead is append `WindowedAudio.TrailingSilenceSeconds` of silence to every
+  window, so the last real segment ends on its own; anything heard in that
+  silence is dropped. The neighbouring window transcribed identically with and
+  without it (19 segments, 111 words), and every fixture measurement above is
+  unchanged.
