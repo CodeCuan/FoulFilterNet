@@ -72,7 +72,16 @@ The steps, and what a trace that **stops** at each one would mean:
 | `window.processor.dispose.begin` | Tearing a processor down, which is where a cancelled window waits |
 | `audio.dispose.begin` | Closing an analysis file |
 | `session.head.open` | The W17 head handover: a second open while the whole file converts |
+| `window.native.segment` | Decoding, between segments |
 | `heartbeat` | Nothing was running — the process sat still and then died |
+
+A window that stops **after its last `window.native.segment` but before
+`window.native.end`** died after decoding, which is when whisper.cpp works out
+the word timestamps (the DTW pass ADR-0006 depends on).
+
+`whisper.*` lines are whisper.cpp's own log, forwarded from the native side.
+They are the only place it explains itself, and what it prints last before a
+fast-fail is usually the whole story.
 
 `heartbeat` lines every 3 seconds carry managed and working-set memory, thread
 count, and the card's memory, utilisation and temperature from `nvidia-smi`

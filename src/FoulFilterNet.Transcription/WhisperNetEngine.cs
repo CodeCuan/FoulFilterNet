@@ -2,6 +2,7 @@ using FoulFilterNet.Domain;
 using Microsoft.Extensions.Logging;
 using Whisper.net;
 using Whisper.net.LibraryLoader;
+using Whisper.net.Logger;
 
 namespace FoulFilterNet.Transcription;
 
@@ -44,6 +45,12 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
 
     /// <summary>Numbers the processors built, so a trace can follow one of them.</summary>
     private int _processors;
+
+    /// <summary>
+    /// Whether whisper.cpp's own log has been wired into the trace. Its
+    /// registration is process-wide and cannot be undone, so it happens once.
+    /// </summary>
+    private static int _nativeLogging;
 
     public WhisperNetEngine(
         TranscriptionOptions options,
@@ -263,6 +270,18 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         var factoryOptions = WhisperRuntime.FactoryOptions(_options.Device, heads);
 
         LogLoading(_options.Model, path, _options.Device, heads);
+
+        // whisper.cpp's own log, into the trace. It is the only place the
+        // native side explains itself, and what it prints last before a
+        // fast-fail is usually the whole story.
+        if (CrashTrace.IsEnabled && Interlocked.Exchange(ref _nativeLogging, 1) == 0)
+        {
+            LogProvider.AddLogger(
+                (level, message) =>
+                    CrashTrace.Write($"whisper.{level}", (message ?? string.Empty).TrimEnd())
+            );
+        }
+
         CrashTrace.Write(
             "engine.model.load.begin",
             $"model={_options.Model} device={_options.Device}"
@@ -331,6 +350,17 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
                     .ConfigureAwait(false)
             )
             {
+                // Per segment, so a trace says whether the window died while
+                // whisper.cpp was still decoding or after its last segment -
+                // which is when the word timestamps are worked out.
+                if (CrashTrace.IsEnabled)
+                {
+                    CrashTrace.Write(
+                        "window.native.segment",
+                        $"n={segments.Count} from={heard.Start.TotalSeconds:F3} to={heard.End.TotalSeconds:F3} tokens={heard.Tokens?.Length ?? 0}"
+                    );
+                }
+
                 var text = (heard.Text ?? string.Empty).Trim();
                 if (text.Length > 0 && heard.End > heard.Start)
                 {
