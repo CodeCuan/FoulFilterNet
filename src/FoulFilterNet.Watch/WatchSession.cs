@@ -617,6 +617,10 @@ public sealed partial class WatchSession
             }
 
             await warming.ConfigureAwait(false);
+            CrashTrace.Write(
+                "session.head.open",
+                $"{Video.Key} seconds={_services.HeadSeconds:F0}"
+            );
             var analysis = await _services
                 .Engine.OpenAsync(head, InferencePriority.High, cancellationToken)
                 .ConfigureAwait(false);
@@ -655,6 +659,7 @@ public sealed partial class WatchSession
         }
         finally
         {
+            CrashTrace.Write("session.head.done", Video.Key);
             TryDeleteFile(head);
         }
     }
@@ -841,6 +846,8 @@ public sealed partial class WatchSession
             _state = state;
         }
 
+        CrashTrace.Write("session.state", $"{Video.Key} {state}");
+
         _leftQueue.TrySetResult();
     }
 
@@ -858,6 +865,8 @@ public sealed partial class WatchSession
             _failureKind = failureKind;
             _endedAt = _services.Time.GetUtcNow();
         }
+
+        CrashTrace.Write("session.end", $"{Video.Key} {state} {reason}");
 
         _leftQueue.TrySetResult();
     }

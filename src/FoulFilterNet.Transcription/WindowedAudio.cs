@@ -112,6 +112,15 @@ public sealed class WindowedAudio : IAnalysisAudio
         {
             ThrowIfDisposed();
 
+            var window = Windows[index];
+            if (CrashTrace.IsEnabled)
+            {
+                CrashTrace.Write(
+                    "window.begin",
+                    $"index={index}/{Windows.Count} from={window.Start:F3} to={window.End:F3} priority={Priority}"
+                );
+            }
+
             var samples = await _wav.ReadWindowAsync(index, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -122,10 +131,24 @@ public sealed class WindowedAudio : IAnalysisAudio
             _listener ??= _listen();
             try
             {
-                return await _listener.HearAsync(samples, cancellationToken).ConfigureAwait(false);
+                var heard = await _listener
+                    .HearAsync(samples, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (CrashTrace.IsEnabled)
+                {
+                    CrashTrace.Write(
+                        "window.end",
+                        $"index={index} segments={heard.Segments.Count} words={heard.Words.Count}"
+                    );
+                }
+
+                return heard;
             }
             catch (OperationCanceledException)
             {
+                CrashTrace.Write("window.cancelled", $"index={index}");
+
                 var interrupted = _listener;
                 _listener = null;
                 await interrupted.DisposeAsync().ConfigureAwait(false);
@@ -149,6 +172,8 @@ public sealed class WindowedAudio : IAnalysisAudio
             return;
         }
 
+        CrashTrace.Write("audio.dispose.begin", $"windows={Windows.Count}");
+
         await _turn.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -159,6 +184,7 @@ public sealed class WindowedAudio : IAnalysisAudio
             }
 
             _wav.Dispose();
+            CrashTrace.Write("audio.dispose.end");
         }
         finally
         {

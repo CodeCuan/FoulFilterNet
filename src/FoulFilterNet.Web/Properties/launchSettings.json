@@ -7,6 +7,19 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
       "applicationUrl": "http://localhost:8000"
+    },
+    "FoulFilterNet.Web (crash trace)": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "FFN_CRASH_TRACE": "F:\\SourceCode\\FoulFilterNet\\crash-trace.log",
+        "Watch__HeadSeconds": "120",
+        "DOTNET_DbgEnableMiniDump": "1",
+        "DOTNET_DbgMiniDumpType": "4",
+        "DOTNET_DbgMiniDumpName": "F:\\SourceCode\\FoulFilterNet\\dumps\\ffn.%d.dmp"
+      },
+      "applicationUrl": "http://localhost:8000"
     }
   }
 }

@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/FoulFilterNet.Cli/FoulFilterNet.Cli.csproj" />
     <Project Path="src/FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />

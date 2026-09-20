@@ -115,3 +115,7 @@ $RECYCLE.BIN/
 
 # Agent worktrees are transient and must never be committed.
 .claude/worktrees/
+
+# Crash diagnostics (docs/native-crash-trace.md)
+crash-trace.log
+dumps/

@@ -42,6 +42,9 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     private int _open;
     private bool _releasePending;
 
+    /// <summary>Numbers the processors built, so a trace can follow one of them.</summary>
+    private int _processors;
+
     public WhisperNetEngine(
         TranscriptionOptions options,
         WhisperModelSource models,
@@ -91,6 +94,14 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         {
             var wav = await AnalysisWav.OpenAsync(wavPath, cancellationToken).ConfigureAwait(false);
             LogOpened(wav.DurationSeconds, wav.Windows.Count, priority);
+
+            if (CrashTrace.IsEnabled)
+            {
+                CrashTrace.Write(
+                    "engine.open",
+                    $"priority={priority} seconds={wav.DurationSeconds:F3} windows={wav.Windows.Count} open={Volatile.Read(ref _open)} file={Path.GetFileName(wavPath)}"
+                );
+            }
 
             return new WindowedAudio(
                 wav,
@@ -226,7 +237,9 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         }
 
         _factory = null;
+        CrashTrace.Write("engine.model.drop.begin");
         factory.Dispose();
+        CrashTrace.Write("engine.model.drop.end");
         LogReleased();
     }
 
@@ -250,7 +263,12 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         var factoryOptions = WhisperRuntime.FactoryOptions(_options.Device, heads);
 
         LogLoading(_options.Model, path, _options.Device, heads);
+        CrashTrace.Write(
+            "engine.model.load.begin",
+            $"model={_options.Model} device={_options.Device}"
+        );
         _factory = WhisperFactory.FromPath(path, factoryOptions);
+        CrashTrace.Write("engine.model.load.end", $"library={RuntimeOptions.LoadedLibrary}");
         LogLoaded(RuntimeOptions.LoadedLibrary);
 
         return _factory;
@@ -271,7 +289,15 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
             ? builder.WithLanguage(language)
             : builder.WithLanguageDetection();
 
-        return builder.Build();
+        // Building allocates whisper.cpp's per-processor state, which on CUDA
+        // means VRAM: a trace that stops between these two lines says the card
+        // could not give it any.
+        var id = Interlocked.Increment(ref _processors);
+        CrashTrace.Write("engine.processor.build.begin", $"processor={id}");
+        var processor = builder.Build();
+        CrashTrace.Write("engine.processor.build.end", $"processor={id}");
+
+        return processor;
     }
 
     /// <summary>
@@ -287,6 +313,17 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         {
             var segments = new List<Segment>();
             var tokens = new List<WhisperToken>();
+
+            // The native call. A trace that ends here is a crash inside
+            // whisper.cpp itself; one that ends at the line after it is a
+            // crash in what came next.
+            if (CrashTrace.IsEnabled)
+            {
+                CrashTrace.Write(
+                    "window.native.begin",
+                    $"samples={samples.Length} seconds={samples.Length / 16000.0:F3} cancelled={cancellationToken.IsCancellationRequested}"
+                );
+            }
 
             await foreach (
                 var heard in processor
@@ -312,6 +349,14 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
                 }
             }
 
+            if (CrashTrace.IsEnabled)
+            {
+                CrashTrace.Write(
+                    "window.native.end",
+                    $"segments={segments.Count} tokens={tokens.Count}"
+                );
+            }
+
             // Joined over the whole window rather than segment by segment: a word
             // starts at the instant of the token before it, and for a segment's
             // first word that token belongs to the segment before.
@@ -323,7 +368,15 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         /// Whisper.net's asynchronous disposal waits for the native call to
         /// stop, where the synchronous one throws.
         /// </remarks>
-        public ValueTask DisposeAsync() => processor.DisposeAsync();
+        public async ValueTask DisposeAsync()
+        {
+            // After a cancellation this is where the process waits for the
+            // native call to stop, so a trace that ends between these two is a
+            // crash while whisper.cpp was being torn down.
+            CrashTrace.Write("window.processor.dispose.begin");
+            await processor.DisposeAsync().ConfigureAwait(false);
+            CrashTrace.Write("window.processor.dispose.end");
+        }
     }
 
     [LoggerMessage(

@@ -157,7 +157,37 @@ builder
         }
     );
 
+// A crash trace, when a path is configured (Diagnostics:CrashTracePath, or the
+// FFN_CRASH_TRACE variable). Off otherwise, and registered before the host is
+// built so the heartbeat can see whether it is on. whisper.cpp can end this
+// process without unwinding - exit code 0xC0000409 - and a buffered log loses
+// the lines that would say where; this one is on the disk line by line.
+var tracePath =
+    builder.Configuration["Diagnostics:CrashTracePath"]
+    ?? Environment.GetEnvironmentVariable("FFN_CRASH_TRACE");
+
+if (!string.IsNullOrWhiteSpace(tracePath) && CrashTrace.Start(tracePath))
+{
+    builder.Services.AddHostedService<CrashTraceHeartbeat>();
+}
+
 var app = builder.Build();
+
+if (CrashTrace.IsEnabled)
+{
+    app.Logger.LogWarning("Crash trace is being written to {Path}", CrashTrace.Path);
+
+    // A clean shutdown says so, so a file that simply stops is known to be a
+    // process that was killed rather than one that was asked to stop.
+    AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+    {
+        CrashTrace.Write("process.exit");
+        CrashTrace.Stop();
+    };
+
+    AppDomain.CurrentDomain.UnhandledException += (_, unhandled) =>
+        CrashTrace.Write("process.unhandled", unhandled.ExceptionObject.ToString() ?? "");
+}
 
 // ALIGN_DEVICE, WHISPER_MULTI_GPU and the other ROCm-era variables do nothing
 // now. An old .env that sets them is told so rather than silently ignored.
