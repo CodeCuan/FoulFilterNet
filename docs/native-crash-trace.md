@@ -12,9 +12,10 @@ last thing the process did**.
 
 ## Running with the trace on
 
-In Visual Studio or Rider, pick the **`FoulFilterNet.Web (crash trace)`** launch
-profile instead of the usual one. It sets everything below for you. From a
-terminal, the same thing by hand:
+**The one launch profile traces**, so debugging the Web project from an IDE
+captures a crash without choosing anything. (It began as a second profile, but
+Visual Studio caches the profile list and would not show it.) From a terminal,
+the same thing by hand:
 
 ```powershell
 $env:FFN_CRASH_TRACE = "F:\SourceCode\FoulFilterNet\crash-trace.log"
@@ -83,5 +84,8 @@ end would point at exhaustion rather than corruption.
 
 ## Turning it off again
 
-Use the plain `FoulFilterNet.Web` profile, or clear `FFN_CRASH_TRACE`. Tracing
-costs a synchronous disk write per step, so it is not meant to be left on.
+Delete the `FFN_CRASH_TRACE`, `Watch__HeadSeconds` and `DOTNET_DbgMiniDump*`
+entries from the launch profile (or clear those variables in a terminal).
+Tracing costs a synchronous disk write per step, and `Watch__HeadSeconds=120`
+overrides the workaround in `appsettings.json`, so neither is meant to be left
+on once the crash is understood.

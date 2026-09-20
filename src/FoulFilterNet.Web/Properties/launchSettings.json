@@ -4,14 +4,6 @@
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "applicationUrl": "http://localhost:8000"
-    },
-    "FoulFilterNet.Web (crash trace)": {
-      "commandName": "Project",
-      "launchBrowser": false,
-      "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "FFN_CRASH_TRACE": "F:\\SourceCode\\FoulFilterNet\\crash-trace.log",
         "Watch__HeadSeconds": "120",
