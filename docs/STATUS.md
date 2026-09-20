@@ -573,7 +573,7 @@ rather than coupling the translator to the environment provider's type.
 
 ```powershell
 $env:Transcription__ModelDirectory = "$PWD\models"   # reuse the weights at the repository root
-dotnet run --project src/FoulFilterNet.Web -- --urls http://localhost:8000
+dotnet run --project src/FoulFilterNet.Web   # launch profile binds http://localhost:8000
 ```
 
 Put `bad_words.txt` in `%LOCALAPPDATA%\FoulFilterNet` (or set `DATA_DIR` /

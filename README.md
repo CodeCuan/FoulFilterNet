@@ -59,17 +59,23 @@ Weights are gitignored (`models/`, `*.bin`) and must never be committed.
 
 ```powershell
 $env:Transcription__ModelDirectory = "$PWD\models"
-dotnet run --project src/FoulFilterNet.Web -- --urls http://localhost:8000
+dotnet run --project src/FoulFilterNet.Web
 ```
 
 Open <http://localhost:8000>, drop files, pick a censor method, upload. Jobs run
 one at a time and report progress live.
 
-`dotnet run` applies `src/FoulFilterNet.Web/Properties/launchSettings.json`
-(Development environment; `--urls` overrides its ports) and runs Web with
-`src/FoulFilterNet.Web` as its working directory. That is why the model
-directory is set explicitly above; without it weights would be downloaded into
-`src/FoulFilterNet.Web/models`.
+`dotnet run` applies `src/FoulFilterNet.Web/Properties/launchSettings.json`,
+which sets the Development environment and binds
+**<http://localhost:8000>** — the address the Chrome extension expects, and the
+only localhost origin its manifest asks permission for, so debugging from an
+IDE serves the extension without any extra argument. Pass
+`-- --urls http://localhost:9000` to bind somewhere else, and change the
+extension's server URL to match.
+
+The same file runs Web with `src/FoulFilterNet.Web` as its working directory.
+That is why the model directory is set explicitly above; without it weights
+would be downloaded into `src/FoulFilterNet.Web/models`.
 
 Web reads the Bad Words List from `bad_words.txt` in the data directory —
 `%LOCALAPPDATA%\FoulFilterNet` on Windows, `~/.local/share/FoulFilterNet` on
@@ -139,11 +145,12 @@ without a restart, but not instantly.
 ```powershell
 $env:Transcription__ModelDirectory = "$PWD\models"
 $env:Transcription__Model = "large-v3-turbo"
-dotnet run --project src/FoulFilterNet.Web -- --urls http://localhost:8000
+dotnet run --project src/FoulFilterNet.Web
 ```
 
-The model directory is set explicitly for the reason given above: `dotnet run`
-runs Web with `src/FoulFilterNet.Web` as its working directory. Leave
+It binds <http://localhost:8000>, which is where the extension looks. The model
+directory is set explicitly for the reason given above: `dotnet run` runs Web
+with `src/FoulFilterNet.Web` as its working directory. Leave
 `Transcription:UnloadAfterJob` at `false` so the model stays resident between
 videos — the first view of the day pays for the load, the rest do not.
 

@@ -81,10 +81,11 @@ $env:Storage__DataDirectory = "$env:TEMP\ffn-harness-data"
 $env:Storage__BadWordsPath = "$env:TEMP\ffn-harness-data\bad_words.txt"
 $env:Transcription__ModelDirectory = "$PWD\models"
 $env:Transcription__Model = "large-v3-turbo"
-dotnet run --project src/FoulFilterNet.Web -- --urls http://localhost:8000
+dotnet run --project src/FoulFilterNet.Web
 ```
 
-Then open `http://localhost:8000/dev/harness/?file=long_video.mp4` and press
+It binds `http://localhost:8000` from the project's launch profile. Then open
+`http://localhost:8000/dev/harness/?file=long_video.mp4` and press
 **Play**. Query parameters:
 
 | Parameter | Effect |
@@ -181,9 +182,10 @@ provider for this.
 ```powershell
 $env:Transcription__ModelDirectory = "$PWD\models"
 $env:Transcription__Model = "large-v3-turbo"
-dotnet run --project src/FoulFilterNet.Web -- --urls http://localhost:8000
+dotnet run --project src/FoulFilterNet.Web
 ```
 
+- [ ] The log says `Now listening on: http://localhost:8000`.
 - [ ] The log has **no** `DEV FILE PROVIDER IS ON` line.
 - [ ] `http://localhost:8000/config` shows `"web_video": {"available": true, ...}`
   with both versions.
