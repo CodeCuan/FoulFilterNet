@@ -41,11 +41,8 @@ public sealed class WhenAWindowIsHeardWithThePriorityWordPass : IDisposable
     /// which is 3 s to 19 s on its own timeline: the last three sub-windows
     /// can add nothing it keeps.
     /// </summary>
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(
-        28.0,
-        keepFrom: 3.0,
-        keepTo: 19.0
-    );
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows =
+        PrioritySubWindows.Default.Plan(28.0, keepFrom: 3.0, keepTo: 19.0);
 
     public WhenAWindowIsHeardWithThePriorityWordPass()
     {

@@ -1,3 +1,5 @@
+using FoulFilterNet.Domain;
+
 namespace FoulFilterNet.Transcription;
 
 /// <summary>Which compute device a transcriber should try to use.</summary>
@@ -87,4 +89,39 @@ public sealed record TranscriptionOptions
         get => _priorityWordsPath;
         init => _priorityWordsPath = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
+
+    /// <summary>
+    /// Seconds of pre-roll on a priority word's cut window. Zero (or unset) is
+    /// the measured default, 0.25 s; see <see cref="PriorityTuning"/>.
+    /// </summary>
+    public double PriorityPaddingPre { get; init; } = CutPadding.DefaultPriorityPadding.Pre;
+
+    /// <summary>
+    /// Seconds of post-roll on a priority word's cut window. Zero (or unset) is
+    /// the measured default, 0.5 s; see <see cref="PriorityTuning"/>.
+    /// </summary>
+    public double PriorityPaddingPost { get; init; } = CutPadding.DefaultPriorityPadding.Post;
+
+    /// <summary>
+    /// The shortest a priority word's Hit is taken to be before it is padded: a
+    /// shorter one is grown backward from its reported end to this length. Zero
+    /// (or unset) is the measured default, 0.8 s; see <see cref="PriorityTuning"/>.
+    /// </summary>
+    public double PriorityMinimumCutSeconds { get; init; } =
+        CutPadding.DefaultPriorityMinimumSeconds;
+
+    /// <summary>
+    /// Seconds of audio in each sub-window the Priority Word Pass re-hears a
+    /// window in. Zero (or unset) is the measured default, 5 s. Trades speed
+    /// against detection; see <see cref="PrioritySubWindows"/>.
+    /// </summary>
+    public double PrioritySubWindowSeconds { get; init; } = PrioritySubWindows.DefaultLengthSeconds;
+
+    /// <summary>
+    /// Seconds between the starts of those sub-windows; at most one sub-window,
+    /// or the audio between them is never heard by the pass. Zero (or unset) is
+    /// the measured default, 2.5 s. Trades speed against detection.
+    /// </summary>
+    public double PrioritySubWindowStepSeconds { get; init; } =
+        PrioritySubWindows.DefaultStepSeconds;
 }

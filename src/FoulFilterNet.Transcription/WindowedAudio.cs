@@ -41,13 +41,22 @@ public sealed record PriorityPass
 {
     /// <param name="words">What the pass keeps from the sub-windows. An empty list turns it off.</param>
     /// <param name="listen">Builds the prompted listener, on the first window and after a cancellation.</param>
-    public PriorityPass(PriorityWordList words, Func<IWindowListener> listen)
+    /// <param name="subWindows">
+    /// How each window is cut up for the pass, or the measured default
+    /// (<see cref="PrioritySubWindows.Default"/>).
+    /// </param>
+    public PriorityPass(
+        PriorityWordList words,
+        Func<IWindowListener> listen,
+        PrioritySubWindows? subWindows = null
+    )
     {
         ArgumentNullException.ThrowIfNull(words);
         ArgumentNullException.ThrowIfNull(listen);
 
         Words = words;
         Listen = listen;
+        SubWindows = subWindows ?? PrioritySubWindows.Default;
     }
 
     /// <summary>What the pass keeps from the sub-windows.</summary>
@@ -55,6 +64,9 @@ public sealed record PriorityPass
 
     /// <summary>Builds the prompted listener.</summary>
     public Func<IWindowListener> Listen { get; }
+
+    /// <summary>How each window is cut up for the pass.</summary>
+    public PrioritySubWindows SubWindows { get; }
 }
 
 /// <summary>
@@ -88,12 +100,12 @@ public sealed record PriorityPass
 /// <para>
 /// <b>The Priority Word Pass.</b> With a <see cref="PriorityPass"/> whose list
 /// is not empty, a window heard by the primary listener is heard again in
-/// <see cref="PriorityWindows"/> sub-windows by a second, prompted listener,
+/// <see cref="PrioritySubWindows"/> sub-windows by a second, prompted listener,
 /// each sub-window padded with silence exactly as a window is; the priority
 /// words only the sub-windows heard are merged into the window's words. So
 /// every consumer of windows - Watch, batch, the Rescan Pass - gets them with
 /// no change of its own. Only sub-windows whose share reaches the window's
-/// share are heard (<see cref="PriorityWindows.Plan(double, double, double)"/>),
+/// share are heard (<see cref="PrioritySubWindows.Plan(double, double, double)"/>),
 /// so priority words outside that share - which stitching drops anyway - may
 /// be missing from the result. The prompted listener is built once, lazily, and
 /// thrown away on a cancellation by the same rule as the primary one.
@@ -137,6 +149,7 @@ public sealed partial class WindowedAudio : IAnalysisAudio
     private readonly ListenerSlot _primary;
     private readonly ListenerSlot? _prompted;
     private readonly PriorityWordList? _priorityWords;
+    private readonly PrioritySubWindows _subWindows = PrioritySubWindows.Default;
     private readonly ILogger _logger;
 
     private int _disposed;
@@ -184,6 +197,7 @@ public sealed partial class WindowedAudio : IAnalysisAudio
         {
             _priorityWords = priorityPass.Words;
             _prompted = new ListenerSlot(priorityPass.Listen);
+            _subWindows = priorityPass.SubWindows;
         }
     }
 
@@ -292,7 +306,7 @@ public sealed partial class WindowedAudio : IAnalysisAudio
         CancellationToken cancellationToken
     )
     {
-        var subWindows = PriorityWindows.Plan(
+        var subWindows = _subWindows.Plan(
             (double)window.Length / SampleRate,
             share.KeepFrom - share.Start,
             share.KeepTo - share.Start

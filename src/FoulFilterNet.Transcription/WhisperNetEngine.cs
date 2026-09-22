@@ -37,6 +37,7 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     private readonly WhisperModelSource _models;
     private readonly ILogger<WhisperNetEngine> _logger;
     private readonly PriorityWordSource _priorityWords;
+    private readonly PrioritySubWindows _subWindows;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly InferenceLane _lane = new();
 
@@ -76,6 +77,10 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         _models = models;
         _logger = logger;
         _priorityWords = priorityWords ?? PriorityWordSource.None;
+
+        // Configuration, validated here rather than at the first window: a
+        // nonsense sub-window layout is a startup failure, not a job failure.
+        _subWindows = PriorityTuning.ForOptions(options).SubWindows;
     }
 
     /// <summary>
@@ -136,7 +141,8 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
                             new ProcessorListener(
                                 BuildProcessor(factory, words.Prompt),
                                 BuiltLanguage
-                            )
+                            ),
+                        _subWindows
                     ),
                 _logger
             );

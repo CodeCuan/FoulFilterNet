@@ -5,7 +5,8 @@ namespace FoulFilterNet.Transcription.Tests;
 
 public class WhenPlanningSubWindowsForAWindowShorterThanOne
 {
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(3.0);
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows =
+        PrioritySubWindows.Default.Plan(3.0);
 
     [Fact]
     public void UsesOneSubWindow() => _subWindows.Count.ShouldBe(1);
@@ -19,28 +20,29 @@ public class WhenPlanningSubWindowsForAWindowShorterThanOne
 
     [Fact]
     public void UsesOneSubWindowForExactlyOneLength() =>
-        PriorityWindows
-            .Plan(5.0)
+        PrioritySubWindows
+            .Default.Plan(5.0)
             .ShouldBe([
                 new TranscriptionWindow(0.0, 5.0, double.NegativeInfinity, double.PositiveInfinity),
             ]);
 
     [Fact]
     public void UsesOneEmptySubWindowForAnEmptyWindow() =>
-        PriorityWindows
-            .Plan(0.0)
+        PrioritySubWindows
+            .Default.Plan(0.0)
             .ShouldBe([
                 new TranscriptionWindow(0.0, 0.0, double.NegativeInfinity, double.PositiveInfinity),
             ]);
 
     [Fact]
     public void RejectsANegativeLength() =>
-        Should.Throw<ArgumentOutOfRangeException>(() => PriorityWindows.Plan(-1.0));
+        Should.Throw<ArgumentOutOfRangeException>(() => PrioritySubWindows.Default.Plan(-1.0));
 }
 
 public class WhenPlanningSubWindowsForAnExactMultipleOfTheStep
 {
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(10.0);
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows =
+        PrioritySubWindows.Default.Plan(10.0);
 
     [Fact]
     public void StepsByHalfASubWindow() =>
@@ -59,7 +61,8 @@ public class WhenPlanningSubWindowsForAnExactMultipleOfTheStep
 
 public class WhenPlanningSubWindowsForAWindowJustOverOneLength
 {
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(6.0);
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows =
+        PrioritySubWindows.Default.Plan(6.0);
 
     [Fact]
     public void PullsTheSecondSubWindowBackToEndWithTheWindow() =>
@@ -71,16 +74,15 @@ public class WhenPlanningSubWindowsForAWindowJustOverOneLength
 
 public class WhenPlanningSubWindowsForAFullTranscriptionWindow
 {
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(
-        TranscriptionWindows.LengthSeconds
-    );
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows =
+        PrioritySubWindows.Default.Plan(TranscriptionWindows.LengthSeconds);
 
     [Fact]
     public void HearsItInElevenSubWindows() => _subWindows.Count.ShouldBe(11);
 
     [Fact]
     public void GivesEverySubWindowTheFullLength() =>
-        _subWindows.ShouldAllBe(w => w.End - w.Start == PriorityWindows.LengthSeconds);
+        _subWindows.ShouldAllBe(w => w.End - w.Start == PrioritySubWindows.DefaultLengthSeconds);
 
     [Fact]
     public void EndsWithTheWindow() => _subWindows[^1].End.ShouldBe(28.0);
@@ -101,12 +103,11 @@ public class WhenPlanningSubWindowsForAFullTranscriptionWindow
 /// </summary>
 public class WhenPlanningSubWindowsForAWindowInTheMiddleOfAFile
 {
-    private readonly IReadOnlyList<TranscriptionWindow> _all = PriorityWindows.Plan(28.0);
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(
-        28.0,
-        keepFrom: 3.0,
-        keepTo: 25.0
+    private readonly IReadOnlyList<TranscriptionWindow> _all = PrioritySubWindows.Default.Plan(
+        28.0
     );
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows =
+        PrioritySubWindows.Default.Plan(28.0, keepFrom: 3.0, keepTo: 25.0);
 
     [Fact]
     public void HearsTenOfTheElevenSubWindows() => _subWindows.Count.ShouldBe(10);
@@ -126,12 +127,11 @@ public class WhenPlanningSubWindowsForAWindowInTheMiddleOfAFile
 /// </summary>
 public class WhenPlanningSubWindowsForTheLastWindowOfAFile
 {
-    private readonly IReadOnlyList<TranscriptionWindow> _all = PriorityWindows.Plan(28.0);
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(
-        28.0,
-        keepFrom: 6.85,
-        keepTo: double.PositiveInfinity
+    private readonly IReadOnlyList<TranscriptionWindow> _all = PrioritySubWindows.Default.Plan(
+        28.0
     );
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows =
+        PrioritySubWindows.Default.Plan(28.0, keepFrom: 6.85, keepTo: double.PositiveInfinity);
 
     [Fact]
     public void LeavesOutTheSubWindowsBeforeItsShare() => _subWindows.ShouldBe(_all.Skip(2));
@@ -142,9 +142,9 @@ public class WhenPlanningSubWindowsForAWindowThatKeepsEverything
 {
     [Fact]
     public void HearsThemAll() =>
-        PriorityWindows
-            .Plan(28.0, double.NegativeInfinity, double.PositiveInfinity)
-            .ShouldBe(PriorityWindows.Plan(28.0));
+        PrioritySubWindows
+            .Default.Plan(28.0, double.NegativeInfinity, double.PositiveInfinity)
+            .ShouldBe(PrioritySubWindows.Default.Plan(28.0));
 }
 
 /// <summary>
@@ -156,15 +156,17 @@ public class WhenASubWindowsShareOnlyTouchesTheWindowsShare
 {
     [Fact]
     public void StillHearsTheSubWindowBeforeIt() =>
-        PriorityWindows.Plan(28.0, keepFrom: 3.75, keepTo: 25.0)[0].Start.ShouldBe(0.0);
+        PrioritySubWindows.Default.Plan(28.0, keepFrom: 3.75, keepTo: 25.0)[0].Start.ShouldBe(0.0);
 
     [Fact]
     public void StillHearsTheSubWindowAfterIt() =>
-        PriorityWindows.Plan(28.0, keepFrom: 3.0, keepTo: 25.25)[^1].Start.ShouldBe(23.0);
+        PrioritySubWindows
+            .Default.Plan(28.0, keepFrom: 3.0, keepTo: 25.25)[^1]
+            .Start.ShouldBe(23.0);
 
     [Fact]
     public void LeavesOutOneClearlyBeforeIt() =>
-        PriorityWindows.Plan(28.0, keepFrom: 3.8, keepTo: 25.0)[0].Start.ShouldBe(2.5);
+        PrioritySubWindows.Default.Plan(28.0, keepFrom: 3.8, keepTo: 25.0)[0].Start.ShouldBe(2.5);
 }
 
 public class WhenStitchingWhatTheSubWindowsHeard
@@ -173,7 +175,7 @@ public class WhenStitchingWhatTheSubWindowsHeard
 
     public WhenStitchingWhatTheSubWindowsHeard()
     {
-        var subWindows = PriorityWindows.Plan(10.0);
+        var subWindows = PrioritySubWindows.Default.Plan(10.0);
         subWindows.Count.ShouldBe(3);
 
         // Shares meet at 3.75 s and 6.25 s.
@@ -236,7 +238,7 @@ public class WhenAPriorityWordsMidpointFallsOnASubWindowShare
 
     public WhenAPriorityWordsMidpointFallsOnASubWindowShare()
     {
-        var subWindows = PriorityWindows.Plan(10.0);
+        var subWindows = PrioritySubWindows.Default.Plan(10.0);
 
         // Midpoint 3.75 s, heard by both of the first two sub-windows.
         _stitched = PriorityWindows.Stitch(
@@ -267,7 +269,7 @@ public class WhenStitchingNothing
             .Stitch(
                 [
                     (
-                        PriorityWindows.Plan(5.0)[0],
+                        PrioritySubWindows.Default.Plan(5.0)[0],
                         new TranscriptionResult([], [new Word("fuck", 1, 2)])
                     ),
                 ],

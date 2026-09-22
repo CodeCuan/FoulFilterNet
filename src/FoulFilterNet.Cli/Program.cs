@@ -84,7 +84,14 @@ internal static class Program
             )
         );
         builder.Services.AddSingleton(provider =>
-            CutPadding.ForPriorityWords(provider.GetRequiredService<PriorityWordSource>().Words)
+            PriorityTuning.ForOptions(
+                provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value
+            )
+        );
+        builder.Services.AddSingleton(provider =>
+            provider
+                .GetRequiredService<PriorityTuning>()
+                .PaddingFor(provider.GetRequiredService<PriorityWordSource>().Words)
         );
         builder.Services.AddSingleton<IWhisperEngine>(provider =>
         {
@@ -120,6 +127,10 @@ internal static class Program
         builder.Services.AddSingleton<IMediaPipeline, MediaPipeline>();
 
         using var host = builder.Build();
+
+        // Nonsense in the Priority Word Pass's tuning names its key here, before
+        // any work starts, rather than part way through a file.
+        host.Services.GetRequiredService<PriorityTuning>();
 
         LegacyEnvironmentVariables.WarnAboutRetiredVariables(
             host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("foulfilter")

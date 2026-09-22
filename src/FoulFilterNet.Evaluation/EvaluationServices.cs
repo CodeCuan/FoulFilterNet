@@ -47,7 +47,14 @@ public static class EvaluationServices
             )
         );
         services.AddSingleton(provider =>
-            CutPadding.ForPriorityWords(provider.GetRequiredService<PriorityWordSource>().Words)
+            PriorityTuning.ForOptions(
+                provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value
+            )
+        );
+        services.AddSingleton(provider =>
+            provider
+                .GetRequiredService<PriorityTuning>()
+                .PaddingFor(provider.GetRequiredService<PriorityWordSource>().Words)
         );
         services.AddSingleton<IWhisperEngine>(provider =>
         {

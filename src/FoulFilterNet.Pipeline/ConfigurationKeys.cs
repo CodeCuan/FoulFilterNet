@@ -34,6 +34,21 @@ public static class ConfigurationKeys
     /// <summary>The Priority Word List file; unset means <c>priority_words.txt</c> in the data directory.</summary>
     public const string PriorityWordsPath = "Transcription:PriorityWordsPath";
 
+    /// <summary>Seconds of pre-roll on a priority word's cut; 0 or unset is 0.25 s.</summary>
+    public const string PriorityPaddingPre = "Transcription:PriorityPaddingPre";
+
+    /// <summary>Seconds of post-roll on a priority word's cut; 0 or unset is 0.5 s.</summary>
+    public const string PriorityPaddingPost = "Transcription:PriorityPaddingPost";
+
+    /// <summary>The shortest a priority word's Hit is taken to be; 0 or unset is 0.8 s.</summary>
+    public const string PriorityMinimumCutSeconds = "Transcription:PriorityMinimumCutSeconds";
+
+    /// <summary>Seconds per Priority Word Pass sub-window; 0 or unset is 5 s.</summary>
+    public const string PrioritySubWindowSeconds = "Transcription:PrioritySubWindowSeconds";
+
+    /// <summary>Seconds between sub-window starts; 0 or unset is 2.5 s.</summary>
+    public const string PrioritySubWindowStepSeconds = "Transcription:PrioritySubWindowStepSeconds";
+
     public const string SmartCutEnabled = "SmartCut:Enabled";
 
     public const string SmartCutMode = "SmartCut:Mode";

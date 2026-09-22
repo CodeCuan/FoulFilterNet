@@ -67,7 +67,12 @@ builder.Services.AddSingleton(provider =>
     )
 );
 builder.Services.AddSingleton(provider =>
-    CutPadding.ForPriorityWords(provider.GetRequiredService<PriorityWordSource>().Words)
+    PriorityTuning.ForOptions(provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value)
+);
+builder.Services.AddSingleton(provider =>
+    provider
+        .GetRequiredService<PriorityTuning>()
+        .PaddingFor(provider.GetRequiredService<PriorityWordSource>().Words)
 );
 builder.Services.AddSingleton<IWhisperEngine>(provider =>
 {
@@ -187,6 +192,11 @@ if (!string.IsNullOrWhiteSpace(tracePath) && CrashTrace.Start(tracePath))
 }
 
 var app = builder.Build();
+
+// The Priority Word Pass's tuning is configuration (Transcription:Priority*),
+// so nonsense in it is a startup failure with the offending key named, rather
+// than an exception at the first job or the first viewer.
+app.Services.GetRequiredService<PriorityTuning>();
 
 if (CrashTrace.IsEnabled)
 {
