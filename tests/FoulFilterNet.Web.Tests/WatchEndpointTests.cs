@@ -286,10 +286,14 @@ public sealed class WhenAWatchIsPartWayThrough : WatchScenario
     public void CoversFromTheStart() =>
         _view.GetProperty("coverage")[0][0].GetDouble().ShouldBe(0.0);
 
-    /// <summary>The first window's share ends at 25 s; the 1 s guard holds back its unheard edge.</summary>
+    /// <summary>
+    /// The first window's share ends at 25 s; the guard holds back its unheard
+    /// edge - 1.05 s rather than 1 s, because the host cuts the built-in
+    /// priority words wider (0.8 s minimum + 0.25 s pre-roll).
+    /// </summary>
     [Fact]
     public void StopsCoverageAGuardShortOfTheUnheardWindow() =>
-        _view.GetProperty("coverage")[0][1].GetDouble().ShouldBe(24.0, 0.001);
+        _view.GetProperty("coverage")[0][1].GetDouble().ShouldBe(23.95, 0.001);
 
     [Fact]
     public void AlreadyServesTheHitsHeardSoFar() =>
