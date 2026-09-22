@@ -23,6 +23,10 @@ namespace FoulFilterNet.Watch;
 /// How much audio to convert ahead of the whole file when <paramref name="Audio"/>
 /// can (<see cref="IAudioHeadPreparer"/>); 0 converts the whole file first.
 /// </param>
+/// <param name="Padding">
+/// How Hits are padded - priority words wider, as a job pads them; null is
+/// <see cref="CutPadding.Default"/>.
+/// </param>
 public sealed record WatchSessionServices(
     IWebAudioSource Source,
     IAudioPreparer Audio,
@@ -32,7 +36,8 @@ public sealed record WatchSessionServices(
     string ScratchDirectory,
     TimeProvider Time,
     ILogger Logger,
-    double HeadSeconds = WatchOptions.DefaultHeadSeconds
+    double HeadSeconds = WatchOptions.DefaultHeadSeconds,
+    CutPadding? Padding = null
 );
 
 /// <summary>
@@ -433,7 +438,8 @@ public sealed partial class WatchSession
                         ?? WatchProgress.Start(
                             analysis.Windows,
                             analysis.DurationSeconds,
-                            badWords
+                            badWords,
+                            _services.Padding
                         );
                     _durationSeconds = analysis.DurationSeconds;
                     _state = WatchState.Transcribing;
@@ -555,7 +561,8 @@ public sealed partial class WatchSession
 
         var progress = WatchProgress.FromTranscript(
             new TranscriptionResult(cached.Segments, cached.Words),
-            badWords
+            badWords,
+            _services.Padding
         );
 
         lock (_gate)
@@ -642,7 +649,7 @@ public sealed partial class WatchSession
                         return;
                     }
 
-                    _progress = WatchProgress.Start(plan, provisional, badWords);
+                    _progress = WatchProgress.Start(plan, provisional, badWords, _services.Padding);
                     _durationSeconds = provisional;
                     _state = WatchState.Transcribing;
                 }

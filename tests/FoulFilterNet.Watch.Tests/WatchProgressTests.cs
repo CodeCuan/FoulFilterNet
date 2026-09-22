@@ -101,16 +101,16 @@ internal sealed class Script(double duration, params Utterance[] utterances)
     /// The batch pipeline's own rules run directly over <see cref="Batch"/>:
     /// Candidates, reconcile, merge, all with the default padding.
     /// </summary>
-    public IReadOnlyList<Hit> BatchHits(BadWordsList badWords)
+    public IReadOnlyList<Hit> BatchHits(BadWordsList badWords) =>
+        BatchHits(badWords, CutPadding.Default);
+
+    /// <summary><see cref="BatchHits(BadWordsList)"/>, padding as <paramref name="padding"/> says.</summary>
+    public IReadOnlyList<Hit> BatchHits(BadWordsList badWords, CutPadding padding)
     {
         var batch = Batch();
         var candidates = PhraseMatcher.FindCandidates(batch.Segments, badWords);
-        var reconciled = new HitReconciler(HitPadding.Default).Reconcile(
-            candidates,
-            batch.Words,
-            badWords
-        );
-        return new HitMerger(HitPadding.Default).Merge(reconciled);
+        var reconciled = new HitReconciler(padding).Reconcile(candidates, batch.Words, badWords);
+        return new HitMerger(padding).Merge(reconciled);
     }
 }
 

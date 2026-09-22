@@ -214,6 +214,18 @@ public sealed class WhenTheHostComposesWatchSessions : IDisposable
         _services.GetRequiredService<WatchSessionManager>().ShouldNotBeNull();
 
     [Fact]
+    public void PadsPriorityWordsAsJobsDo() =>
+        _services
+            .GetRequiredService<WatchSessionManager>()
+            .CutPadding.ShouldBeSameAs(_services.GetRequiredService<Domain.CutPadding>());
+
+    [Fact]
+    public void CutsTheBuiltInPriorityWordsWider() =>
+        _services
+            .GetRequiredService<WatchSessionManager>()
+            .CutPadding.PriorityWords.ShouldBe(Domain.PriorityWordList.Default);
+
+    [Fact]
     public void FetchesWithYtDlp() =>
         _services.GetRequiredService<IWebAudioSource>().ShouldBeOfType<YtDlpAudioSource>();
 

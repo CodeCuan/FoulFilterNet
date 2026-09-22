@@ -514,6 +514,9 @@ internal sealed class Harness : IDisposable
     /// <summary>What <see cref="WatchSessionServices.HeadSeconds"/> the sessions get.</summary>
     public double HeadSeconds { get; set; } = WatchOptions.DefaultHeadSeconds;
 
+    /// <summary>How sessions pad their Hits; null leaves Watch's default.</summary>
+    public CutPadding? CutPadding { get; set; }
+
     /// <summary>What the sessions convert with; the fake preparer unless replaced.</summary>
     public IAudioPreparer? AudioPreparer { get; set; }
 
@@ -551,13 +554,23 @@ internal sealed class Harness : IDisposable
             ScratchRoot,
             Time,
             NullLogger.Instance,
-            HeadSeconds
+            HeadSeconds,
+            CutPadding
         );
 
     public WatchSession Session(ITranscriptStore? store = null) => new(Video, Services(store));
 
     public WatchSessionManager Manager(WatchOptions? options = null) =>
-        new(Source, Preparer, Engine, Store, BadWords, options ?? Options(), Time);
+        new(
+            Source,
+            Preparer,
+            Engine,
+            Store,
+            BadWords,
+            options ?? Options(),
+            Time,
+            cutPadding: CutPadding
+        );
 
     /// <summary>Start <paramref name="session"/> and wait for it to end.</summary>
     public static WatchSession Run(WatchSession session)

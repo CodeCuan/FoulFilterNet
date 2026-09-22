@@ -149,7 +149,8 @@ answered with the current snapshot.
 The parts of a Web Video's timeline whose Hits are final: the union of the
 finished windows' shares, trimmed by a 1 s **guard** at an edge whose
 neighbouring window is not finished, where a phrase or its padding could still
-run across. It is a set of intervals, not one high-water mark, because a seek
+run across (1.05 s when priority words are cut wider: their 0.8 s minimum
+length plus 0.25 s pre-roll). It is a set of intervals, not one high-water mark, because a seek
 can have windows transcribed out of order.
 
 **Playback Gate**:

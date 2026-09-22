@@ -1,3 +1,4 @@
+using FoulFilterNet.Domain;
 using FoulFilterNet.Domain.Abstractions;
 using FoulFilterNet.Pipeline;
 using FoulFilterNet.Sources;
@@ -90,7 +91,9 @@ public static class WatchServiceCollectionExtensions
             provider.GetRequiredService<IBadWordsSource>(),
             options,
             provider.GetRequiredService<TimeProvider>(),
-            provider.GetService<ILoggerFactory>()
+            provider.GetService<ILoggerFactory>(),
+            // The host's CutPadding (priority words wider), so Watch pads as Jobs do.
+            provider.GetService<CutPadding>()
         );
     }
 }

@@ -1,3 +1,4 @@
+using FoulFilterNet.Domain;
 using FoulFilterNet.Domain.Abstractions;
 using FoulFilterNet.Sources;
 using FoulFilterNet.Transcription;
@@ -60,7 +61,8 @@ public sealed class WatchSessionManager : IDisposable, IAsyncDisposable
         IBadWordsSource badWords,
         WatchOptions options,
         TimeProvider? time = null,
-        ILoggerFactory? loggerFactory = null
+        ILoggerFactory? loggerFactory = null,
+        CutPadding? cutPadding = null
     )
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -82,9 +84,13 @@ public sealed class WatchSessionManager : IDisposable, IAsyncDisposable
             options.ScratchDirectory,
             _time,
             (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<WatchSession>(),
-            options.HeadSeconds
+            options.HeadSeconds,
+            cutPadding ?? CutPadding.Default
         );
     }
+
+    /// <summary>How the sessions pad their Hits: priority words wider, as a job does.</summary>
+    public CutPadding CutPadding => _services.Padding ?? CutPadding.Default;
 
     /// <summary>The options the sessions live by.</summary>
     public WatchOptions Options => _options;

@@ -55,6 +55,8 @@ public sealed class Coverage
     /// <summary>
     /// Seconds trimmed from a run at an edge that borders an unfinished window:
     /// enough for the padding of a Hit whose phrase runs across that edge.
+    /// <see cref="WatchProgress.GuardSecondsFor"/> widens it when a priority
+    /// word's minimum length and padding reach further (1.05 s by default).
     /// </summary>
     public const double DefaultGuardSeconds = 1.0;
 

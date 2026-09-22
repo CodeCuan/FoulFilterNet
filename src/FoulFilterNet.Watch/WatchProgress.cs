@@ -16,8 +16,9 @@ namespace FoulFilterNet.Watch;
 /// <para>
 /// <b>The batch pipeline's rules, unchanged.</b> Hits come from
 /// <see cref="PhraseMatcher.FindCandidates"/>, <see cref="HitReconciler"/> and
-/// <see cref="HitMerger"/>, sharing <see cref="HitPadding.Default"/> exactly as
-/// <see cref="MediaPipeline"/> does, over the finished windows stitched with
+/// <see cref="HitMerger"/>, sharing one <see cref="Domain.CutPadding"/> exactly as
+/// <see cref="MediaPipeline"/> does (priority words cut wider; X03), over the
+/// finished windows stitched with
 /// <see cref="TranscriptionWindows.Stitch"/>. Recomputing from the whole
 /// transcript so far after every window costs milliseconds, and it is what
 /// lets an edited Bad Words List take effect without transcribing again. There
@@ -73,9 +74,9 @@ public sealed class WatchProgress
     /// One padding for both, as in <see cref="MediaPipeline"/>: the reconciler's
     /// tolerance is derived from the padding the merger applies.
     /// </summary>
-    private static readonly HitReconciler Reconciler = new(HitPadding.Default);
+    private readonly HitReconciler _reconciler;
 
-    private static readonly HitMerger Merger = new(HitPadding.Default);
+    private readonly HitMerger _merger;
 
     /// <summary>What each window heard, on its own timeline; null until finished.</summary>
     private readonly TranscriptionResult?[] _results;
@@ -88,10 +89,14 @@ public sealed class WatchProgress
         BadWordsList badWords,
         TranscriptionResult?[] results,
         long revision,
-        Coverage coverage
+        Coverage coverage,
+        CutPadding padding
     )
     {
         Plan = plan;
+        CutPadding = padding;
+        _reconciler = new HitReconciler(padding);
+        _merger = new HitMerger(padding);
         DurationSeconds = durationSeconds;
         BadWords = badWords;
         _results = results;
@@ -112,6 +117,22 @@ public sealed class WatchProgress
 
     /// <summary>The list the Hits are found with.</summary>
     public BadWordsList BadWords { get; }
+
+    /// <summary>How the Hits are padded: priority words wider, as a job pads them.</summary>
+    public CutPadding CutPadding { get; }
+
+    /// <summary>
+    /// The Coverage guard for <paramref name="padding"/>: the default 1 s, or
+    /// wider when a short priority Hit can reach further back than that from
+    /// its end (0.8 s minimum + 0.25 s pre-roll = 1.05 s by default). A Word is
+    /// kept by the share holding its midpoint, so a 10 ms Hit just inside an
+    /// unfinished neighbour can still cut that far into this side of the edge.
+    /// </summary>
+    public static double GuardSecondsFor(CutPadding padding)
+    {
+        ArgumentNullException.ThrowIfNull(padding);
+        return Math.Max(Coverage.DefaultGuardSeconds, padding.ShortHitReachSeconds);
+    }
 
     /// <summary>
     /// How many changes this instance is from its <see cref="Start(double, BadWordsList)"/>:
@@ -140,7 +161,11 @@ public sealed class WatchProgress
     /// <exception cref="ArgumentOutOfRangeException">
     /// The duration is negative, NaN or infinite.
     /// </exception>
-    public static WatchProgress Start(double durationSeconds, BadWordsList badWords)
+    public static WatchProgress Start(
+        double durationSeconds,
+        BadWordsList badWords,
+        CutPadding? padding = null
+    )
     {
         ArgumentNullException.ThrowIfNull(badWords);
 
@@ -154,7 +179,12 @@ public sealed class WatchProgress
             );
         }
 
-        return Start(TranscriptionWindows.Plan(durationSeconds), durationSeconds, badWords);
+        return Start(
+            TranscriptionWindows.Plan(durationSeconds),
+            durationSeconds,
+            badWords,
+            padding
+        );
     }
 
     /// <summary>
@@ -165,12 +195,14 @@ public sealed class WatchProgress
     /// <param name="plan">The windows, whose shares tile the file, as <see cref="Coverage.From"/> requires.</param>
     /// <param name="durationSeconds">The length of the video; finite, not negative.</param>
     /// <param name="badWords">The list to find Hits with.</param>
+    /// <param name="padding">How to pad the Hits; <see cref="CutPadding.Default"/> when null.</param>
     /// <exception cref="ArgumentOutOfRangeException">The duration is negative or not finite.</exception>
     /// <exception cref="ArgumentException">The plan is empty or its shares do not tile the file.</exception>
     public static WatchProgress Start(
         IReadOnlyList<TranscriptionWindow> plan,
         double durationSeconds,
-        BadWordsList badWords
+        BadWordsList badWords,
+        CutPadding? padding = null
     )
     {
         ArgumentNullException.ThrowIfNull(plan);
@@ -178,14 +210,16 @@ public sealed class WatchProgress
 
         // Coverage checks the duration and that the plan tiles the file, and
         // every later instance is built from a plan that has passed it.
-        var coverage = Coverage.From(plan, durationSeconds, []);
+        var effective = padding ?? CutPadding.Default;
+        var coverage = Coverage.From(plan, durationSeconds, [], GuardSecondsFor(effective));
         return new(
             [.. plan],
             durationSeconds,
             badWords,
             new TranscriptionResult?[plan.Count],
             0,
-            coverage
+            coverage,
+            effective
         );
     }
 
@@ -213,9 +247,11 @@ public sealed class WatchProgress
     /// </remarks>
     /// <param name="transcript">The Segments and Words, on the file's timeline.</param>
     /// <param name="badWords">The list to find Hits with.</param>
+    /// <param name="padding">How to pad the Hits; <see cref="CutPadding.Default"/> when null.</param>
     public static WatchProgress FromTranscript(
         TranscriptionResult transcript,
-        BadWordsList badWords
+        BadWordsList badWords,
+        CutPadding? padding = null
     )
     {
         ArgumentNullException.ThrowIfNull(transcript);
@@ -233,7 +269,7 @@ public sealed class WatchProgress
         [
             new(0.0, duration, double.NegativeInfinity, double.PositiveInfinity),
         ];
-        return Start(whole, duration, badWords).With(0, transcript);
+        return Start(whole, duration, badWords, padding).With(0, transcript);
     }
 
     /// <summary>Whether the window at <paramref name="index"/> is finished.</summary>
@@ -272,9 +308,9 @@ public sealed class WatchProgress
         results[index] = heard;
 
         var finished = Enumerable.Range(0, results.Length).Where(i => results[i] is not null);
-        var coverage = Coverage.From(Plan, DurationSeconds, finished);
+        var coverage = Coverage.From(Plan, DurationSeconds, finished, GuardSecondsFor(CutPadding));
 
-        return new(Plan, DurationSeconds, BadWords, results, Revision + 1, coverage);
+        return new(Plan, DurationSeconds, BadWords, results, Revision + 1, coverage, CutPadding);
     }
 
     /// <summary>
@@ -294,7 +330,7 @@ public sealed class WatchProgress
             return this;
         }
 
-        return new(Plan, DurationSeconds, badWords, _results, Revision + 1, Coverage);
+        return new(Plan, DurationSeconds, badWords, _results, Revision + 1, Coverage, CutPadding);
     }
 
     /// <summary>
@@ -345,7 +381,12 @@ public sealed class WatchProgress
         }
 
         // Checks the duration and that the plan tiles the file.
-        var coverage = Coverage.From(plan, durationSeconds, FinishedWindows);
+        var coverage = Coverage.From(
+            plan,
+            durationSeconds,
+            FinishedWindows,
+            GuardSecondsFor(CutPadding)
+        );
 
         if (durationSeconds.Equals(DurationSeconds) && plan.SequenceEqual(Plan))
         {
@@ -358,7 +399,15 @@ public sealed class WatchProgress
             results[index] = _results[index];
         }
 
-        return new([.. plan], durationSeconds, BadWords, results, Revision + 1, coverage);
+        return new(
+            [.. plan],
+            durationSeconds,
+            BadWords,
+            results,
+            Revision + 1,
+            coverage,
+            CutPadding
+        );
     }
 
     private HitSnapshot BuildSnapshot()
@@ -372,7 +421,7 @@ public sealed class WatchProgress
             var heard = TranscriptionWindows.Stitch(run);
             var candidates = PhraseMatcher.FindCandidates(heard.Segments, BadWords);
 
-            foreach (var hit in Reconciler.Reconcile(candidates, heard.Words, BadWords))
+            foreach (var hit in _reconciler.Reconcile(candidates, heard.Words, BadWords))
             {
                 hits.Add(
                     hit.WordIndex is { } wordIndex
@@ -391,7 +440,7 @@ public sealed class WatchProgress
         return new HitSnapshot(
             Revision,
             Coverage,
-            Merger.Merge(hits),
+            _merger.Merge(hits),
             new TranscriptionResult(segments, words),
             FinishedWindows.Count,
             Plan.Count
