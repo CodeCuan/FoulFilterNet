@@ -7,6 +7,8 @@
         "ASPNETCORE_ENVIRONMENT": "Development",
         "FFN_CRASH_TRACE": "F:\\SourceCode\\FoulFilterNet\\crash-trace.log",
         "Watch__HeadSeconds": "120",
+        "Transcription__Model": "large-v3-turbo",
+        "Transcription__ModelDirectory": "F:\\SourceCode\\FoulFilterNet\\models",
         "DOTNET_DbgEnableMiniDump": "1",
         "DOTNET_DbgMiniDumpType": "4",
         "DOTNET_DbgMiniDumpName": "F:\\SourceCode\\FoulFilterNet\\dumps\\ffn.%d.dmp"
