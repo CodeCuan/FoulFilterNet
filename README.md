@@ -55,12 +55,15 @@ model ADR-0006's measurements used).
 
 Weights are gitignored (`models/`, `*.bin`) and must never be committed.
 
-Web's [`appsettings.json`](src/FoulFilterNet.Web/appsettings.json) sets
-`large-v3-turbo` and an absolute model directory, so running Web from the IDE or
-`dotnet run --project src/FoulFilterNet.Web` uses turbo with no environment
-variables. **The directory is this machine's absolute path**
-(`F:\SourceCode\FoulFilterNet\models`); anywhere else, override
-`Transcription:ModelDirectory` by environment variable or edit that file.
+Web asks for `large-v3-turbo` in
+[`appsettings.json`](src/FoulFilterNet.Web/appsettings.json), and its default
+launch profile
+([`launchSettings.json`](src/FoulFilterNet.Web/Properties/launchSettings.json))
+points `Transcription__ModelDirectory` at this machine's `models` folder. So
+running Web from the IDE or `dotnet run --project src/FoulFilterNet.Web` uses
+turbo with no environment variables, while the checked-in configuration keeps
+no machine-specific path. Running it any other way needs that directory set —
+see [Running the web app](#running-the-web-app).
 
 ## The Priority Word Pass
 
@@ -123,9 +126,14 @@ IDE serves the extension without any extra argument. Pass
 extension's server URL to match.
 
 The same file runs Web with `src/FoulFilterNet.Web` as its working directory.
-That is why `appsettings.json` gives `Transcription:ModelDirectory` an absolute
-path; with the default relative `models` the weights would be downloaded into
-`src/FoulFilterNet.Web/models`.
+That is why it also sets `Transcription__ModelDirectory` to an absolute path;
+with the default relative `models` the weights would be downloaded into
+`src/FoulFilterNet.Web/models`. Running Web without that profile means setting
+it yourself:
+
+```powershell
+$env:Transcription__ModelDirectory = "$PWD\models"
+```
 
 Web reads the Bad Words List from `bad_words.txt` in the data directory —
 `%LOCALAPPDATA%\FoulFilterNet` on Windows, `~/.local/share/FoulFilterNet` on
@@ -417,13 +425,14 @@ manifest's phrases and the transcript cache is `<work>/transcripts`, so a fresh
 
 [`src/FoulFilterNet.Web/appsettings.json`](src/FoulFilterNet.Web/appsettings.json)
 is the primary source for both hosts and lists every setting with its default.
-Two of them it deliberately sets away from the code's default, for this machine:
-`Transcription:Model` is `large-v3-turbo` and `Transcription:ModelDirectory` is
-the repository's absolute `models` path.
+One of them it deliberately sets away from the code's default:
+`Transcription:Model` is `large-v3-turbo`, which the Priority Word Pass needs.
+The model *directory* stays machine-specific and lives in the launch profile
+instead.
 
 | Key | Default | Legacy variable |
 |---|---|---|
-| `Transcription:Model` | `base` | `WHISPER_MODEL` |
+| `Transcription:Model` | `large-v3-turbo` (the code's default is `base`) | `WHISPER_MODEL` |
 | `Transcription:Language` | blank (detect) | `WHISPER_LANGUAGE` |
 | `Transcription:Device` | `Auto` (`Auto`, `Cuda`, `Cpu`) | — |
 | `Transcription:ModelDirectory` | `models` | — |
