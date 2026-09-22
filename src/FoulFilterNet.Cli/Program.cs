@@ -75,7 +75,17 @@ internal static class Program
         // No acquisition delegate, deliberately: a terminal run fails with the
         // path it wanted rather than quietly pulling 1.6 GB over the network.
         // Web wires the downloader; the CLI does not.
-        // The Priority Word List is read once, from the data directory Web uses.
+        // The Priority Word List is read once, from the data directory Web uses;
+        // the engine hunts for its words and the pipeline cuts them wider.
+        builder.Services.AddSingleton(provider =>
+            PriorityWordFile.Resolve(
+                provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
+                builder.Configuration[ConfigurationKeys.DataDirectory]
+            )
+        );
+        builder.Services.AddSingleton(provider =>
+            CutPadding.ForPriorityWords(provider.GetRequiredService<PriorityWordSource>().Words)
+        );
         builder.Services.AddSingleton<IWhisperEngine>(provider =>
         {
             var transcription = provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value;
@@ -83,10 +93,7 @@ internal static class Program
                 transcription,
                 new WhisperModelSource(transcription.ModelDirectory),
                 provider.GetRequiredService<ILogger<WhisperNetEngine>>(),
-                PriorityWordFile.Resolve(
-                    transcription,
-                    builder.Configuration[ConfigurationKeys.DataDirectory]
-                )
+                provider.GetRequiredService<PriorityWordSource>()
             );
         });
 

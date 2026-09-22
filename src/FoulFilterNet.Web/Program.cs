@@ -58,7 +58,17 @@ builder.Services.AddSingleton<IMediaEditor, MediaEditor>();
 // cached transcript releases a model it never loaded without complaint.
 // The Priority Word List is read once, here: it is baked into the prompted
 // processor's prompt, so it is not re-read on change the way the Bad Words
-// List is (docs/05-crosstalk-plan.md).
+// List is (docs/05-crosstalk-plan.md). Its words are also cut wider, in jobs
+// and in Watch alike, so the one list feeds the engine and the CutPadding.
+builder.Services.AddSingleton(provider =>
+    PriorityWordFile.Resolve(
+        provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
+        provider.GetRequiredService<IOptions<StorageOptions>>().Value.DataDirectory
+    )
+);
+builder.Services.AddSingleton(provider =>
+    CutPadding.ForPriorityWords(provider.GetRequiredService<PriorityWordSource>().Words)
+);
 builder.Services.AddSingleton<IWhisperEngine>(provider =>
 {
     var transcription = provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value;
@@ -66,10 +76,7 @@ builder.Services.AddSingleton<IWhisperEngine>(provider =>
         transcription,
         new WhisperModelSource(transcription.ModelDirectory, WhisperModelSource.Download),
         provider.GetRequiredService<ILogger<WhisperNetEngine>>(),
-        PriorityWordFile.Resolve(
-            transcription,
-            provider.GetRequiredService<IOptions<StorageOptions>>().Value.DataDirectory
-        )
+        provider.GetRequiredService<PriorityWordSource>()
     );
 });
 

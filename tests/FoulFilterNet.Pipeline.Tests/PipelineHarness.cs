@@ -207,6 +207,9 @@ internal sealed class PipelineHarness : IDisposable
 
     public bool SmartCutEnabled { get; set; }
 
+    /// <summary>How the pipeline pads its Hits; null leaves the pipeline's default.</summary>
+    public CutPadding? CutPadding { get; set; }
+
     /// <summary>Verdict per hit, by index. Anything unlisted keeps its timestamps.</summary>
     public Dictionary<int, SmartCutDecision> Decisions { get; } = [];
 
@@ -264,7 +267,8 @@ internal sealed class PipelineHarness : IDisposable
             {
                 _storeDirectories.Add(directory);
                 return new TranscriptStore(directory);
-            }
+            },
+            cutPadding: CutPadding
         );
 
     public JobSummary Run() =>

@@ -343,3 +343,65 @@ public class WhenThereIsNothingToReconcile
     public void RejectsANullBadWordsList() =>
         Should.Throw<ArgumentNullException>(() => _sut.Reconcile([], [], null!));
 }
+
+/// <summary>
+/// A priority word is padded 0.25 s before and 0.5 s after, so its windows fuse
+/// across a 0.75 s gap, and its tolerance widens with them; an ordinary word
+/// on the same reconciler keeps 0.40 s.
+/// </summary>
+public class WhenTheReconcilerIsGivenPriorityPadding
+{
+    private static readonly BadWordsList BadWords = BadWordsList.FromLines(["damn", "fuck"]);
+
+    private readonly HitReconciler _sut;
+    private readonly IReadOnlyList<Hit> _hits;
+    private readonly IReadOnlyList<Hit> _hadBothBeenKept;
+
+    public WhenTheReconcilerIsGivenPriorityPadding()
+    {
+        var padding = CutPadding.ForPriorityWords(PriorityWordList.Default);
+
+        // Both aligned words sit 0.7 s after their Candidate's estimate.
+        IReadOnlyList<Segment> segments =
+        [
+            new Segment(2.000, 2.400, "fuck"),
+            new Segment(8.000, 8.400, "damn"),
+        ];
+        var candidates = PhraseMatcher.FindCandidates(segments, BadWords);
+        IReadOnlyList<Word> words =
+        [
+            new Word("fuck", 3.100, 3.500),
+            new Word("damn", 9.100, 9.500),
+        ];
+
+        _sut = new HitReconciler(padding);
+        _hits = _sut.Reconcile(candidates, words, BadWords);
+        _hadBothBeenKept = new HitMerger(padding).Merge([
+            new Hit("fuck", 3.100, 3.500, 0),
+            new Hit("fuck", 2.000, 2.400),
+        ]);
+
+        candidates.Count.ShouldBe(2);
+        _hits.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void ToleratesThePriorityPrePlusPostForAPriorityPhrase() =>
+        _sut.ToleranceFor("fuck").ShouldBe(0.75);
+
+    [Fact]
+    public void KeepsTheOrdinaryToleranceAsItsToleranceSeconds() =>
+        _sut.ToleranceSeconds.ShouldBe(0.4);
+
+    [Fact]
+    public void TreatsThePriorityCandidateAsTheAlignedOccurrence() =>
+        _hits.Count(h => h.Phrase == "fuck").ShouldBe(1);
+
+    [Fact]
+    public void StillKeepsTheOrdinaryCandidateAsAHitOfItsOwn() =>
+        _hits.Count(h => h.Phrase == "damn").ShouldBe(2);
+
+    [Fact]
+    public void AtThisDistanceAPriorityFallbackWouldHaveMergedAnyway() =>
+        _hadBothBeenKept.Count.ShouldBe(1);
+}

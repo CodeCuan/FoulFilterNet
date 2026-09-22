@@ -60,8 +60,9 @@ public sealed partial class MediaPipeline : IMediaPipeline
     /// <summary>
     /// One padding for both, deliberately: the reconciler's proximity tolerance
     /// is derived from the padding the merger applies, and they have to agree.
+    /// Priority words are cut wider (<see cref="CutPadding"/>).
     /// </summary>
-    private readonly HitPadding _padding = HitPadding.Default;
+    private readonly CutPadding _padding;
 
     private readonly HitMerger _merger;
     private readonly HitReconciler _reconciler;
@@ -75,7 +76,8 @@ public sealed partial class MediaPipeline : IMediaPipeline
         IMediaEditor editor,
         TranscriptStoreFactory transcriptStores,
         SmartCutOptions? smartCutOptions = null,
-        ILogger<MediaPipeline>? logger = null
+        ILogger<MediaPipeline>? logger = null,
+        CutPadding? cutPadding = null
     )
     {
         ArgumentNullException.ThrowIfNull(prober);
@@ -96,9 +98,13 @@ public sealed partial class MediaPipeline : IMediaPipeline
         _logger = logger ?? NullLogger<MediaPipeline>.Instance;
         _contextRadius = (smartCutOptions ?? new SmartCutOptions()).ContextRadius;
 
+        _padding = cutPadding ?? CutPadding.Default;
         _merger = new HitMerger(_padding);
         _reconciler = new HitReconciler(_padding);
     }
+
+    /// <summary>How this pipeline pads its Hits: priority words wider.</summary>
+    public CutPadding CutPadding => _padding;
 
     /// <inheritdoc />
     public async Task<JobSummary> RunAsync(
@@ -392,11 +398,16 @@ public sealed partial class MediaPipeline : IMediaPipeline
                     break;
 
                 case SmartCutOutcome.Adjust:
+                    var (start, end) = _padding.Widen(
+                        hit.Phrase,
+                        decision.CutStart,
+                        decision.CutEnd
+                    );
                     kept.Add(
                         hit with
                         {
-                            Start = Times.Round(Math.Max(0.0, decision.CutStart - _padding.Pre)),
-                            End = Times.Round(decision.CutEnd + _padding.Post),
+                            Start = Times.Round(Math.Max(0.0, start)),
+                            End = Times.Round(end),
                         }
                     );
                     break;

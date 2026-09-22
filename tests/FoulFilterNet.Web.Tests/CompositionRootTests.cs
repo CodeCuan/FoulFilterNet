@@ -64,6 +64,18 @@ public sealed class WhenTheHostComposesTheOrchestrator : IDisposable
         _services.GetRequiredService<IMediaPipeline>().ShouldBeOfType<MediaPipeline>();
 
     [Fact]
+    public void CutsTheBuiltInPriorityWordsWiderInJobs() =>
+        (
+            (MediaPipeline)_services.GetRequiredService<IMediaPipeline>()
+        ).CutPadding.PriorityWords.ShouldBe(Domain.PriorityWordList.Default);
+
+    [Fact]
+    public void GivesJobsTheOneRegisteredCutPadding() =>
+        ((MediaPipeline)_services.GetRequiredService<IMediaPipeline>()).CutPadding.ShouldBeSameAs(
+            _services.GetRequiredService<Domain.CutPadding>()
+        );
+
+    [Fact]
     public void ResolvesTheAdvisorThePipelineAsksAboutEveryHit() =>
         _services.GetRequiredService<ISmartCutAdvisor>().ShouldNotBeNull();
 

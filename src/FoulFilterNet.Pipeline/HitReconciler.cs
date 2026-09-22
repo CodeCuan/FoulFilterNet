@@ -29,16 +29,23 @@ namespace FoulFilterNet.Pipeline;
 /// </remarks>
 public sealed class HitReconciler
 {
-    private readonly double _tolerance;
+    private readonly CutPadding _padding;
 
     /// <summary>
     /// Reconcile with the tolerance implied by <paramref name="padding"/>, or by
-    /// <see cref="HitPadding.Default"/>.
+    /// <see cref="HitPadding.Default"/>, for every phrase.
     /// </summary>
     public HitReconciler(HitPadding? padding = null)
+        : this(padding is null ? CutPadding.Default : new CutPadding(padding)) { }
+
+    /// <summary>
+    /// Reconcile with, for each phrase, the tolerance implied by the padding
+    /// <paramref name="padding"/> gives it - wider for a priority word.
+    /// </summary>
+    public HitReconciler(CutPadding padding)
     {
-        var effective = padding ?? HitPadding.Default;
-        _tolerance = Times.Round(effective.Pre + effective.Post);
+        ArgumentNullException.ThrowIfNull(padding);
+        _padding = padding;
     }
 
     /// <summary>
@@ -53,9 +60,20 @@ public sealed class HitReconciler
     /// cut window, so the decision cannot change what the listener hears; at this
     /// distance or beyond, a fallback becomes a cut of its own, which is what a
     /// separate occurrence of the word deserves. Widening the padding widens this
-    /// with it, so the two stay consistent.
+    /// with it, so the two stay consistent. This is the tolerance of an ordinary
+    /// phrase; a priority word's is <see cref="ToleranceFor"/> it.
     /// </remarks>
-    public double ToleranceSeconds => _tolerance;
+    public double ToleranceSeconds => Times.Round(_padding.Ordinary.Pre + _padding.Ordinary.Post);
+
+    /// <summary>
+    /// The tolerance for a Candidate of <paramref name="phrase"/>: the pre- plus
+    /// post-padding <see cref="CutPadding"/> gives that phrase, so 0.75 s for a
+    /// priority word by default. The reasoning above holds per phrase, because a
+    /// Candidate and the Hits it is compared with share its phrase and so its
+    /// padding; a priority Hit's minimum length only widens windows, so two that
+    /// fuse at this gap still fuse.
+    /// </summary>
+    public double ToleranceFor(string phrase) => _padding.ToleranceFor(phrase);
 
     /// <summary>
     /// The Hits for one file: every phrase alignment confirmed, plus a segment
@@ -95,6 +113,7 @@ public sealed class HitReconciler
 
     private bool IsCovered(Candidate candidate, IReadOnlyList<Hit> aligned)
     {
+        var tolerance = ToleranceFor(candidate.Phrase);
         foreach (var hit in aligned)
         {
             if (!string.Equals(hit.Phrase, candidate.Phrase, StringComparison.Ordinal))
@@ -102,7 +121,7 @@ public sealed class HitReconciler
                 continue;
             }
 
-            if (Times.Round(GapBetween(candidate, hit)) <= _tolerance)
+            if (Times.Round(GapBetween(candidate, hit)) <= tolerance)
             {
                 return true;
             }

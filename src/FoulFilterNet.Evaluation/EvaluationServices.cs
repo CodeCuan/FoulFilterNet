@@ -38,6 +38,17 @@ public static class EvaluationServices
         services.AddSingleton<IAudioPreparer, FFmpegAudioPreparer>();
         services.AddSingleton<IMediaEditor, MediaEditor>();
 
+        // One Priority Word List for the engine and the pipeline's CutPadding,
+        // which the report also scores with, as a job would use them.
+        services.AddSingleton(provider =>
+            PriorityWordFile.Resolve(
+                provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
+                configuration[ConfigurationKeys.DataDirectory]
+            )
+        );
+        services.AddSingleton(provider =>
+            CutPadding.ForPriorityWords(provider.GetRequiredService<PriorityWordSource>().Words)
+        );
         services.AddSingleton<IWhisperEngine>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value;
@@ -45,7 +56,7 @@ public static class EvaluationServices
                 options,
                 new WhisperModelSource(options.ModelDirectory),
                 provider.GetRequiredService<ILogger<WhisperNetEngine>>(),
-                PriorityWordFile.Resolve(options, configuration[ConfigurationKeys.DataDirectory])
+                provider.GetRequiredService<PriorityWordSource>()
             );
         });
 

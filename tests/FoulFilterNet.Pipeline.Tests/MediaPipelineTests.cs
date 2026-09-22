@@ -1038,3 +1038,104 @@ public sealed class WhenTheJobRequestIsNull : IDisposable
     public async Task IsRejected() =>
         await Should.ThrowAsync<ArgumentNullException>(() => _sut.RunAsync(null!));
 }
+
+/// <summary>
+/// X03: a Hit on the Priority Word List is grown backward to 0.8 s and padded
+/// 0.25 s / 0.5 s; every other Hit keeps the default 0.15 s / 0.25 s.
+/// </summary>
+public sealed class WhenAJobFindsAPriorityWord : IDisposable
+{
+    private readonly PipelineHarness _harness = new();
+    private readonly JobSummary _summary;
+
+    public WhenAJobFindsAPriorityWord()
+    {
+        File.WriteAllLines(_harness.BadWordsPath, ["damn", "fuck"]);
+        _harness.CutPadding = CutPadding.ForPriorityWords(PriorityWordList.Default);
+        _harness.Segments = [new Segment(1.0, 1.5, "damn"), new Segment(4.0, 4.4, "fuck")];
+        _harness.AlignedWords = [new Word("damn", 1.0, 1.5), new Word("fuck", 4.39, 4.4)];
+
+        _summary = _harness.Run();
+
+        _summary.Hits.Count.ShouldBe(2);
+    }
+
+    public void Dispose() => _harness.Dispose();
+
+    [Fact]
+    public void PadsTheOrdinaryHitAsBefore() =>
+        (_summary.Hits[0].Start, _summary.Hits[0].End).ShouldBe((0.85, 1.75));
+
+    // 4.4 - 0.8 - 0.25
+    [Fact]
+    public void GrowsTheShortPriorityHitBackwardAndPadsIt() =>
+        _summary.Hits[1].Start.ShouldBe(3.35, 0.001);
+
+    [Fact]
+    public void PadsThePriorityHitsEndByHalfASecond() => _summary.Hits[1].End.ShouldBe(4.9, 0.001);
+
+    [Fact]
+    public void RendersThoseWindows() =>
+        _harness
+            .Editor.Received(1)
+            .CensorAudioAsync(
+                Arg.Any<string>(),
+                Arg.Is<IReadOnlyList<Hit>>(hits => hits.Count == 2 && hits[1].End == 4.9),
+                Arg.Any<CensorMethod>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+}
+
+public sealed class WhenAJobHasNoPriorityPadding : IDisposable
+{
+    private readonly PipelineHarness _harness = new();
+    private readonly JobSummary _summary;
+
+    public WhenAJobHasNoPriorityPadding()
+    {
+        File.WriteAllLines(_harness.BadWordsPath, ["fuck"]);
+        _harness.Segments = [new Segment(4.0, 4.4, "fuck")];
+        _harness.AlignedWords = [new Word("fuck", 4.39, 4.4)];
+
+        _summary = _harness.Run();
+
+        _summary.Hits.ShouldHaveSingleItem();
+    }
+
+    public void Dispose() => _harness.Dispose();
+
+    [Fact]
+    public void PadsEveryHitWithTheDefaultPadding() =>
+        (_summary.Hits[0].Start, _summary.Hits[0].End).ShouldBe((4.24, 4.65));
+}
+
+public sealed class WhenSmartCutNarrowsAPriorityHit : IDisposable
+{
+    private readonly PipelineHarness _harness = new();
+    private readonly JobSummary _summary;
+
+    public WhenSmartCutNarrowsAPriorityHit()
+    {
+        File.WriteAllLines(_harness.BadWordsPath, ["fuck"]);
+        _harness.CutPadding = CutPadding.ForPriorityWords(PriorityWordList.Default);
+        _harness.Segments = [new Segment(1.0, 1.5, "fuck")];
+        _harness.AlignedWords = [new Word("fuck", 1.0, 1.5)];
+        _harness.SmartCutEnabled = true;
+        _harness.Decisions[0] = SmartCutDecision.Adjust(3.0, 3.6);
+
+        _summary = _harness.Run();
+
+        _summary.Hits.ShouldHaveSingleItem();
+    }
+
+    public void Dispose() => _harness.Dispose();
+
+    // 3.6 - 0.8 - 0.25: the model's window is still a priority word's.
+    [Fact]
+    public void GrowsTheModelsWindowToTheMinimumBeforePadding() =>
+        _summary.Hits[0].Start.ShouldBe(2.55, 0.001);
+
+    [Fact]
+    public void PadsItsEndAsAPriorityWord() => _summary.Hits[0].End.ShouldBe(4.1, 0.001);
+}
