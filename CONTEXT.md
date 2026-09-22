@@ -101,6 +101,10 @@ It runs inside the window, so Watch, batch and the Rescan Pass all get the extra
 words with no change of their own, and it never takes an ordinary word from the
 prompted hearing, which loses and mishears them. **On by default**
 (`Transcription:PriorityPass`); it costs about four times the transcription time.
+The sub-window length and step are configuration
+(`Transcription:PrioritySubWindowSeconds`, `PrioritySubWindowStepSeconds`), and
+the shipped 5 s / 2.5 s are the values ADR-0008 measured: they trade speed
+against detection.
 _Avoid_: second pass (that is the Rescan Pass), F-word pass
 
 **Priority Word List**:
@@ -111,7 +115,9 @@ empty list turns the pass off. It does **not** decide what is censored — the B
 Words List does — only what is listened for a second time. A Hit whose phrase is
 on this list is also cut wider: grown backward from its reported end to 0.8 s,
 then padded 0.25 s / 0.5 s instead of 0.15 s / 0.25 s, because crosstalk
-timestamps are loose.
+timestamps are loose. Those three numbers are configuration too
+(`Transcription:PriorityMinimumCutSeconds`, `PriorityPaddingPre`,
+`PriorityPaddingPost`), and Watch's Coverage guard follows them.
 _Avoid_: whitelist, prompt list, priority queue
 
 **Rescan Pass**:
@@ -176,8 +182,9 @@ The parts of a Web Video's timeline whose Hits are final: the union of the
 finished windows' shares, trimmed by a 1 s **guard** at an edge whose
 neighbouring window is not finished, where a phrase or its padding could still
 run across (1.05 s when priority words are cut wider: their 0.8 s minimum
-length plus 0.25 s pre-roll). It is a set of intervals, not one high-water mark, because a seek
-can have windows transcribed out of order.
+length plus 0.25 s pre-roll — derived from the host's configured padding, so a
+wider cut widens the guard). It is a set of intervals, not one high-water mark,
+because a seek can have windows transcribed out of order.
 
 **Playback Gate**:
 The extension's rule that holds playback while the stretch just ahead of the

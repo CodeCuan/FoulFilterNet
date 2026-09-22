@@ -94,10 +94,27 @@ default**.
 **Hits on priority words are cut wider.** Word timestamps under crosstalk are
 loose — a masked word can collapse to a 10 ms point up to 0.47 s after it was
 spoken — so a Hit whose phrase is a priority word is grown backward from its
-reported end to at least 0.8 s and then padded 0.25 s before and 0.5 s after,
-instead of the usual 0.15 s / 0.25 s. A typical F-word cut is about 1.5 s long
-rather than 0.8 s. Every other word keeps the ordinary padding, so nothing else
-about your output changes.
+reported end to at least 0.8 s (`Transcription:PriorityMinimumCutSeconds`) and
+then padded 0.25 s before and 0.5 s after (`Transcription:PriorityPaddingPre`
+and `PriorityPaddingPost`), instead of the usual 0.15 s / 0.25 s. A typical
+F-word cut is about 1.5 s long rather than 0.8 s. Every other word keeps the
+ordinary padding, so nothing else about your output changes.
+
+**The five tuning numbers are configuration**, in the same `Transcription`
+section: the three above, and the sub-window length and step
+(`Transcription:PrioritySubWindowSeconds`, default 5 s, and
+`PrioritySubWindowStepSeconds`, default 2.5 s). Every one of the five falls back
+to its default when it is left out or set to `0`; a negative value, one that is
+not a number, or a step longer than a sub-window stops the host at startup with
+the key named. The cut values move Watch's Coverage guard with them, so the
+browser still never plays audio a later window could cut into.
+
+> **The sub-window values trade speed against detection**, and the shipped ones
+> are the values [ADR-0008](docs/adr/0008-crosstalk-priority-word-pass.md)
+> measured. A shorter sub-window or step is more inferences per window; a longer
+> one is fewer, and hears less. Changing them is an experiment to be scored with
+> [the evaluation harness](#evaluating-against-the-fixtures), not a knob with a
+> better setting waiting.
 
 **It costs about four times the transcription time.** A 28-second window becomes
 one primary inference plus ten short prompted ones. On an RTX 3080 Ti with
@@ -439,6 +456,11 @@ instead.
 | `Transcription:UnloadAfterJob` | `false` | `UNLOAD_MODELS_AFTER_JOB` |
 | `Transcription:PriorityPass` | `true` | — |
 | `Transcription:PriorityWordsPath` | blank (`<data>/priority_words.txt`, else the built-in list) | — |
+| `Transcription:PriorityPaddingPre` | `0.25` seconds | — |
+| `Transcription:PriorityPaddingPost` | `0.5` seconds | — |
+| `Transcription:PriorityMinimumCutSeconds` | `0.8` seconds | — |
+| `Transcription:PrioritySubWindowSeconds` | `5.0` seconds | — |
+| `Transcription:PrioritySubWindowStepSeconds` | `2.5` seconds | — |
 | `Storage:DataDirectory` | blank (per-user folder) | `DATA_DIR` |
 | `Storage:TranscriptDirectory` | blank (`<data>/transcripts`) | `TRANSCRIPT_DIR` |
 | `Storage:BadWordsPath` | blank (`<data>/bad_words.txt`) | `BAD_WORDS_PATH` |

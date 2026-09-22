@@ -1,6 +1,6 @@
 # ADR-0008: Crosstalk is caught by a prompted pass over short sub-windows
 
-Status: **Accepted** (X01–X04, 2026-09-22/23). Builds on
+Status: **Accepted** (X01–X05, 2026-09-22/23). Builds on
 [ADR-0006](0006-whisper-net-collapses-transcription-and-alignment.md) (one
 whisper.cpp pass per 28 s window, DTW word timestamps) and applies to web video
 as well ([ADR-0007](0007-web-video-two-streams.md)).
@@ -55,9 +55,11 @@ words are cut wider.
    the Bad Words List still does.
 2. **The pass lives inside a window.** `WindowedAudio` hears the window with the
    primary processor, then hears the same samples again in 5 s sub-windows
-   stepping 2.5 s with a second processor built `.WithPrompt(list)`, keeps only
-   words on the list (each kept by exactly one sub-window, by midpoint share, as
-   stitching does), drops those that duplicate a primary word, and merges the
+   stepping 2.5 s (`Transcription:PrioritySubWindowSeconds` and
+   `PrioritySubWindowStepSeconds`) with a second processor built
+   `.WithPrompt(list)`, keeps only words on the list (each kept by exactly one
+   sub-window, by midpoint share, as stitching does), drops those that duplicate
+   a primary word, and merges the
    rest into the window's words. Because the unit is still the window, Watch,
    the batch pipeline, the Rescan Pass and Coverage need no change of their own.
 3. **Every inference takes its own turn in the `InferenceLane`** — the primary
@@ -72,6 +74,16 @@ words are cut wider.
    0.44 s early. Watch's Coverage guard becomes `max(1 s, 0.8 + 0.25)` = 1.05 s.
 5. **`Transcript.CurrentVersion` is bumped to 2**, so a transcript made without
    the pass is not resumed as though it had it.
+6. **The five numbers above are configuration, not constants** (X05):
+   `Transcription:PriorityPaddingPre`, `PriorityPaddingPost`,
+   `PriorityMinimumCutSeconds`, `PrioritySubWindowSeconds` and
+   `PrioritySubWindowStepSeconds`, bound from the same section as the rest of
+   the pass, with these measured values as their defaults - so everything above
+   is what a host does unless it is told otherwise. Zero, or a key left out,
+   means the default; anything that cannot work refuses to start with the key
+   named. The Coverage guard is `max(1 s, minimum + pre)` of whatever padding
+   the host registered, so it follows the configuration too. The ordinary
+   0.15 s / 0.25 s padding stays a constant.
 
 ### What the pass gains, and what it costs
 
@@ -153,6 +165,12 @@ Two cheaper things *were* taken (X04), both without changing what is heard:
   browser alike. On clean material that is audibly more dead air around one
   word; it is the price of covering a word whose timestamps are a 10 ms point.
 - **Cached transcripts from before the pass are re-transcribed once** (version 2).
+- **Tuning it is an experiment, not a knob.** The sub-window length and step
+  trade speed against detection, and the shipped pair is the measured one: on
+  the crosstalk manifest, 10 s sub-windows stepping 5 s take the evaluator from
+  41.6 s to 32.2 s but drop detection from 29/33 to 20/33 and coverage from
+  27/33 to 18/33 (measured 2026-09-23, same machine and model). Anything moved
+  should be scored the same way.
 - The pass is only as good as the list: a swear that is not a priority word and
   is spoken under another voice is still missed. Four of the 33 planted swears
   are still missed, all of them fully masked asides.

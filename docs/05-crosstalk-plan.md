@@ -1,10 +1,11 @@
 # 05 — Crosstalk: the Priority Word Pass
 
-Status: **done** — X01–X04 are all merged into `feature/crosstalk-priority-pass`
-(see [STATUS.md](STATUS.md)); the decision, the measurements and the options that
-were rejected are recorded in
-[ADR-0008](adr/0008-crosstalk-priority-word-pass.md). Tasks are numbered `X01`–`X04` so they
-cannot be confused with the port's `T01`–`T34` or web video's `W00`–`W19`.
+Status: **done** — X01–X04 are on `main`, and X05 made the pass's tuning
+configuration (see [STATUS.md](STATUS.md)); the decision, the measurements and
+the options that were rejected are recorded in
+[ADR-0008](adr/0008-crosstalk-priority-word-pass.md). Tasks are numbered
+`X01`–`X05` so they cannot be confused with the port's `T01`–`T34` or web
+video's `W00`–`W19`.
 
 ## Problem
 
@@ -122,7 +123,38 @@ just as loose under crosstalk).
 - The evaluator scores raw words with the job's `CutPadding`
   (`ScoringRules.RawWordsFor`) and reports censored seconds per level.
 - Constants, not configuration: `CutPadding.DefaultPriorityPadding` and
-  `DefaultPriorityMinimumSeconds`.
+  `DefaultPriorityMinimumSeconds`. **Superseded by X05** - see below.
+
+### As built (X05): the tuning is configuration
+
+The five numbers X02 and X03 measured are bound from the `Transcription`
+section, with the measured values as their defaults, so nothing changes out of
+the box:
+
+| Key | Default | What it is |
+|---|---|---|
+| `Transcription:PriorityPaddingPre` | 0.25 s | Pre-roll on a priority Hit |
+| `Transcription:PriorityPaddingPost` | 0.5 s | Post-roll on a priority Hit |
+| `Transcription:PriorityMinimumCutSeconds` | 0.8 s | How short a priority Hit may be before it is grown backward |
+| `Transcription:PrioritySubWindowSeconds` | 5.0 s | One sub-window of the pass |
+| `Transcription:PrioritySubWindowStepSeconds` | 2.5 s | Between sub-window starts |
+
+- `PrioritySubWindows` (Transcription) owns the sub-window arithmetic that was
+  `PriorityWindows`' two constants and its `Plan`; `PriorityTuning` reads the
+  five keys and builds both halves - `PaddingFor(list)` for the `CutPadding`
+  every host registers, and `SubWindows` for the layout `WhisperNetEngine`
+  hands `PriorityPass`.
+- **Zero, or omitted, means the shipped default.** A key left out of
+  configuration binds as zero and so does one written as `0`, and there is no
+  telling them apart; zero padding is what `Transcription:PriorityPass=false`
+  is for. Anything that cannot work - negative, NaN, infinite, or a step longer
+  than a sub-window - throws with the key named, at startup in Web and the CLI
+  and when the pipeline is composed in the evaluator.
+- **Watch's Coverage guard already followed the padding** (X03's
+  `WatchProgress.GuardSecondsFor`), so it follows the configured padding with
+  no further change: `max(1 s, minimum + pre)`, 1.05 s by default. X05's tests
+  hold it to that by moving the padding and watching the guard move.
+- Non-priority `HitPadding.Default` (0.15/0.25) stays a constant.
 
 ## Tasks
 
@@ -132,6 +164,7 @@ just as loose under crosstalk).
 | X02 | Wire the pass into the engine: prompted second processor, sub-window inference through the lane, merged window result, config binding in Web/CLI/Evaluation, cache version bump. Measure with the crosstalk manifest (expect ~29/33) and the original manifest (no regression). |
 | X03 | Priority padding: wider padding and minimum length for priority-word hits in both batch and Watch. Tune on the crosstalk manifest's coverage; record before/after. |
 | X04 | Throughput and docs: measure Watch real-time factor with the pass on (turbo, CUDA) and make sure a first viewing still keeps ahead of the playhead; README, ADR-0008, STATUS. |
+| X05 | The padding and sub-window values as configuration, bound from `Transcription` with the measured values as defaults, validated and documented. See "As built (X05)" above. |
 
 As built (X04): a window costs 2.83 s instead of 0.69 s (4.1×, down from 6.4×
 once sub-windows that cannot contribute were dropped and the language stopped
