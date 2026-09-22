@@ -41,7 +41,10 @@ A Candidate confirmed for editing, with final padded start/end times. A Hit
 takes its times from the matching Words where they exist, and falls back to the
 Candidate's estimate where they do not; Candidates are reconciled to Hits by
 time proximity, not by phrase alone. Hits are padded (0.15 s before, 0.25 s
-after) and overlapping Hits are merged into one.
+after; a Priority Word wider, see *Priority Word List*) and overlapping Hits are
+merged into one. Padding happens once: windows that are joined again after some
+were dropped (the survivors of a Smart Cut rejection) are rejoined, not padded a
+second time.
 _Avoid_: match, detection (ambiguous between candidate and hit)
 
 **Alignment Window** (Python only):
@@ -87,6 +90,29 @@ one at a time (GPU serialization).
 Reusing a persisted Transcript (matched by a hash of the file's content) to skip
 transcription for a file processed before. A Rescan Pass never resumes: it is a
 request to listen again, so the cache is not consulted.
+
+**Priority Word Pass**:
+A second, prompted hearing of every transcription window in 5 s sub-windows
+(stepping 2.5 s), from which only Priority Words are kept and merged into what
+the primary pass heard. It exists because Whisper transcribes the dominant voice
+when two people talk over each other, so the other speaker's swear never reaches
+the transcript at all ([ADR-0008](docs/adr/0008-crosstalk-priority-word-pass.md)).
+It runs inside the window, so Watch, batch and the Rescan Pass all get the extra
+words with no change of their own, and it never takes an ordinary word from the
+prompted hearing, which loses and mishears them. **On by default**
+(`Transcription:PriorityPass`); it costs about four times the transcription time.
+_Avoid_: second pass (that is the Rescan Pass), F-word pass
+
+**Priority Word List**:
+The short list of words the Priority Word Pass hunts for, and prompts whisper.cpp
+with: the F-word family by default, overridable by `priority_words.txt` in the
+data directory or `Transcription:PriorityWordsPath`. Single words only, and an
+empty list turns the pass off. It does **not** decide what is censored — the Bad
+Words List does — only what is listened for a second time. A Hit whose phrase is
+on this list is also cut wider: grown backward from its reported end to 0.8 s,
+then padded 0.25 s / 0.5 s instead of 0.15 s / 0.25 s, because crosstalk
+timestamps are loose.
+_Avoid_: whitelist, prompt list, priority queue
 
 **Rescan Pass**:
 An optional second full transcription of the same file with 4 s of silence

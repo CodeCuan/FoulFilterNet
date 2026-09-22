@@ -1,6 +1,9 @@
 # 05 — Crosstalk: the Priority Word Pass
 
-Status: **accepted**, in progress (see [STATUS.md](STATUS.md)). Tasks are numbered `X01`–`X04` so they
+Status: **done** — X01–X04 are all merged into `feature/crosstalk-priority-pass`
+(see [STATUS.md](STATUS.md)); the decision, the measurements and the options that
+were rejected are recorded in
+[ADR-0008](adr/0008-crosstalk-priority-word-pass.md). Tasks are numbered `X01`–`X04` so they
 cannot be confused with the port's `T01`–`T34` or web video's `W00`–`W19`.
 
 ## Problem
@@ -129,3 +132,10 @@ just as loose under crosstalk).
 | X02 | Wire the pass into the engine: prompted second processor, sub-window inference through the lane, merged window result, config binding in Web/CLI/Evaluation, cache version bump. Measure with the crosstalk manifest (expect ~29/33) and the original manifest (no regression). |
 | X03 | Priority padding: wider padding and minimum length for priority-word hits in both batch and Watch. Tune on the crosstalk manifest's coverage; record before/after. |
 | X04 | Throughput and docs: measure Watch real-time factor with the pass on (turbo, CUDA) and make sure a first viewing still keeps ahead of the playhead; README, ADR-0008, STATUS. |
+
+As built (X04): a window costs 2.83 s instead of 0.69 s (4.1×, down from 6.4×
+once sub-windows that cannot contribute were dropped and the language stopped
+being detected per sub-window), which is 7.5× real time; a first view waits
+8.4 s instead of 3.8 s where no fetch is involved. Watch and a batch Job at once
+peak at 4.2 GB of VRAM on the 12 GB card. The numbers, and the options that were
+tried and rejected, are in [ADR-0008](adr/0008-crosstalk-priority-word-pass.md).

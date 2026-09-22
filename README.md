@@ -55,6 +55,55 @@ model ADR-0006's measurements used).
 
 Weights are gitignored (`models/`, `*.bin`) and must never be committed.
 
+Web's default launch profile
+([`src/FoulFilterNet.Web/Properties/launchSettings.json`](src/FoulFilterNet.Web/Properties/launchSettings.json))
+sets `large-v3-turbo` and an absolute model directory, so running Web from the
+IDE or `dotnet run --project src/FoulFilterNet.Web` uses turbo with no
+environment variables.
+
+## The Priority Word Pass
+
+When two people talk over each other, Whisper transcribes the dominant voice and
+leaves the other one out, so a swear the second speaker says never reaches the
+transcript and nothing downstream can cut it. The **Priority Word Pass** is a
+second, prompted hearing of every transcription window in 5-second sub-windows,
+from which only **priority words** — the F-word family by default — are kept and
+added to what the primary pass heard. It found 29 of the 33 planted swears in
+the crosstalk fixtures where the primary pass alone found 18;
+[ADR-0008](docs/adr/0008-crosstalk-priority-word-pass.md) has the measurements
+and what else was tried.
+
+It applies everywhere: file jobs, the CLI and web video alike, and it is **on by
+default**.
+
+- **The default list** is built in: `fuck`, `fucks`, `fucking`, `fuckin`,
+  `fucked`, `fucker`, `motherfucker`.
+- **To use your own**, put `priority_words.txt` next to `bad_words.txt` in the
+  data directory (same format: one entry per line, `#` comments), or name a file
+  with `Transcription:PriorityWordsPath`. Single words only — multi-word lines
+  are ignored. An empty file turns the pass off.
+- **To turn it off entirely**, set `Transcription:PriorityPass=false`.
+- **The Bad Words List still decides what is censored.** A priority word that is
+  not on your Bad Words List is transcribed and then ignored like any other
+  word: priority words only change what is *heard*.
+
+**Hits on priority words are cut wider.** Word timestamps under crosstalk are
+loose — a masked word can collapse to a 10 ms point up to 0.47 s after it was
+spoken — so a Hit whose phrase is a priority word is grown backward from its
+reported end to at least 0.8 s and then padded 0.25 s before and 0.5 s after,
+instead of the usual 0.15 s / 0.25 s. A typical F-word cut is about 1.5 s long
+rather than 0.8 s. Every other word keeps the ordinary padding, so nothing else
+about your output changes.
+
+**It costs about four times the transcription time.** A 28-second window becomes
+one primary inference plus ten short prompted ones. On an RTX 3080 Ti with
+`large-v3-turbo` a window takes about 2.8 s instead of 0.7 s — still about 7×
+faster than real time — and each open audio holds a second whisper state (a
+Watch Session and a batch Job at once used about 2.4 GB of VRAM in total). For
+web video it adds about 4.5 s to the first view; see
+[How long the first view takes](#how-long-the-first-view-takes). Turn it off if
+you would rather have the speed and do not care about crosstalk.
+
 ## Running the web app
 
 ```powershell
@@ -269,6 +318,21 @@ filtered audio ahead of the playhead — what the gate waits for:
 Most of what is left is yt-dlp's single fetch call (5.8–8.3 s, network-bound);
 everything the tool itself does is under a second.
 
+Those figures were measured before the [Priority Word Pass](#the-priority-word-pass),
+which the gate waits for as well: the two windows a first view needs take about
+2.8 s each instead of 0.7 s. Measured with the pass on and off over the same
+10-minute local file, through the same API but with no yt-dlp fetch to pay for
+(`Watch:DevFileProvider`):
+
+| | Pass off | Pass on |
+|---|---|---|
+| 30 s of Coverage ahead | 3.8 s | 8.4 s |
+| Whole 10-minute file transcribed | 22.3 s | 90.0 s |
+| Transcription speed | 30× real time | 7.5× real time |
+
+So a first view of a real video costs about 4.5 s more than the table above,
+and the analysis still outruns the viewer by a wide margin once playing.
+
 ### Limitations
 
 - **YouTube watch pages only** (`https://www.youtube.com/watch?v=…`). No Shorts,
@@ -360,6 +424,8 @@ is the primary source for both hosts and lists every setting with its default.
 | `Transcription:Device` | `Auto` (`Auto`, `Cuda`, `Cpu`) | — |
 | `Transcription:ModelDirectory` | `models` | — |
 | `Transcription:UnloadAfterJob` | `false` | `UNLOAD_MODELS_AFTER_JOB` |
+| `Transcription:PriorityPass` | `true` | — |
+| `Transcription:PriorityWordsPath` | blank (`<data>/priority_words.txt`, else the built-in list) | — |
 | `Storage:DataDirectory` | blank (per-user folder) | `DATA_DIR` |
 | `Storage:TranscriptDirectory` | blank (`<data>/transcripts`) | `TRANSCRIPT_DIR` |
 | `Storage:BadWordsPath` | blank (`<data>/bad_words.txt`) | `BAD_WORDS_PATH` |
@@ -404,9 +470,9 @@ dotnet test FoulFilterNet.slnx
 ```
 
 Run it from the repository root. The default run needs no GPU, weights, network
-or LLM; 41 tests are skipped unless opted in:
+or LLM; 43 tests are skipped unless opted in:
 
-- `RUN_GPU_TESTS=1` — 16 transcription tests and 10 evaluation tests against the
+- `RUN_GPU_TESTS=1` — 18 transcription tests and 10 evaluation tests against the
   real engine and the fixtures in `tests/fixtures/media`. Needs FFmpeg and weights in the repository's
   `models/` directory (`FOULFILTER_MODEL_DIR` and `FOULFILTER_TEST_MODEL`
   override where and which; the default model is `large-v3-turbo`). They never
