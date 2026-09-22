@@ -13,10 +13,24 @@ public interface IWindowListener : IAsyncDisposable
 {
     /// <summary>
     /// What <paramref name="samples"/> (16 kHz mono, in [-1, 1)) say, on their
-    /// own timeline starting at zero. Never called concurrently on one listener.
+    /// own timeline starting at zero, heard in <paramref name="language"/> - or,
+    /// when that is null, as the listener was built (the configured language,
+    /// else detected). Never called concurrently on one listener.
     /// </summary>
-    Task<TranscriptionResult> HearAsync(float[] samples, CancellationToken cancellationToken);
+    Task<WindowHearing> HearAsync(
+        float[] samples,
+        string? language,
+        CancellationToken cancellationToken
+    );
 }
+
+/// <summary>What a listener heard, and the language it heard it in.</summary>
+/// <param name="Result">The words and segments, on the samples' own timeline.</param>
+/// <param name="Language">
+/// The language code whisper.cpp heard the samples in (detected or given), or
+/// null when it did not say - it heard no speech, for instance.
+/// </param>
+public sealed record WindowHearing(TranscriptionResult Result, string? Language);
 
 /// <summary>
 /// The Priority Word Pass for one opened audio: the words it hunts for, and a
@@ -209,7 +223,9 @@ public sealed partial class WindowedAudio : IAnalysisAudio
             var samples = await _wav.ReadWindowAsync(index, cancellationToken)
                 .ConfigureAwait(false);
 
-            var heard = await HearAsync(_primary, samples, cancellationToken).ConfigureAwait(false);
+            var primary = await HearAsync(_primary, samples, language: null, cancellationToken)
+                .ConfigureAwait(false);
+            var heard = primary.Result;
 
             if (CrashTrace.IsEnabled)
             {
@@ -229,6 +245,7 @@ public sealed partial class WindowedAudio : IAnalysisAudio
                     _priorityWords,
                     window,
                     samples,
+                    primary.Language,
                     cancellationToken
                 )
                 .ConfigureAwait(false);
@@ -262,12 +279,16 @@ public sealed partial class WindowedAudio : IAnalysisAudio
     /// and heard in a turn of its own. Sub-windows that could only keep words
     /// outside the window's share are not heard: stitching would throw those
     /// words away, so they would cost an inference each and change nothing.
+    /// They are heard in <paramref name="language"/>, the one the primary
+    /// listener heard the whole window in, so whisper.cpp does not detect it
+    /// again on every 5 s sub-window (an extra encoder pass each).
     /// </summary>
     private async Task<IReadOnlyList<Word>> HearPriorityWordsAsync(
         ListenerSlot prompted,
         PriorityWordList priorityWords,
         TranscriptionWindow share,
         float[] window,
+        string? language,
         CancellationToken cancellationToken
     )
     {
@@ -289,8 +310,10 @@ public sealed partial class WindowedAudio : IAnalysisAudio
             heard.Add(
                 (
                     subWindow,
-                    await HearAsync(prompted, window[first..end], cancellationToken)
-                        .ConfigureAwait(false)
+                    (
+                        await HearAsync(prompted, window[first..end], language, cancellationToken)
+                            .ConfigureAwait(false)
+                    ).Result
                 )
             );
         }
@@ -300,13 +323,15 @@ public sealed partial class WindowedAudio : IAnalysisAudio
 
     /// <summary>
     /// One inference in one turn of the lane: <paramref name="samples"/>, padded
-    /// with silence, heard by the slot's listener, keeping only what began in
-    /// the samples themselves. A cancellation while hearing throws the listener
-    /// away - and waits for it - before the turn ends.
+    /// with silence, heard by the slot's listener in <paramref name="language"/>
+    /// (null: as it was built), keeping only what began in the samples
+    /// themselves. A cancellation while hearing throws the listener away - and
+    /// waits for it - before the turn ends.
     /// </summary>
-    private async Task<TranscriptionResult> HearAsync(
+    private async Task<WindowHearing> HearAsync(
         ListenerSlot slot,
         float[] samples,
+        string? language,
         CancellationToken cancellationToken
     )
     {
@@ -318,10 +343,10 @@ public sealed partial class WindowedAudio : IAnalysisAudio
         var listener = slot.Current ??= slot.Build();
         try
         {
-            return Within(
-                heardFor,
-                await listener.HearAsync(padded, cancellationToken).ConfigureAwait(false)
-            );
+            var hearing = await listener
+                .HearAsync(padded, language, cancellationToken)
+                .ConfigureAwait(false);
+            return hearing with { Result = Within(heardFor, hearing.Result) };
         }
         catch (OperationCanceledException)
         {

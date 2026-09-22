@@ -253,6 +253,64 @@ public sealed class WhenTheAudioIsShorterThanOneSubWindow : IDisposable
 }
 
 /// <summary>
+/// The sub-windows are heard in the language the primary listener heard the
+/// whole window in. Detecting it again on each 5 s sub-window costs whisper.cpp
+/// a second encoder pass per sub-window (about a third of the pass's time on a
+/// 3080 Ti), and 28 s is a better sample to detect it from than 5 s.
+/// </summary>
+public sealed class WhenThePrimaryListenerSaysWhichLanguageItHeard : IDisposable
+{
+    private readonly WindowedAudioRig _rig = new() { Language = "en" };
+    private readonly WindowedAudio _sut;
+
+    public WhenThePrimaryListenerSaysWhichLanguageItHeard()
+    {
+        _sut = _rig.Open(priorityWords: PriorityWordList.Default);
+        _ = _sut.TranscribeWindowAsync(1, TestContext.Current.CancellationToken).Result;
+    }
+
+    public void Dispose()
+    {
+        _sut.DisposeAsync().AsTask().Wait();
+        _rig.Dispose();
+    }
+
+    [Fact]
+    public void AsksThePrimaryListenerForNoLanguageInParticular() =>
+        _rig.Listeners[0].LanguagesAsked.ShouldBe([null]);
+
+    [Fact]
+    public void AsksForThatLanguageInEverySubWindow() =>
+        _rig.PriorityListeners[0].LanguagesAsked.ShouldAllBe(language => language == "en");
+}
+
+/// <summary>
+/// A primary hearing that names no language (it heard nothing, say) leaves the
+/// sub-windows to the prompted listener's own setting.
+/// </summary>
+public sealed class WhenThePrimaryListenerNamesNoLanguage : IDisposable
+{
+    private readonly WindowedAudioRig _rig = new();
+    private readonly WindowedAudio _sut;
+
+    public WhenThePrimaryListenerNamesNoLanguage()
+    {
+        _sut = _rig.Open(priorityWords: PriorityWordList.Default);
+        _ = _sut.TranscribeWindowAsync(0, TestContext.Current.CancellationToken).Result;
+    }
+
+    public void Dispose()
+    {
+        _sut.DisposeAsync().AsTask().Wait();
+        _rig.Dispose();
+    }
+
+    [Fact]
+    public void AsksForNoLanguageInParticular() =>
+        _rig.PriorityListeners[0].LanguagesAsked.ShouldAllBe(language => language == null);
+}
+
+/// <summary>
 /// With no Priority Word Pass, or an empty list, a window is heard exactly as
 /// it always was and no prompted listener - no second whisper state - is built.
 /// </summary>

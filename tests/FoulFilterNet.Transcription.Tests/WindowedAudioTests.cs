@@ -19,18 +19,29 @@ internal sealed class FakeListener(
 
     public bool LaneHeldWhenDisposed { get; private set; }
 
-    public Task<TranscriptionResult> HearAsync(float[] samples, CancellationToken cancellationToken)
+    /// <summary>The language each hearing was asked for, null for "as built".</summary>
+    public List<string?> LanguagesAsked { get; } = [];
+
+    /// <summary>The language this listener says it heard, whatever it was asked for.</summary>
+    public string? Language { get; set; }
+
+    public async Task<WindowHearing> HearAsync(
+        float[] samples,
+        string? language,
+        CancellationToken cancellationToken
+    )
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
         Heard.Add(samples);
+        LanguagesAsked.Add(language);
         LaneHeldWhileHearing.Add(lane.IsHeld);
-        return hear?.Invoke(samples, cancellationToken)
-            ?? Task.FromResult(
-                new TranscriptionResult(
-                    [new Segment(1.0, 2.0, $"heard {samples.Length}")],
-                    [new Word("heard", 1.0, 2.0)]
-                )
-            );
+        var result = hear is null
+            ? new TranscriptionResult(
+                [new Segment(1.0, 2.0, $"heard {samples.Length}")],
+                [new Word("heard", 1.0, 2.0)]
+            )
+            : await hear(samples, cancellationToken);
+        return new WindowHearing(result, Language);
     }
 
     public ValueTask DisposeAsync()
@@ -62,6 +73,9 @@ internal sealed class WindowedAudioRig : IDisposable
 
     public Func<float[], CancellationToken, Task<TranscriptionResult>>? Hear { get; set; }
 
+    /// <summary>The language the primary listeners say they heard; none by default.</summary>
+    public string? Language { get; set; }
+
     /// <summary>The prompted listeners the Priority Word Pass built, in order.</summary>
     public List<FakeListener> PriorityListeners { get; } = [];
 
@@ -78,7 +92,7 @@ internal sealed class WindowedAudioRig : IDisposable
             priority,
             () =>
             {
-                var listener = new FakeListener(Lane, Hear);
+                var listener = new FakeListener(Lane, Hear) { Language = Language };
                 Listeners.Add(listener);
                 return listener;
             },

@@ -126,13 +126,17 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
                 wav,
                 _lane,
                 priority,
-                () => new ProcessorListener(BuildProcessor(factory, prompt: null)),
+                () => new ProcessorListener(BuildProcessor(factory, prompt: null), BuiltLanguage),
                 CloseAsync,
                 words.IsEmpty
                     ? null
                     : new PriorityPass(
                         words,
-                        () => new ProcessorListener(BuildProcessor(factory, words.Prompt))
+                        () =>
+                            new ProcessorListener(
+                                BuildProcessor(factory, words.Prompt),
+                                BuiltLanguage
+                            )
                     ),
                 _logger
             );
@@ -361,18 +365,42 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     }
 
     /// <summary>
-    /// A whisper.cpp processor as an <see cref="IWindowListener"/>: what one
-    /// window heard, on the window's own timeline.
+    /// The language <see cref="BuildProcessor"/> builds processors with, as
+    /// whisper.cpp names it: the configured one, else <c>auto</c> (detect).
     /// </summary>
-    private sealed class ProcessorListener(WhisperProcessor processor) : IWindowListener
+    private string BuiltLanguage =>
+        _options.Language is { Length: > 0 } language ? language : "auto";
+
+    /// <summary>
+    /// A whisper.cpp processor as an <see cref="IWindowListener"/>: what one
+    /// window heard, on the window's own timeline, and the language it heard.
+    /// </summary>
+    /// <param name="processor">The whisper.cpp processor, owned from here on.</param>
+    /// <param name="builtLanguage">The language it was built with (<see cref="BuiltLanguage"/>).</param>
+    private sealed class ProcessorListener(WhisperProcessor processor, string builtLanguage)
+        : IWindowListener
     {
-        public async Task<TranscriptionResult> HearAsync(
+        private readonly string _builtLanguage = builtLanguage;
+        private string _language = builtLanguage;
+
+        public async Task<WindowHearing> HearAsync(
             float[] samples,
+            string? language,
             CancellationToken cancellationToken
         )
         {
+            // Asked for a language: hear in it (the prompted listener, told what
+            // the primary one heard). Asked for none: as it was built.
+            var wanted = language ?? _builtLanguage;
+            if (!string.Equals(wanted, _language, StringComparison.Ordinal))
+            {
+                processor.ChangeLanguage(wanted);
+                _language = wanted;
+            }
+
             var segments = new List<Segment>();
             var tokens = new List<WhisperToken>();
+            string? heardIn = null;
 
             // The native call. A trace that ends here is a crash inside
             // whisper.cpp itself; one that ends at the line after it is a
@@ -400,6 +428,11 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
                         "window.native.segment",
                         $"n={segments.Count} from={heard.Start.TotalSeconds:F3} to={heard.End.TotalSeconds:F3} tokens={heard.Tokens?.Length ?? 0}"
                     );
+                }
+
+                if (heardIn is null && heard.Language is { Length: > 0 } segmentLanguage)
+                {
+                    heardIn = segmentLanguage;
                 }
 
                 var text = (heard.Text ?? string.Empty).Trim();
@@ -431,7 +464,10 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
             // Joined over the whole window rather than segment by segment: a word
             // starts at the instant of the token before it, and for a segment's
             // first word that token belongs to the segment before.
-            return new TranscriptionResult(segments, WhisperWords.Join(tokens));
+            return new WindowHearing(
+                new TranscriptionResult(segments, WhisperWords.Join(tokens)),
+                heardIn
+            );
         }
 
         /// <remarks>
