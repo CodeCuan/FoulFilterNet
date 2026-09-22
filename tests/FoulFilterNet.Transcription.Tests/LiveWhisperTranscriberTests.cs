@@ -347,6 +347,67 @@ public sealed class LiveWindowedEngineTests
 }
 
 /// <summary>
+/// The Priority Word Pass on the real GPU, over a crosstalk fixture whose swear
+/// is spoken wholly under another voice: the primary pass alone does not hear
+/// it (docs/05-crosstalk-plan.md), the prompted sub-windows do, and the pass
+/// only ever adds words.
+/// </summary>
+/// <remarks>Opt-in, for the same reasons as <see cref="LiveWhisperTranscriberTests"/>.</remarks>
+public sealed class LivePriorityWordPassTests
+{
+    private const string OptIn =
+        "opt-in: set RUN_GPU_TESTS=1 with CUDA, FFmpeg and GGML weights installed";
+
+    /// <summary>"fuck" at 3.627-4.151 s, under the other speaker at equal level.</summary>
+    private const string Fixture = "ct_sweep_2_0db.mp3";
+
+    public static bool GpuTestsEnabled => LiveWhisperTranscriberTests.GpuTestsEnabled;
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task HearsTheSwearUnderTheOtherVoice()
+    {
+        var heard = await HearAsync(
+            new PriorityWordSource(PriorityWordList.Default, PriorityWordSource.BuiltInOrigin)
+        );
+
+        heard.Words.ShouldContain(word =>
+            PriorityWordList.Default.Matches(word.Text) && word.Start < 4.4 && word.End > 3.4
+        );
+    }
+
+    [Fact(Skip = OptIn, SkipUnless = nameof(GpuTestsEnabled))]
+    public async Task KeepsEveryWordThePrimaryPassHeard()
+    {
+        var without = await HearAsync(null);
+        var with = await HearAsync(
+            new PriorityWordSource(PriorityWordList.Default, PriorityWordSource.BuiltInOrigin)
+        );
+
+        with.Words.Except(without.Words)
+            .ShouldAllBe(word => PriorityWordList.Default.Matches(word.Text));
+    }
+
+    private static async Task<TranscriptionResult> HearAsync(PriorityWordSource? priorityWords)
+    {
+        using var engine = LiveWhisper.NewEngine(priorityWords);
+        try
+        {
+            return await new WhisperTranscriber(
+                engine,
+                new FFmpegAudioPreparer(new FFmpegRunner())
+            ).TranscribeAsync(
+                MediaFixtures.CrosstalkPath(Fixture),
+                TestContext.Current.CancellationToken
+            );
+        }
+        finally
+        {
+            await engine.ReleaseAsync();
+        }
+    }
+}
+
+/// <summary>
 /// The real engine over the real fixtures, built once per process. Only the
 /// opt-in facts above touch it, so nothing here runs in CI.
 /// </summary>
@@ -431,7 +492,10 @@ internal static class LiveWhisper
             TestContext.Current.CancellationToken
         );
 
-    public static WhisperNetEngine NewEngine()
+    public static WhisperNetEngine NewEngine() => NewEngine(null);
+
+    /// <summary>An engine of its own, running the Priority Word Pass on <paramref name="priorityWords"/>.</summary>
+    public static WhisperNetEngine NewEngine(PriorityWordSource? priorityWords)
     {
         var options = new TranscriptionOptions
         {
@@ -443,7 +507,12 @@ internal static class LiveWhisper
         // No acquisition delegate: this must resolve installed weights or fail.
         var models = new WhisperModelSource(MediaFixtures.ModelDirectory);
 
-        return new WhisperNetEngine(options, models, NullLogger<WhisperNetEngine>.Instance);
+        return new WhisperNetEngine(
+            options,
+            models,
+            NullLogger<WhisperNetEngine>.Instance,
+            priorityWords
+        );
     }
 }
 
@@ -457,7 +526,14 @@ internal static class MediaFixtures
         Locate(System.IO.Path.Combine("tests", "fixtures", "media"))
     );
 
+    private static readonly Lazy<string> Crosstalk = new(() =>
+        Locate(System.IO.Path.Combine("tests", "fixtures", "crosstalk"))
+    );
+
     public static string Path(string fileName) => System.IO.Path.Combine(Media.Value, fileName);
+
+    public static string CrosstalkPath(string fileName) =>
+        System.IO.Path.Combine(Crosstalk.Value, fileName);
 
     public static string ModelDirectory =>
         Environment.GetEnvironmentVariable("FOULFILTER_MODEL_DIR") is { Length: > 0 } configured
