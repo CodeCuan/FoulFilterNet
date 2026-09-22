@@ -53,6 +53,37 @@ public static class PriorityWindows
         TranscriptionWindows.Plan(windowSeconds, LengthSeconds, StepSeconds);
 
     /// <summary>
+    /// How far a sub-window's share may miss the window's and still be heard:
+    /// stitching rounds times to the millisecond (once onto the window's
+    /// timeline, once onto the file's), which can move a word's midpoint by a
+    /// millisecond or two. Ten is ample.
+    /// </summary>
+    public const double ShareToleranceSeconds = 0.01;
+
+    /// <summary>
+    /// The sub-windows of <see cref="Plan(double)"/> worth hearing for a window
+    /// that keeps only words whose midpoint is in [<paramref name="keepFrom"/>,
+    /// <paramref name="keepTo"/>) on its own timeline: those whose share reaches
+    /// that range. Every word a left-out sub-window could keep would be thrown
+    /// away when the window is stitched, so leaving it out changes nothing but
+    /// the time taken - one sub-window of eleven in the middle of a file, more
+    /// in a last window pulled back to end with it.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The length is negative.</exception>
+    public static IReadOnlyList<TranscriptionWindow> Plan(
+        double windowSeconds,
+        double keepFrom,
+        double keepTo
+    ) =>
+        [
+            .. Plan(windowSeconds)
+                .Where(sub =>
+                    sub.KeepTo > keepFrom - ShareToleranceSeconds
+                    && sub.KeepFrom < keepTo + ShareToleranceSeconds
+                ),
+        ];
+
+    /// <summary>
     /// Join what each sub-window heard, on its own timeline starting at zero,
     /// into the priority words on the window's timeline: only words that
     /// normalize to a token on <paramref name="priorityWords"/>, each kept by

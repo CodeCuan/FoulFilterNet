@@ -35,7 +35,17 @@ public sealed class WhenAWindowIsHeardWithThePriorityWordPass : IDisposable
     private readonly WindowedAudioRig _rig = new();
     private readonly WindowedAudio _sut;
     private readonly TranscriptionResult _heard;
-    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(28.0);
+
+    /// <summary>
+    /// Window 1 of the rig's minute is 22 s to 50 s and keeps 25 s to 41 s,
+    /// which is 3 s to 19 s on its own timeline: the last three sub-windows
+    /// can add nothing it keeps.
+    /// </summary>
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(
+        28.0,
+        keepFrom: 3.0,
+        keepTo: 19.0
+    );
 
     public WhenAWindowIsHeardWithThePriorityWordPass()
     {
@@ -77,8 +87,12 @@ public sealed class WhenAWindowIsHeardWithThePriorityWordPass : IDisposable
         _rig.Listeners[0].Heard.ShouldHaveSingleItem();
 
     [Fact]
-    public void HearsEverySubWindowWithThePromptedListener() =>
+    public void HearsEverySubWindowThatCanAddToTheWindowsShare() =>
         _rig.PriorityListeners[0].Heard.Count.ShouldBe(_subWindows.Count);
+
+    [Fact]
+    public void LeavesOutTheSubWindowsWhoseWordsTheWindowWouldThrowAway() =>
+        _rig.PriorityListeners[0].Heard.Count.ShouldBe(8);
 
     [Fact]
     public void HandsItFiveSecondsAndSomeSilenceEachTime() =>

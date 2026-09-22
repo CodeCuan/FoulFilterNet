@@ -78,7 +78,10 @@ public sealed record PriorityPass
 /// each sub-window padded with silence exactly as a window is; the priority
 /// words only the sub-windows heard are merged into the window's words. So
 /// every consumer of windows - Watch, batch, the Rescan Pass - gets them with
-/// no change of its own. The prompted listener is built once, lazily, and
+/// no change of its own. Only sub-windows whose share reaches the window's
+/// share are heard (<see cref="PriorityWindows.Plan(double, double, double)"/>),
+/// so priority words outside that share - which stitching drops anyway - may
+/// be missing from the result. The prompted listener is built once, lazily, and
 /// thrown away on a cancellation by the same rule as the primary one.
 /// </para>
 /// <para>
@@ -224,6 +227,7 @@ public sealed partial class WindowedAudio : IAnalysisAudio
             var priorityWords = await HearPriorityWordsAsync(
                     _prompted,
                     _priorityWords,
+                    window,
                     samples,
                     cancellationToken
                 )
@@ -255,16 +259,23 @@ public sealed partial class WindowedAudio : IAnalysisAudio
     /// <summary>
     /// The priority words the sub-windows of a window heard, on the window's
     /// timeline: each sub-window cut from the window's own samples, then padded
-    /// and heard in a turn of its own.
+    /// and heard in a turn of its own. Sub-windows that could only keep words
+    /// outside the window's share are not heard: stitching would throw those
+    /// words away, so they would cost an inference each and change nothing.
     /// </summary>
     private async Task<IReadOnlyList<Word>> HearPriorityWordsAsync(
         ListenerSlot prompted,
         PriorityWordList priorityWords,
+        TranscriptionWindow share,
         float[] window,
         CancellationToken cancellationToken
     )
     {
-        var subWindows = PriorityWindows.Plan((double)window.Length / SampleRate);
+        var subWindows = PriorityWindows.Plan(
+            (double)window.Length / SampleRate,
+            share.KeepFrom - share.Start,
+            share.KeepTo - share.Start
+        );
         var heard = new List<(TranscriptionWindow, TranscriptionResult)>(subWindows.Count);
         foreach (var subWindow in subWindows)
         {

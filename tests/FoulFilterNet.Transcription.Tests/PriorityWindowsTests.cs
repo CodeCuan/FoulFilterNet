@@ -93,6 +93,80 @@ public class WhenPlanningSubWindowsForAFullTranscriptionWindow
         _subWindows.Zip(_subWindows.Skip(1)).ShouldAllBe(p => p.First.KeepTo == p.Second.KeepFrom);
 }
 
+/// <summary>
+/// A window in the middle of a file keeps only words whose midpoint is in its
+/// share, 3 s to 25 s on its own timeline. The last sub-window, pulled back to
+/// 23 s, keeps only words from 25.25 s on, which the window then throws away:
+/// hearing it would cost an inference and change nothing.
+/// </summary>
+public class WhenPlanningSubWindowsForAWindowInTheMiddleOfAFile
+{
+    private readonly IReadOnlyList<TranscriptionWindow> _all = PriorityWindows.Plan(28.0);
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(
+        28.0,
+        keepFrom: 3.0,
+        keepTo: 25.0
+    );
+
+    [Fact]
+    public void HearsTenOfTheElevenSubWindows() => _subWindows.Count.ShouldBe(10);
+
+    [Fact]
+    public void LeavesOutOnlyTheOnePulledBack() => _subWindows.ShouldBe(_all.Take(10));
+
+    [Fact]
+    public void LeavesOutASubWindowWhoseShareStartsAfterTheWindowsShareEnds() =>
+        _all[^1].KeepFrom.ShouldBeGreaterThan(25.0);
+}
+
+/// <summary>
+/// The last window of a file is pulled back to end with it, so its share can
+/// start well into it: here at 6.85 s, which the first two sub-windows' shares
+/// (up to 3.75 s, and 3.75 s to 6.25 s) never reach.
+/// </summary>
+public class WhenPlanningSubWindowsForTheLastWindowOfAFile
+{
+    private readonly IReadOnlyList<TranscriptionWindow> _all = PriorityWindows.Plan(28.0);
+    private readonly IReadOnlyList<TranscriptionWindow> _subWindows = PriorityWindows.Plan(
+        28.0,
+        keepFrom: 6.85,
+        keepTo: double.PositiveInfinity
+    );
+
+    [Fact]
+    public void LeavesOutTheSubWindowsBeforeItsShare() => _subWindows.ShouldBe(_all.Skip(2));
+}
+
+/// <summary>A file of one window keeps everything, so every sub-window is heard.</summary>
+public class WhenPlanningSubWindowsForAWindowThatKeepsEverything
+{
+    [Fact]
+    public void HearsThemAll() =>
+        PriorityWindows
+            .Plan(28.0, double.NegativeInfinity, double.PositiveInfinity)
+            .ShouldBe(PriorityWindows.Plan(28.0));
+}
+
+/// <summary>
+/// Stitching rounds times to the millisecond, twice, which can nudge a word's
+/// midpoint across a share's edge. A sub-window whose share only touches the
+/// window's is still heard, so no word is lost to that rounding.
+/// </summary>
+public class WhenASubWindowsShareOnlyTouchesTheWindowsShare
+{
+    [Fact]
+    public void StillHearsTheSubWindowBeforeIt() =>
+        PriorityWindows.Plan(28.0, keepFrom: 3.75, keepTo: 25.0)[0].Start.ShouldBe(0.0);
+
+    [Fact]
+    public void StillHearsTheSubWindowAfterIt() =>
+        PriorityWindows.Plan(28.0, keepFrom: 3.0, keepTo: 25.25)[^1].Start.ShouldBe(23.0);
+
+    [Fact]
+    public void LeavesOutOneClearlyBeforeIt() =>
+        PriorityWindows.Plan(28.0, keepFrom: 3.8, keepTo: 25.0)[0].Start.ShouldBe(2.5);
+}
+
 public class WhenStitchingWhatTheSubWindowsHeard
 {
     private readonly IReadOnlyList<Word> _stitched;
