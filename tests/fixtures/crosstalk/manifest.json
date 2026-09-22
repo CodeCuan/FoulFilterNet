@@ -1,0 +1,421 @@
+﻿{
+    "generatedBy":  "tests/fixtures/generate-crosstalk-fixtures.ps1",
+    "voice":  "Microsoft Zira Desktop / Microsoft Hazel Desktop (pitched down)",
+    "note":  "Two speakers mixed with overlap. Each profanity was synthesised as its own part, so start/end are exact by construction: the utterance start plus preceding part durations.",
+    "fixtures":  [
+                     {
+                         "file":  "ct_interrupt_equal.mp3",
+                         "kind":  "audio",
+                         "duration":  7.34,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  4.584,
+                                          "end":  5.211
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_interrupt_quiet.mp3",
+                         "kind":  "audio",
+                         "duration":  8.385,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  3.991,
+                                          "end":  4.617
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_dominant_swears.mp3",
+                         "kind":  "audio",
+                         "duration":  6.269,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  2.072,
+                                          "end":  2.736
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_single_fuck.mp3",
+                         "kind":  "audio",
+                         "duration":  12.722,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  8.527,
+                                          "end":  9.051
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_clean_overlap.mp3",
+                         "kind":  "audio",
+                         "duration":  7.184,
+                         "hits":  [
+
+                                  ]
+                     },
+                     {
+                         "file":  "ct_argument.mp3",
+                         "kind":  "audio",
+                         "duration":  18.782,
+                         "hits":  [
+                                      {
+                                          "phrase":  "bullshit",
+                                          "start":  4.526,
+                                          "end":  5.293
+                                      },
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  10.216,
+                                          "end":  10.842
+                                      },
+                                      {
+                                          "phrase":  "shit",
+                                          "start":  13.227,
+                                          "end":  13.798
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_long_one_fword.mp3",
+                         "kind":  "audio",
+                         "duration":  35.579,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  28.244,
+                                          "end":  28.87
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_0_0db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.661,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  2.962,
+                                          "end":  3.588
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_0_3db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.661,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  2.962,
+                                          "end":  3.588
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_0_6db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.661,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  2.962,
+                                          "end":  3.588
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_1_0db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.374,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  3.56,
+                                          "end":  4.186
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_1_3db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.374,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  3.56,
+                                          "end":  4.186
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_1_6db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.374,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  3.56,
+                                          "end":  4.186
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_2_0db.mp3",
+                         "kind":  "audio",
+                         "duration":  7.001,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.627,
+                                          "end":  4.151
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_2_3db.mp3",
+                         "kind":  "audio",
+                         "duration":  7.001,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.627,
+                                          "end":  4.151
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_2_6db.mp3",
+                         "kind":  "audio",
+                         "duration":  7.001,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.627,
+                                          "end":  4.151
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_3_0db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.426,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  4.497,
+                                          "end":  5.021
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_3_3db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.426,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  4.497,
+                                          "end":  5.021
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_sweep_3_6db.mp3",
+                         "kind":  "audio",
+                         "duration":  6.426,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  4.497,
+                                          "end":  5.021
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_clean_0.mp3",
+                         "kind":  "audio",
+                         "duration":  4.833,
+                         "hits":  [
+
+                                  ]
+                     },
+                     {
+                         "file":  "ct_clean_1.mp3",
+                         "kind":  "audio",
+                         "duration":  5.433,
+                         "hits":  [
+
+                                  ]
+                     },
+                     {
+                         "file":  "ct_clean_2.mp3",
+                         "kind":  "audio",
+                         "duration":  5.538,
+                         "hits":  [
+
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_0_300ms.mp3",
+                         "kind":  "audio",
+                         "duration":  6.165,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.868,
+                                          "end":  4.392
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_1_300ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.93,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.498,
+                                          "end":  4.022
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_2_300ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.016,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  3.629,
+                                          "end":  4.256
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_0_600ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.878,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.568,
+                                          "end":  4.092
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_1_600ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.642,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.198,
+                                          "end":  3.722
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_2_600ms.mp3",
+                         "kind":  "audio",
+                         "duration":  4.702,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  3.329,
+                                          "end":  3.956
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_0_1000ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.46,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  3.168,
+                                          "end":  3.692
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_1_1000ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.224,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fuck",
+                                          "start":  2.798,
+                                          "end":  3.322
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_edge_2_1000ms.mp3",
+                         "kind":  "audio",
+                         "duration":  4.31,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  2.929,
+                                          "end":  3.556
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_tail_0_600ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.042,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  1.61,
+                                          "end":  2.274
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_tail_1_600ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.825,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  2.427,
+                                          "end":  3.091
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_tail_0_1200ms.mp3",
+                         "kind":  "audio",
+                         "duration":  4.441,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  1.61,
+                                          "end":  2.274
+                                      }
+                                  ]
+                     },
+                     {
+                         "file":  "ct_tail_1_1200ms.mp3",
+                         "kind":  "audio",
+                         "duration":  5.224,
+                         "hits":  [
+                                      {
+                                          "phrase":  "fucking",
+                                          "start":  2.427,
+                                          "end":  3.091
+                                      }
+                                  ]
+                     }
+                 ]
+}
