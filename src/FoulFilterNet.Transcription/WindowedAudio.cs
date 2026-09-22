@@ -1,4 +1,6 @@
 using FoulFilterNet.Domain;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FoulFilterNet.Transcription;
 
@@ -14,6 +16,31 @@ public interface IWindowListener : IAsyncDisposable
     /// own timeline starting at zero. Never called concurrently on one listener.
     /// </summary>
     Task<TranscriptionResult> HearAsync(float[] samples, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// The Priority Word Pass for one opened audio: the words it hunts for, and a
+/// way to build the listener that hears sub-windows with those words as its
+/// prompt (docs/05-crosstalk-plan.md).
+/// </summary>
+public sealed record PriorityPass
+{
+    /// <param name="words">What the pass keeps from the sub-windows. An empty list turns it off.</param>
+    /// <param name="listen">Builds the prompted listener, on the first window and after a cancellation.</param>
+    public PriorityPass(PriorityWordList words, Func<IWindowListener> listen)
+    {
+        ArgumentNullException.ThrowIfNull(words);
+        ArgumentNullException.ThrowIfNull(listen);
+
+        Words = words;
+        Listen = listen;
+    }
+
+    /// <summary>What the pass keeps from the sub-windows.</summary>
+    public PriorityWordList Words { get; }
+
+    /// <summary>Builds the prompted listener.</summary>
+    public Func<IWindowListener> Listen { get; }
 }
 
 /// <summary>
@@ -44,8 +71,28 @@ public interface IWindowListener : IAsyncDisposable
 /// waits for a window in progress rather than pulling the listener out from
 /// under it.
 /// </para>
+/// <para>
+/// <b>The Priority Word Pass.</b> With a <see cref="PriorityPass"/> whose list
+/// is not empty, a window heard by the primary listener is heard again in
+/// <see cref="PriorityWindows"/> sub-windows by a second, prompted listener,
+/// each sub-window padded with silence exactly as a window is; the priority
+/// words only the sub-windows heard are merged into the window's words. So
+/// every consumer of windows - Watch, batch, the Rescan Pass - gets them with
+/// no change of its own. The prompted listener is built once, lazily, and
+/// thrown away on a cancellation by the same rule as the primary one.
+/// </para>
+/// <para>
+/// <b>Every inference takes its own turn in the lane</b> - the primary hearing
+/// and each sub-window - rather than one turn covering the whole window. A
+/// window with the pass is a dozen inferences; holding the lane across all of
+/// them would let a Job's window keep a waiting Watch window off the GPU for
+/// all twelve, where the lane promises at most one. The price is that two
+/// audios' windows can interleave at sub-window granularity, which changes
+/// nothing either of them hears. A cancellation stops the window at its next
+/// turn.
+/// </para>
 /// </remarks>
-public sealed class WindowedAudio : IAnalysisAudio
+public sealed partial class WindowedAudio : IAnalysisAudio
 {
     /// <summary>
     /// Silence appended to every window before it is heard, in seconds.
@@ -68,11 +115,13 @@ public sealed class WindowedAudio : IAnalysisAudio
 
     private readonly AnalysisWav _wav;
     private readonly InferenceLane _lane;
-    private readonly Func<IWindowListener> _listen;
     private readonly Func<ValueTask>? _closed;
     private readonly SemaphoreSlim _turn = new(1, 1);
+    private readonly ListenerSlot _primary;
+    private readonly ListenerSlot? _prompted;
+    private readonly PriorityWordList? _priorityWords;
+    private readonly ILogger _logger;
 
-    private IWindowListener? _listener;
     private int _disposed;
 
     /// <param name="wav">The opened file. This instance owns it from here on.</param>
@@ -80,12 +129,19 @@ public sealed class WindowedAudio : IAnalysisAudio
     /// <param name="priority">The priority every window of this audio queues at.</param>
     /// <param name="listen">Builds a listener, on the first window and after a cancellation.</param>
     /// <param name="closed">Told once, after everything is released, that this audio closed.</param>
+    /// <param name="priorityPass">
+    /// The Priority Word Pass to run on every window. None, or an empty list,
+    /// hears windows exactly as before and never builds a prompted listener.
+    /// </param>
+    /// <param name="logger">Where each window says how many priority words it added.</param>
     public WindowedAudio(
         AnalysisWav wav,
         InferenceLane lane,
         InferencePriority priority,
         Func<IWindowListener> listen,
-        Func<ValueTask>? closed = null
+        Func<ValueTask>? closed = null,
+        PriorityPass? priorityPass = null,
+        ILogger? logger = null
     )
     {
         ArgumentNullException.ThrowIfNull(wav);
@@ -103,8 +159,15 @@ public sealed class WindowedAudio : IAnalysisAudio
         _wav = wav;
         _lane = lane;
         Priority = priority;
-        _listen = listen;
+        _primary = new ListenerSlot(listen);
         _closed = closed;
+        _logger = logger ?? NullLogger.Instance;
+
+        if (priorityPass is { Words.IsEmpty: false })
+        {
+            _priorityWords = priorityPass.Words;
+            _prompted = new ListenerSlot(priorityPass.Listen);
+        }
     }
 
     /// <summary>The priority every window of this audio queues at.</summary>
@@ -143,44 +206,117 @@ public sealed class WindowedAudio : IAnalysisAudio
             var samples = await _wav.ReadWindowAsync(index, cancellationToken)
                 .ConfigureAwait(false);
 
-            var heardFor = (double)samples.Length / SampleRate;
-            samples = WithTrailingSilence(samples);
+            var heard = await HearAsync(_primary, samples, cancellationToken).ConfigureAwait(false);
 
-            using var lease = await _lane
-                .EnterAsync(Priority, cancellationToken)
-                .ConfigureAwait(false);
-
-            _listener ??= _listen();
-            try
+            if (CrashTrace.IsEnabled)
             {
-                var heard = Within(
-                    heardFor,
-                    await _listener.HearAsync(samples, cancellationToken).ConfigureAwait(false)
+                CrashTrace.Write(
+                    "window.end",
+                    $"index={index} segments={heard.Segments.Count} words={heard.Words.Count}"
                 );
+            }
 
-                if (CrashTrace.IsEnabled)
-                {
-                    CrashTrace.Write(
-                        "window.end",
-                        $"index={index} segments={heard.Segments.Count} words={heard.Words.Count}"
-                    );
-                }
-
+            if (_prompted is null || _priorityWords is null)
+            {
                 return heard;
             }
-            catch (OperationCanceledException)
-            {
-                CrashTrace.Write("window.cancelled", $"index={index}");
 
-                var interrupted = _listener;
-                _listener = null;
-                await interrupted.DisposeAsync().ConfigureAwait(false);
-                throw;
+            var priorityWords = await HearPriorityWordsAsync(
+                    _prompted,
+                    _priorityWords,
+                    samples,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+            var merged = PriorityWindows.Merge(heard, priorityWords);
+
+            LogPriorityWords(index, merged.Added.Count, priorityWords.Count);
+            if (CrashTrace.IsEnabled)
+            {
+                CrashTrace.Write(
+                    "window.priority",
+                    $"index={index} heard={priorityWords.Count} added={merged.Added.Count}"
+                );
             }
+
+            return merged.Result;
+        }
+        catch (OperationCanceledException)
+        {
+            CrashTrace.Write("window.cancelled", $"index={index}");
+            throw;
         }
         finally
         {
             _turn.Release();
+        }
+    }
+
+    /// <summary>
+    /// The priority words the sub-windows of a window heard, on the window's
+    /// timeline: each sub-window cut from the window's own samples, then padded
+    /// and heard in a turn of its own.
+    /// </summary>
+    private async Task<IReadOnlyList<Word>> HearPriorityWordsAsync(
+        ListenerSlot prompted,
+        PriorityWordList priorityWords,
+        float[] window,
+        CancellationToken cancellationToken
+    )
+    {
+        var subWindows = PriorityWindows.Plan((double)window.Length / SampleRate);
+        var heard = new List<(TranscriptionWindow, TranscriptionResult)>(subWindows.Count);
+        foreach (var subWindow in subWindows)
+        {
+            var first = Math.Min(window.Length, (int)Math.Round(subWindow.Start * SampleRate));
+            var end = Math.Min(window.Length, (int)Math.Round(subWindow.End * SampleRate));
+            if (end <= first)
+            {
+                continue;
+            }
+
+            heard.Add(
+                (
+                    subWindow,
+                    await HearAsync(prompted, window[first..end], cancellationToken)
+                        .ConfigureAwait(false)
+                )
+            );
+        }
+
+        return PriorityWindows.Stitch(heard, priorityWords);
+    }
+
+    /// <summary>
+    /// One inference in one turn of the lane: <paramref name="samples"/>, padded
+    /// with silence, heard by the slot's listener, keeping only what began in
+    /// the samples themselves. A cancellation while hearing throws the listener
+    /// away - and waits for it - before the turn ends.
+    /// </summary>
+    private async Task<TranscriptionResult> HearAsync(
+        ListenerSlot slot,
+        float[] samples,
+        CancellationToken cancellationToken
+    )
+    {
+        var heardFor = (double)samples.Length / SampleRate;
+        var padded = WithTrailingSilence(samples);
+
+        using var lease = await _lane.EnterAsync(Priority, cancellationToken).ConfigureAwait(false);
+
+        var listener = slot.Current ??= slot.Build();
+        try
+        {
+            return Within(
+                heardFor,
+                await listener.HearAsync(padded, cancellationToken).ConfigureAwait(false)
+            );
+        }
+        catch (OperationCanceledException)
+        {
+            slot.Current = null;
+            await listener.DisposeAsync().ConfigureAwait(false);
+            throw;
         }
     }
 
@@ -229,10 +365,10 @@ public sealed class WindowedAudio : IAnalysisAudio
         await _turn.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (_listener is { } listener)
+            await _primary.DisposeAsync().ConfigureAwait(false);
+            if (_prompted is not null)
             {
-                _listener = null;
-                await listener.DisposeAsync().ConfigureAwait(false);
+                await _prompted.DisposeAsync().ConfigureAwait(false);
             }
 
             _wav.Dispose();
@@ -252,4 +388,30 @@ public sealed class WindowedAudio : IAnalysisAudio
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed != 0, this);
+
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "Window {Index}: the Priority Word Pass heard {Heard} priority word(s) and added {Added} the primary pass missed"
+    )]
+    private partial void LogPriorityWords(int index, int added, int heard);
+
+    /// <summary>
+    /// A listener built when it is first needed and kept until a cancellation
+    /// throws it away or the audio closes. Only touched in this audio's turn.
+    /// </summary>
+    private sealed class ListenerSlot(Func<IWindowListener> build) : IAsyncDisposable
+    {
+        public IWindowListener? Current { get; set; }
+
+        public IWindowListener Build() => build();
+
+        public async ValueTask DisposeAsync()
+        {
+            if (Current is { } listener)
+            {
+                Current = null;
+                await listener.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
 }

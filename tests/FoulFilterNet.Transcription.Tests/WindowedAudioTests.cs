@@ -46,10 +46,10 @@ internal sealed class WindowedAudioRig : IDisposable
 {
     private readonly TempDirectory _directory = new();
 
-    public WindowedAudioRig()
+    public WindowedAudioRig(double seconds = 60.0)
     {
         Path = System.IO.Path.Combine(_directory.Path, "analysis.wav");
-        TestWav.Write(Path, 60L * 16000, (frame, _) => (short)(frame % 30000));
+        TestWav.Write(Path, (long)(seconds * 16000), (frame, _) => (short)(frame % 30000));
     }
 
     public string Path { get; }
@@ -62,7 +62,16 @@ internal sealed class WindowedAudioRig : IDisposable
 
     public Func<float[], CancellationToken, Task<TranscriptionResult>>? Hear { get; set; }
 
-    public WindowedAudio Open(InferencePriority priority = InferencePriority.Normal) =>
+    /// <summary>The prompted listeners the Priority Word Pass built, in order.</summary>
+    public List<FakeListener> PriorityListeners { get; } = [];
+
+    /// <summary>What each prompted listener hears; by default, nothing at all.</summary>
+    public Func<float[], CancellationToken, Task<TranscriptionResult>>? HearPriority { get; set; }
+
+    public WindowedAudio Open(
+        InferencePriority priority = InferencePriority.Normal,
+        PriorityWordList? priorityWords = null
+    ) =>
         new(
             AnalysisWav.OpenAsync(Path, CancellationToken.None).Result,
             Lane,
@@ -77,7 +86,22 @@ internal sealed class WindowedAudioRig : IDisposable
             {
                 Closed++;
                 return ValueTask.CompletedTask;
-            }
+            },
+            priorityWords is null
+                ? null
+                : new PriorityPass(
+                    priorityWords,
+                    () =>
+                    {
+                        var listener = new FakeListener(
+                            Lane,
+                            HearPriority
+                                ?? ((_, _) => Task.FromResult(new TranscriptionResult([], [])))
+                        );
+                        PriorityListeners.Add(listener);
+                        return listener;
+                    }
+                )
         );
 
     public void Dispose() => _directory.Dispose();
