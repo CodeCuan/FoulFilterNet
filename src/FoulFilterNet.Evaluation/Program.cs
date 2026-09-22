@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.Globalization;
+using FoulFilterNet.Domain;
 using FoulFilterNet.Domain.Abstractions;
 using FoulFilterNet.Pipeline;
 using FoulFilterNet.Transcription;
@@ -148,6 +149,9 @@ internal static class Program
             .Services.GetRequiredService<IOptions<TranscriptionOptions>>()
             .Value;
         var smartCut = host.Services.GetRequiredService<ISmartCutAdvisor>();
+
+        // The padding the pipeline applies, so raw words are scored as it pads them.
+        var padding = host.Services.GetRequiredService<CutPadding>();
         var evaluator = host.Services.GetRequiredService<FixtureEvaluator>();
 
         Console.WriteLine($"Evaluating {fixtures.Count} fixtures from {manifestPath}");
@@ -184,7 +188,9 @@ internal static class Program
                 SmartCutEnabled = smartCut.IsEnabled,
                 StartedAt = started.ToString("O", CultureInfo.InvariantCulture),
                 TotalSeconds = Math.Round(clock.Elapsed.TotalSeconds, 3),
-            }
+                PriorityPadding = EvaluationRunInfo.Describe(padding),
+            },
+            padding
         );
 
         Console.WriteLine();

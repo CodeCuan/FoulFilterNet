@@ -1,3 +1,4 @@
+using FoulFilterNet.Domain;
 using FoulFilterNet.Evaluation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -139,7 +140,11 @@ internal static class LiveEvaluation
                 runs.Add(await evaluator.EvaluateAsync(fixture, settings));
             }
 
-            return EvaluationReport.Build(runs, new EvaluationRunInfo());
+            return EvaluationReport.Build(
+                runs,
+                new EvaluationRunInfo(),
+                services.GetRequiredService<CutPadding>()
+            );
         }
         finally
         {

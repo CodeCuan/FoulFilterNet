@@ -66,6 +66,13 @@ public sealed record ScoreCard
     public double? WorstEndMargin { get; init; }
 
     /// <summary>
+    /// Seconds of audio the reports would silence once the padding still to
+    /// apply is added: the union of each fixture's windows, clamped at zero,
+    /// summed over fixtures. For final hits, what a job actually censors.
+    /// </summary>
+    public double CensoredSeconds { get; init; }
+
+    /// <summary>
     /// Aggregate <paramref name="fixtures"/>. Boundary figures cover every
     /// detected span. With nothing to divide by, recall and precision
     /// are 1 and the boundary figures are null - never NaN in a report meant to
@@ -105,7 +112,38 @@ public sealed record ScoreCard
             Covered = detected.Count(s => s.Covered),
             WorstStartMargin = Min(detected.Select(s => s.StartMargin!.Value)),
             WorstEndMargin = Min(detected.Select(s => s.EndMargin!.Value)),
+            CensoredSeconds = Times.Round(
+                fixtures.Sum(f => Censored(f.Reported, rules.PaddingStillToApply))
+            ),
         };
+    }
+
+    /// <summary>The length of the union of <paramref name="reported"/>, each widened by <paramref name="padding"/>.</summary>
+    private static double Censored(IReadOnlyList<Hit> reported, CutPadding padding)
+    {
+        var windows = reported
+            .Select(hit => padding.Widen(hit.Phrase, hit.Start, hit.End))
+            .Select(w => (Start: Math.Max(0.0, w.Start), w.End))
+            .Where(w => w.End > w.Start)
+            .OrderBy(w => w.Start)
+            .ToList();
+
+        var total = 0.0;
+        double? from = null;
+        var to = 0.0;
+        foreach (var (start, end) in windows)
+        {
+            if (from is null || start > to)
+            {
+                total += from is null ? 0.0 : to - from.Value;
+                (from, to) = (start, end);
+                continue;
+            }
+
+            to = Math.Max(to, end);
+        }
+
+        return from is null ? 0.0 : total + (to - from.Value);
     }
 
     private static double Ratio(int numerator, int denominator) =>

@@ -29,6 +29,25 @@ public sealed record EvaluationRunInfo
 
     /// <summary>Wall clock for the whole run, model load included.</summary>
     public double? TotalSeconds { get; init; }
+
+    /// <summary>How priority words were cut, from <see cref="Describe"/>.</summary>
+    public string? PriorityPadding { get; init; }
+
+    /// <summary>
+    /// <paramref name="padding"/>'s priority rule in one line, for a report to
+    /// be told apart from another: "off" when it has no priority words.
+    /// </summary>
+    public static string Describe(CutPadding padding)
+    {
+        ArgumentNullException.ThrowIfNull(padding);
+
+        return padding.PriorityWords.IsEmpty
+            ? "off"
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"{padding.PriorityWords.Count} priority word(s): at least {padding.PriorityMinimumSeconds:0.00} s, padded {padding.Priority.Pre:0.00}/{padding.Priority.Post:0.00} s"
+            );
+    }
 }
 
 /// <summary>One level of scoring: the summary and every fixture behind it.</summary>
@@ -55,14 +74,25 @@ public sealed record EvaluationReport(
     /// still to come (the question ADR-0006 asked), and the final hits as they
     /// stand (the question a listener asks).
     /// </summary>
-    public static EvaluationReport Build(IReadOnlyList<FixtureRun> runs, EvaluationRunInfo run)
+    /// <param name="runs">What the pipeline reported for each fixture.</param>
+    /// <param name="run">The settings the runs were made with.</param>
+    /// <param name="padding">
+    /// The <see cref="CutPadding"/> the pipeline that made the runs applies,
+    /// so raw words are scored as that job will pad them;
+    /// <see cref="CutPadding.Default"/> when null.
+    /// </param>
+    public static EvaluationReport Build(
+        IReadOnlyList<FixtureRun> runs,
+        EvaluationRunInfo run,
+        CutPadding? padding = null
+    )
     {
         ArgumentNullException.ThrowIfNull(runs);
         ArgumentNullException.ThrowIfNull(run);
 
         return new EvaluationReport(
             run,
-            Level(runs, r => r.RawHits, ScoringRules.RawWords),
+            Level(runs, r => r.RawHits, ScoringRules.RawWordsFor(padding ?? CutPadding.Default)),
             Level(runs, r => r.FinalHits, ScoringRules.FinalHits),
             runs.Select(r => new FixtureTiming(
                     r.Fixture.File,
@@ -210,7 +240,7 @@ public static class ReportFormatter
         text.AppendLine(
             string.Create(
                 Invariant,
-                $"worst late start {Signed(card.WorstLateStart)}   worst early end {Signed(card.WorstEarlyEnd)}   covered {card.Covered}/{card.Spans}   worst margin start {Signed(card.WorstStartMargin)} end {Signed(card.WorstEndMargin)}"
+                $"worst late start {Signed(card.WorstLateStart)}   worst early end {Signed(card.WorstEarlyEnd)}   covered {card.Covered}/{card.Spans}   worst margin start {Signed(card.WorstStartMargin)} end {Signed(card.WorstEndMargin)}   censored {card.CensoredSeconds:0.000} s"
             )
         );
     }

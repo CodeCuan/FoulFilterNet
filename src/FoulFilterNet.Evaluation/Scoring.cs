@@ -22,10 +22,11 @@ public sealed record ScoringRules
 {
     /// <summary>
     /// Padding the pipeline has yet to apply to what is being scored. Raw words
-    /// are still to be padded, so whether they will be covered depends on it;
-    /// final hits already have been.
+    /// are still to be padded, so whether they will be covered depends on it -
+    /// including a priority word's minimum length and wider padding, so it must
+    /// be the job's own <see cref="CutPadding"/>; final hits already have been.
     /// </summary>
-    public required HitPadding PaddingStillToApply { get; init; }
+    public required CutPadding PaddingStillToApply { get; init; }
 
     /// <summary>
     /// The magnitude an error may have and still count as "inside the padding",
@@ -40,13 +41,24 @@ public sealed record ScoringRules
     /// </summary>
     public double MatchWindowSeconds { get; init; } = 1.0;
 
-    /// <summary>The transcriber's words, before padding and merging (what ADR-0006 measured).</summary>
-    public static ScoringRules RawWords { get; } =
-        new() { PaddingStillToApply = HitPadding.Default };
+    /// <summary>
+    /// The transcriber's words, before padding and merging (what ADR-0006
+    /// measured), padded as a job with no priority words would pad them.
+    /// </summary>
+    public static ScoringRules RawWords { get; } = RawWordsFor(CutPadding.Default);
 
     /// <summary>The pipeline's padded and merged windows (what actually gets censored).</summary>
-    public static ScoringRules FinalHits { get; } =
-        new() { PaddingStillToApply = new HitPadding(0, 0) };
+    public static ScoringRules FinalHits { get; } = new() { PaddingStillToApply = CutPadding.None };
+
+    /// <summary>
+    /// The transcriber's words, before padding and merging, scored against
+    /// the <paramref name="padding"/> the job that made them applies.
+    /// </summary>
+    public static ScoringRules RawWordsFor(CutPadding padding)
+    {
+        ArgumentNullException.ThrowIfNull(padding);
+        return new() { PaddingStillToApply = padding };
+    }
 }
 
 /// <summary>
@@ -201,7 +213,11 @@ public static class BoundaryScorer
 
     private static SpanScore Measure(PlantedSpan planted, Hit report, ScoringRules rules)
     {
-        var padding = rules.PaddingStillToApply;
+        var (paddedStart, paddedEnd) = rules.PaddingStillToApply.Widen(
+            report.Phrase,
+            report.Start,
+            report.End
+        );
         var startError = Times.Round(report.Start - planted.Start);
         var endError = Times.Round(report.End - planted.End);
 
@@ -210,8 +226,8 @@ public static class BoundaryScorer
             report,
             startError,
             endError,
-            StartMargin: Times.Round(planted.Start - (report.Start - padding.Pre)),
-            EndMargin: Times.Round(report.End + padding.Post - planted.End),
+            StartMargin: Times.Round(planted.Start - paddedStart),
+            EndMargin: Times.Round(paddedEnd - planted.End),
             StartWithinTolerance: Math.Abs(startError) <= rules.Tolerance.Pre,
             EndWithinTolerance: Math.Abs(endError) <= rules.Tolerance.Post
         );
