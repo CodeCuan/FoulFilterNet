@@ -16,20 +16,32 @@ public sealed record HitPadding(double Pre, double Post)
 
 /// <summary>
 /// Turns raw Hits into the final cut windows: pad, drop inversions, sort, and
-/// merge anything that overlaps. Ported from <c>pipeline.merge_hits</c>.
+/// merge anything that overlaps. Ported from <c>pipeline.merge_hits</c>, with
+/// wider windows for priority words (<see cref="Domain.CutPadding"/>).
 /// </summary>
 public sealed class HitMerger
 {
-    private readonly HitPadding _padding;
+    private readonly CutPadding _padding;
 
-    /// <summary>Merge with <paramref name="padding"/>, or <see cref="HitPadding.Default"/>.</summary>
-    public HitMerger(HitPadding? padding = null) => _padding = padding ?? HitPadding.Default;
+    /// <summary>Merge with <paramref name="padding"/> for every Hit, or <see cref="HitPadding.Default"/>.</summary>
+    public HitMerger(HitPadding? padding = null)
+        : this(padding is null ? Domain.CutPadding.Default : new CutPadding(padding)) { }
 
-    /// <summary>The padding this merger applies.</summary>
-    public HitPadding Padding => _padding;
+    /// <summary>Merge padding each Hit as <paramref name="padding"/> says for its phrase.</summary>
+    public HitMerger(CutPadding padding)
+    {
+        ArgumentNullException.ThrowIfNull(padding);
+        _padding = padding;
+    }
+
+    /// <summary>The padding this merger applies to ordinary (non-priority) Hits.</summary>
+    public HitPadding Padding => _padding.Ordinary;
+
+    /// <summary>How this merger widens each Hit.</summary>
+    public CutPadding CutPadding => _padding;
 
     /// <summary>
-    /// Pad every hit, discard the ones that do not describe a forward window,
+    /// Pad every hit (priority words wider, see <see cref="Domain.CutPadding"/>), discard the ones that do not describe a forward window,
     /// then merge overlaps into single windows whose phrases are joined with
     /// <c>+</c>. A merged window keeps the word index of the hit it started from.
     /// </summary>
@@ -45,8 +57,8 @@ public sealed class HitMerger
                 continue;
             }
 
-            var start = Math.Max(0.0, hit.Start - _padding.Pre);
-            var end = hit.End + _padding.Post;
+            var (widenedStart, end) = _padding.Widen(hit.Phrase, hit.Start, hit.End);
+            var start = Math.Max(0.0, widenedStart);
             if (end <= start)
             {
                 continue;

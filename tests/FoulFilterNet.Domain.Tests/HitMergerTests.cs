@@ -202,3 +202,67 @@ public class WhenReadingTheDefaultPadding
     public void IsWhatAMergerUsesWhenGivenNothing() =>
         new HitMerger().Merge([new Hit("x", 1.0, 1.5)])[0].Start.ShouldBe(0.85, 0.001);
 }
+
+public class WhenMergingPriorityHits
+{
+    private readonly IReadOnlyList<Hit> _merged;
+
+    public WhenMergingPriorityHits()
+    {
+        // ct_edge_1_1000ms: primary and prompted pass each placed the F-word as
+        // a 10 ms point, 80 ms apart; the damn is ordinary.
+        var sut = new HitMerger(CutPadding.ForPriorityWords(PriorityWordList.Default));
+        _merged = sut.Merge([
+            new Hit("fuck", 3.412, 3.422, 4),
+            new Hit("fuck", 3.500, 3.510, 5),
+            new Hit("damn", 6.0, 6.5, 9),
+        ]);
+
+        _merged.ShouldNotBeNull();
+        _merged.ShouldAllBe(h => h.End > h.Start);
+    }
+
+    [Fact]
+    public void FusesTheTwoReportsOfOneWord() => _merged.Count.ShouldBe(2);
+
+    // 3.422 - 0.8 - 0.25
+    [Fact]
+    public void GrowsThePriorityWindowBackwardAndPadsIt() => _merged[0].Start.ShouldBe(2.372);
+
+    // 3.510 + 0.5
+    [Fact]
+    public void PadsThePriorityWindowsEndByHalfASecond() => _merged[0].End.ShouldBe(4.01);
+
+    [Fact]
+    public void RecordsBothReports() => _merged[0].Phrase.ShouldBe("fuck+fuck");
+
+    [Fact]
+    public void PadsAnOrdinaryHitAsBefore() =>
+        (_merged[1].Start, _merged[1].End).ShouldBe((5.85, 6.75));
+
+    [Fact]
+    public void ReportsTheOrdinaryPaddingAsItsPadding() =>
+        new HitMerger(CutPadding.ForPriorityWords(PriorityWordList.Default)).Padding.ShouldBe(
+            HitPadding.Default
+        );
+
+    [Fact]
+    public void ExposesTheCutPaddingItApplies() =>
+        new HitMerger(CutPadding.None).CutPadding.ShouldBeSameAs(CutPadding.None);
+
+    [Fact]
+    public void ClampsAPriorityWindowAtTheStartOfTheFile() =>
+        new HitMerger(CutPadding.ForPriorityWords(PriorityWordList.Default))
+            .Merge([new Hit("fuck", 0.3, 0.31)])[0]
+            .Start.ShouldBe(0.0);
+
+    [Fact]
+    public void StillDropsAZeroLengthPriorityHit() =>
+        new HitMerger(CutPadding.ForPriorityWords(PriorityWordList.Default))
+            .Merge([new Hit("fuck", 3.0, 3.0)])
+            .ShouldBeEmpty();
+
+    [Fact]
+    public void UsesTheDefaultCutPaddingWhenGivenAHitPadding() =>
+        new HitMerger(HitPadding.Default).CutPadding.Ordinary.ShouldBe(HitPadding.Default);
+}
