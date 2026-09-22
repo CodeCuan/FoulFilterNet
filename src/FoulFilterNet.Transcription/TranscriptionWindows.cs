@@ -61,25 +61,37 @@ public static class TranscriptionWindows
     /// <see cref="LengthSeconds"/> - a sliver of trailing audio is easy for
     /// whisper.cpp to mishear.
     /// </summary>
-    public static IReadOnlyList<TranscriptionWindow> Plan(double durationSeconds)
+    public static IReadOnlyList<TranscriptionWindow> Plan(double durationSeconds) =>
+        Plan(durationSeconds, LengthSeconds, LengthSeconds - OverlapSeconds);
+
+    /// <summary>
+    /// Cover <paramref name="durationSeconds"/> with windows of
+    /// <paramref name="length"/> stepping <paramref name="step"/>, the last pulled
+    /// back to end with the file, each with a midpoint share. Shared with
+    /// <see cref="PriorityWindows"/>, which plans sub-windows the same way.
+    /// </summary>
+    internal static IReadOnlyList<TranscriptionWindow> Plan(
+        double durationSeconds,
+        double length,
+        double step
+    )
     {
         ArgumentOutOfRangeException.ThrowIfNegative(durationSeconds);
 
         var starts = new List<double>();
-        var step = LengthSeconds - OverlapSeconds;
         var start = 0.0;
-        while (start + LengthSeconds < durationSeconds)
+        while (start + length < durationSeconds)
         {
             starts.Add(start);
             start += step;
         }
 
-        starts.Add(Math.Max(0.0, durationSeconds - LengthSeconds));
+        starts.Add(Math.Max(0.0, durationSeconds - length));
 
         var windows = new List<TranscriptionWindow>(starts.Count);
         for (var i = 0; i < starts.Count; i++)
         {
-            var end = Math.Min(starts[i] + LengthSeconds, durationSeconds);
+            var end = Math.Min(starts[i] + length, durationSeconds);
             var keepFrom = i == 0 ? double.NegativeInfinity : windows[i - 1].KeepTo;
             var keepTo =
                 i == starts.Count - 1 ? double.PositiveInfinity : (end + starts[i + 1]) / 2;
