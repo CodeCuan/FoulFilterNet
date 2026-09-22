@@ -76,3 +76,35 @@ public sealed class WhenResolvingTheBadWordsList
     public void HonoursAnOverride() =>
         DataLocations.BadWordsPath(_data, "words.txt").ShouldBe("words.txt");
 }
+
+public sealed class WhenResolvingThePriorityWordList
+{
+    private readonly string _data = Path.Combine("x", "data");
+
+    public WhenResolvingThePriorityWordList()
+    {
+        _data.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public void DefaultsIntoTheDataDirectory() =>
+        DataLocations
+            .PriorityWordsPath(_data, null)
+            .ShouldBe(Path.Combine(_data, "priority_words.txt"));
+
+    [Fact]
+    public void TreatsABlankOverrideAsUnset() =>
+        DataLocations
+            .PriorityWordsPath(_data, " ")
+            .ShouldBe(Path.Combine(_data, "priority_words.txt"));
+
+    [Fact]
+    public void HonoursAnOverride() =>
+        DataLocations.PriorityWordsPath(_data, "priority.txt").ShouldBe("priority.txt");
+
+    [Fact]
+    public void FallsBackToTheDefaultDataDirectoryWhenThatIsBlank() =>
+        DataLocations
+            .PriorityWordsPath(null, null)
+            .ShouldBe(Path.Combine(DataLocations.DefaultDataDirectory, "priority_words.txt"));
+}

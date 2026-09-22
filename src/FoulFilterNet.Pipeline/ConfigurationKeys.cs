@@ -28,6 +28,12 @@ public static class ConfigurationKeys
 
     public const string UnloadAfterJob = "Transcription:UnloadAfterJob";
 
+    /// <summary>Whether the Priority Word Pass runs; see <c>TranscriptionOptions.PriorityPass</c>.</summary>
+    public const string PriorityPass = "Transcription:PriorityPass";
+
+    /// <summary>The Priority Word List file; unset means <c>priority_words.txt</c> in the data directory.</summary>
+    public const string PriorityWordsPath = "Transcription:PriorityWordsPath";
+
     public const string SmartCutEnabled = "SmartCut:Enabled";
 
     public const string SmartCutMode = "SmartCut:Mode";

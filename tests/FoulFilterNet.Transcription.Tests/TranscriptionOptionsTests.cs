@@ -86,3 +86,33 @@ public class WhenTranscriptionOptionsPinADeviceAndLanguage
     public void TreatsABlankLanguageAsAutoDetect() =>
         new TranscriptionOptions { Language = "   " }.Language.ShouldBeNull();
 }
+
+public class WhenTranscriptionOptionsLeaveThePriorityWordPassAlone
+{
+    private readonly TranscriptionOptions _options = new();
+
+    [Fact]
+    public void RunsThePass() => _options.PriorityPass.ShouldBeTrue();
+
+    [Fact]
+    public void LeavesTheListPathToTheDataDirectory() => _options.PriorityWordsPath.ShouldBeNull();
+}
+
+public class WhenTranscriptionOptionsConfigureThePriorityWordPass
+{
+    private readonly TranscriptionOptions _options = new()
+    {
+        PriorityPass = false,
+        PriorityWordsPath = "  lists/priority.txt  ",
+    };
+
+    [Fact]
+    public void CanTurnThePassOff() => _options.PriorityPass.ShouldBeFalse();
+
+    [Fact]
+    public void TrimsTheListPath() => _options.PriorityWordsPath.ShouldBe("lists/priority.txt");
+
+    [Fact]
+    public void TreatsABlankListPathAsUnset() =>
+        new TranscriptionOptions { PriorityWordsPath = "   " }.PriorityWordsPath.ShouldBeNull();
+}

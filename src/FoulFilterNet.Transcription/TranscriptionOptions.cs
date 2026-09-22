@@ -26,6 +26,7 @@ public sealed record TranscriptionOptions
     private readonly string _model = ModelNames.Default;
     private readonly string? _language;
     private readonly string _modelDirectory = WhisperModelSource.DefaultDirectory;
+    private readonly string? _priorityWordsPath;
 
     /// <summary>The model id, always fully qualified.</summary>
     public string Model
@@ -69,4 +70,21 @@ public sealed record TranscriptionOptions
     /// can share the card.
     /// </summary>
     public bool UnloadAfterJob { get; init; }
+
+    /// <summary>
+    /// Re-hear each window in short sub-windows prompted with the Priority Word
+    /// List, and add the priority words found there that the primary pass missed
+    /// (docs/05-crosstalk-plan.md). On by default; an empty list also turns it off.
+    /// </summary>
+    public bool PriorityPass { get; init; } = true;
+
+    /// <summary>
+    /// Where the Priority Word List is read from, or null for
+    /// <c>priority_words.txt</c> in the data directory. A blank value is null.
+    /// </summary>
+    public string? PriorityWordsPath
+    {
+        get => _priorityWordsPath;
+        init => _priorityWordsPath = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 }

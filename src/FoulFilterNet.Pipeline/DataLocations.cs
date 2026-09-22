@@ -43,4 +43,13 @@ public static class DataLocations
         string.IsNullOrWhiteSpace(badWordsPath)
             ? Path.Combine(DataDirectory(dataDirectory), "bad_words.txt")
             : badWordsPath.Trim();
+
+    /// <summary>
+    /// The Priority Word List: an explicit path, else <c>priority_words.txt</c>
+    /// in the data root. The file is optional; see <see cref="PriorityWordFile"/>.
+    /// </summary>
+    public static string PriorityWordsPath(string? dataDirectory, string? priorityWordsPath) =>
+        string.IsNullOrWhiteSpace(priorityWordsPath)
+            ? Path.Combine(DataDirectory(dataDirectory), "priority_words.txt")
+            : priorityWordsPath.Trim();
 }
