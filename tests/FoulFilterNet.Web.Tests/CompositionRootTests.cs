@@ -342,3 +342,99 @@ public sealed class WhenWatchAndSourcesAreConfigured : IDisposable
                 )
             );
 }
+
+/// <summary>
+/// X05: the Priority Word Pass's tuning is configuration, and one
+/// <see cref="PriorityTuning"/> feeds both halves of it - the padding Jobs and
+/// Watch Sessions cut with, and the sub-window layout the engine hears in.
+/// </summary>
+public sealed class WhenThePriorityTuningIsConfiguredForTheHost : IDisposable
+{
+    private readonly RealPipelineApplication _app = new();
+    private readonly IServiceProvider _services;
+
+    public WhenThePriorityTuningIsConfiguredForTheHost()
+    {
+        _services = _app.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Transcription:PriorityPaddingPre", "0.5");
+            builder.UseSetting("Transcription:PriorityPaddingPost", "0.9");
+            builder.UseSetting("Transcription:PriorityMinimumCutSeconds", "2.0");
+            builder.UseSetting("Transcription:PrioritySubWindowSeconds", "4");
+            builder.UseSetting("Transcription:PrioritySubWindowStepSeconds", "1");
+        }).Services;
+    }
+
+    public void Dispose() => _app.Dispose();
+
+    [Fact]
+    public void CutsAPriorityWordTheConfiguredWayRound() =>
+        _services
+            .GetRequiredService<Domain.CutPadding>()
+            .Widen("fuck", 10.0, 10.01)
+            .ShouldBe((10.01 - 2.0 - 0.5, 10.01 + 0.9));
+
+    [Fact]
+    public void HearsSubWindowsInTheConfiguredLayout() =>
+        _services
+            .GetRequiredService<Transcription.PriorityTuning>()
+            .SubWindows.ShouldBe(new Transcription.PrioritySubWindows(4.0, 1.0));
+
+    [Fact]
+    public void GivesJobsTheConfiguredPadding() =>
+        ((MediaPipeline)_services.GetRequiredService<IMediaPipeline>()).CutPadding.ShouldBeSameAs(
+            _services.GetRequiredService<Domain.CutPadding>()
+        );
+
+    [Fact]
+    public void GivesWatchSessionsTheConfiguredPadding() =>
+        _services
+            .GetRequiredService<WatchSessionManager>()
+            .CutPadding.ShouldBeSameAs(_services.GetRequiredService<Domain.CutPadding>());
+
+    /// <summary>
+    /// The Coverage guard is derived from that padding rather than fixed, so a
+    /// wider cut trims more off an edge next to an unfinished window.
+    /// </summary>
+    [Fact]
+    public void MovesTheWatchCoverageGuardWithIt() =>
+        WatchProgress
+            .GuardSecondsFor(_services.GetRequiredService<Domain.CutPadding>())
+            .ShouldBe(2.5);
+
+    [Fact]
+    public void LeavesOrdinaryWordsOnTheOrdinaryPadding() =>
+        _services
+            .GetRequiredService<Domain.CutPadding>()
+            .Widen("damn", 10.0, 10.4)
+            .ShouldBe((9.85, 10.65));
+}
+
+/// <summary>
+/// Nonsense tuning is a startup failure naming the key, not an exception at the
+/// first job or the first viewer.
+/// </summary>
+public sealed class WhenThePriorityTuningIsNonsense : IDisposable
+{
+    private readonly RealPipelineApplication _app = new();
+    private readonly Exception? _thrown;
+
+    public WhenThePriorityTuningIsNonsense()
+    {
+        _thrown = Record.Exception(() =>
+            _app.WithWebHostBuilder(builder =>
+                    builder.UseSetting("Transcription:PriorityMinimumCutSeconds", "-1")
+                )
+                .Services.GetRequiredService<Domain.CutPadding>()
+        );
+    }
+
+    public void Dispose() => _app.Dispose();
+
+    [Fact]
+    public void RefusesToStart() => _thrown.ShouldNotBeNull();
+
+    [Fact]
+    public void NamesTheKey() =>
+        _thrown!.ToString().ShouldContain("Transcription:PriorityMinimumCutSeconds");
+}

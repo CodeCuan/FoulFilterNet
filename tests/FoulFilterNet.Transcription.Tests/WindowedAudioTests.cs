@@ -84,7 +84,8 @@ internal sealed class WindowedAudioRig : IDisposable
 
     public WindowedAudio Open(
         InferencePriority priority = InferencePriority.Normal,
-        PriorityWordList? priorityWords = null
+        PriorityWordList? priorityWords = null,
+        PrioritySubWindows? subWindows = null
     ) =>
         new(
             AnalysisWav.OpenAsync(Path, CancellationToken.None).Result,
@@ -114,7 +115,8 @@ internal sealed class WindowedAudioRig : IDisposable
                         );
                         PriorityListeners.Add(listener);
                         return listener;
-                    }
+                    },
+                    subWindows
                 )
         );
 

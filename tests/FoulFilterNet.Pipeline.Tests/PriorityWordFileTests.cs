@@ -37,6 +37,91 @@ public sealed class WhenThePriorityWordPassIsConfiguredByKey
     public void BindsTheListPath() => _options.PriorityWordsPath.ShouldBe("/srv/priority.txt");
 }
 
+/// <summary>
+/// The Priority Word Pass's tuning is configuration too (X05): five keys in the
+/// same section, each of which must spell a <see cref="TranscriptionOptions"/>
+/// property, and each of which a host turns into a <see cref="PriorityTuning"/>.
+/// </summary>
+public sealed class WhenThePriorityTuningIsConfiguredByKey
+{
+    private readonly PriorityTuning _tuning;
+
+    public WhenThePriorityTuningIsConfiguredByKey()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    [ConfigurationKeys.PriorityPaddingPre] = "0.4",
+                    [ConfigurationKeys.PriorityPaddingPost] = "0.9",
+                    [ConfigurationKeys.PriorityMinimumCutSeconds] = "1.2",
+                    [ConfigurationKeys.PrioritySubWindowSeconds] = "4",
+                    [ConfigurationKeys.PrioritySubWindowStepSeconds] = "1",
+                }
+            )
+            .Build();
+
+        _tuning = PriorityTuning.ForOptions(
+            configuration.GetSection("Transcription").Get<TranscriptionOptions>()
+                ?? throw new InvalidOperationException("The section did not bind.")
+        );
+    }
+
+    [Fact]
+    public void BindsThePreRoll() => _tuning.Padding.Pre.ShouldBe(0.4);
+
+    [Fact]
+    public void BindsThePostRoll() => _tuning.Padding.Post.ShouldBe(0.9);
+
+    [Fact]
+    public void BindsTheMinimumCut() => _tuning.MinimumCutSeconds.ShouldBe(1.2);
+
+    [Fact]
+    public void BindsTheSubWindowLength() => _tuning.SubWindows.LengthSeconds.ShouldBe(4.0);
+
+    [Fact]
+    public void BindsTheSubWindowStep() => _tuning.SubWindows.StepSeconds.ShouldBe(1.0);
+
+    [Fact]
+    public void PadsPriorityWordsAsConfigured() =>
+        _tuning
+            .PaddingFor(PriorityWordList.Default)
+            .Widen("fuck", 10.0, 10.01)
+            .ShouldBe((10.01 - 1.2 - 0.4, 10.01 + 0.9));
+}
+
+/// <summary>
+/// A section that names none of the tuning keys - every host's default - is the
+/// tuning ADR-0008 measured, so behaviour out of the box is what X03 and X04
+/// left it.
+/// </summary>
+public sealed class WhenThePriorityTuningIsNotConfiguredAtAll
+{
+    private readonly TranscriptionOptions _options =
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { [ConfigurationKeys.PriorityPass] = "true" }
+            )
+            .Build()
+            .GetSection("Transcription")
+            .Get<TranscriptionOptions>()
+        ?? new TranscriptionOptions();
+
+    [Fact]
+    public void IsTheShippedTuning() =>
+        PriorityTuning.ForOptions(_options).ShouldBe(PriorityTuning.Default);
+
+    [Fact]
+    public void CutsPriorityWordsAsX03LeftThem() =>
+        PriorityTuning
+            .ForOptions(_options)
+            .PaddingFor(PriorityWordList.Default)
+            .Widen("fuck", 10.0, 10.01)
+            .ShouldBe(
+                CutPadding.ForPriorityWords(PriorityWordList.Default).Widen("fuck", 10.0, 10.01)
+            );
+}
+
 public sealed class WhenReadingThePriorityWordFile : IDisposable
 {
     private readonly string _directory = Path.Combine(

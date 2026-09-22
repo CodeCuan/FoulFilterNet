@@ -558,3 +558,57 @@ public sealed class WhenAPriorityPassIsBuiltWithoutCollaborators
             new PriorityPass(PriorityWordList.Default, null!)
         );
 }
+
+/// <summary>
+/// The sub-window layout is configuration (X05), so a window is heard in
+/// whatever sub-windows the host was told to use rather than in the shipped
+/// 5 s / 2.5 s ones. Window 0 of the rig's minute is 0 s to 28 s and keeps up
+/// to 25 s, so with 10 s sub-windows stepping 10 s all three of them count.
+/// </summary>
+public sealed class WhenAWindowIsHeardInAConfiguredSubWindowLayout : IDisposable
+{
+    private readonly WindowedAudioRig _rig = new();
+    private readonly WindowedAudio _sut;
+    private readonly PrioritySubWindows _layout = new(10.0, 10.0);
+
+    public WhenAWindowIsHeardInAConfiguredSubWindowLayout()
+    {
+        _sut = _rig.Open(priorityWords: PriorityWordList.Default, subWindows: _layout);
+        _sut.TranscribeWindowAsync(0, TestContext.Current.CancellationToken).Wait();
+
+        _rig.PriorityListeners.ShouldHaveSingleItem();
+    }
+
+    public void Dispose()
+    {
+        _sut.DisposeAsync().AsTask().Wait();
+        _rig.Dispose();
+    }
+
+    [Fact]
+    public void HearsTheSubWindowsTheLayoutPlans() =>
+        _rig.PriorityListeners[0].Heard.Count.ShouldBe(_layout.Plan(28.0, 0.0, 25.0).Count);
+
+    [Fact]
+    public void HearsFewerOfThemThanTheShippedLayoutWould() =>
+        _rig.PriorityListeners[0]
+            .Heard.Count.ShouldBeLessThan(PrioritySubWindows.Default.Plan(28.0, 0.0, 25.0).Count);
+
+    [Fact]
+    public void HandsItTheConfiguredSecondsAndSomeSilenceEachTime() =>
+        _rig.PriorityListeners[0]
+            .Heard.Select(samples => samples.Length)
+            .Distinct()
+            .ShouldBe([(int)((10.0 + WindowedAudio.TrailingSilenceSeconds) * 16000)]);
+}
+
+public sealed class WhenAPriorityPassIsBuiltWithoutASubWindowLayout
+{
+    private readonly PriorityPass _pass = new(
+        PriorityWordList.Default,
+        () => new FakeListener(new InferenceLane())
+    );
+
+    [Fact]
+    public void HearsInTheShippedLayout() => _pass.SubWindows.ShouldBe(PrioritySubWindows.Default);
+}

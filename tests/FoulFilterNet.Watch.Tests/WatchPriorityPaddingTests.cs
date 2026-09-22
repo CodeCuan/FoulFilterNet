@@ -270,3 +270,48 @@ public sealed class WhenWatchIsAddedWithACutPaddingRegistered : IDisposable
     public void GivesTheManagerThatPadding() =>
         _manager.CutPadding.ShouldBeSameAs(PriorityVideo.Padding);
 }
+
+/// <summary>
+/// The padding is configuration (X05), and the Coverage guard is derived from
+/// whatever padding the host registered rather than from a constant: a wider
+/// priority cut trims more off an edge next to an unfinished window, because a
+/// 10 ms Hit just inside that window reaches that much further back.
+/// </summary>
+public class WhenThePriorityPaddingIsConfiguredWider
+{
+    private readonly CutPadding _padding = PriorityTuning
+        .ForOptions(
+            new TranscriptionOptions { PriorityPaddingPre = 0.5, PriorityMinimumCutSeconds = 2.0 }
+        )
+        .PaddingFor(PriorityWordList.Default);
+
+    private readonly Coverage _coverage;
+
+    public WhenThePriorityPaddingIsConfiguredWider()
+    {
+        _coverage = PriorityVideo.Finish(_padding, 0).Coverage;
+
+        _coverage.Intervals.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void GuardsAsFarBackAsAShortPriorityHitNowReaches() =>
+        WatchProgress.GuardSecondsFor(_padding).ShouldBe(2.5);
+
+    [Fact]
+    public void MovesTheGuardThatTheShippedPaddingPutsAt1Point05() =>
+        WatchProgress
+            .GuardSecondsFor(_padding)
+            .ShouldBeGreaterThan(WatchProgress.GuardSecondsFor(PriorityVideo.Padding));
+
+    [Fact]
+    public void TrimsTheCoverageEdgeByTheConfiguredReach() =>
+        _coverage.Intervals[0].To.ShouldBe(22.5, 0.0001);
+
+    [Fact]
+    public void CutsTheShortPriorityHitTheConfiguredWayRound() =>
+        PriorityVideo
+            .Finish(_padding, PriorityVideo.Script.AllWindows)
+            .Snapshot.Hits[0]
+            .Start.ShouldBe(10.01 - 2.0 - 0.5, 0.001);
+}
