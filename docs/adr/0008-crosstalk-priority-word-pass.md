@@ -115,7 +115,7 @@ about 2.4 GB for FoulFilterNet on a 12 GB card either way.
   swears, but it loses ordinary words and mishears others, so the full Bad Words
   List would suffer. Rejected: the primary pass must stay as it is.
 - **A bigger model**: `base` scores 11–12 whatever else is done; turbo is what
-  makes 29 possible. Turbo is now the default launch profile's model.
+  makes 29 possible. Turbo is now what Web's `appsettings.json` asks for.
 - **Reducing whisper.cpp's audio context** for the 5 s sub-windows (X04, tried
   and measured): the encoder does less work, but decoding became erratic on this
   model — per-window time swung between 2.1 s and 8.4 s, worse on average than
