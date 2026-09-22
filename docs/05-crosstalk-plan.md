@@ -95,6 +95,32 @@ plus a minimum hit length, because crosstalk timestamps are loose. Tune both
 against the crosstalk manifest's "covered" column without letting clean
 fixtures' cut totals balloon. Applies to Watch and batch alike.
 
+As built (X03): Domain `CutPadding` decides each Hit's window. A Hit whose
+phrase normalizes to one token on the Priority Word List (a merged `a+b`
+window counts if any part does) is first **grown backward from its reported
+end to 0.8 s**, then padded **0.25 s before, 0.5 s after**; every other Hit
+keeps `HitPadding.Default`, so ordinary filtergraphs are unchanged. Backward,
+because a word masked by the other speaker collapses to a 10 ms DTW point at
+or up to 0.47 s *after* its true end; the 0.5 s post-roll because priority
+words that kept a length ended up to 0.44 s early. The same rule applies to
+F-words the primary pass found (a Word carries no provenance, and they are
+just as loose under crosstalk).
+
+- `HitMerger(CutPadding)` pads; `HitReconciler(CutPadding)` tolerates, per
+  Candidate phrase, that phrase's pre+post (0.75 s for a priority word), which
+  is still the gap at which the merger fuses two windows.
+- Batch: `MediaPipeline` takes an optional `CutPadding` (also used for Smart
+  Cut adjustments). Watch: `WatchProgress` carries it; sessions get it via
+  `WatchSessionServices`/`WatchSessionManager`/`AddWatch`. Web, CLI and
+  Evaluation register one `PriorityWordSource` (the engine's list) and
+  `CutPadding.ForPriorityWords(list)`; an empty list is `CutPadding.Default`.
+- Watch's Coverage guard becomes `max(1 s, 0.8 + 0.25 s)` = 1.05 s, since a
+  10 ms priority Hit just inside an unfinished neighbour reaches that far back.
+- The evaluator scores raw words with the job's `CutPadding`
+  (`ScoringRules.RawWordsFor`) and reports censored seconds per level.
+- Constants, not configuration: `CutPadding.DefaultPriorityPadding` and
+  `DefaultPriorityMinimumSeconds`.
+
 ## Tasks
 
 | Task | Scope |
