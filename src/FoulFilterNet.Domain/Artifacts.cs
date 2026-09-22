@@ -46,7 +46,12 @@ public sealed record Transcript(
     /// different value is treated as a miss rather than reused - the Python it
     /// replaces wrote this field and never checked it.
     /// </summary>
-    public const int CurrentVersion = 1;
+    /// <remarks>
+    /// 2: transcripts carry the words the Priority Word Pass adds
+    /// (docs/05-crosstalk-plan.md). A version 1 transcript was made without it,
+    /// so it is transcribed again rather than resumed.
+    /// </remarks>
+    public const int CurrentVersion = 2;
 }
 
 /// <summary>

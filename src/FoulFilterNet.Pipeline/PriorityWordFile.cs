@@ -32,12 +32,32 @@ public static class PriorityWordFile
     /// <see cref="TranscriptionOptions.PriorityWordsPath"/> or
     /// <c>priority_words.txt</c> under <paramref name="dataDirectory"/>.
     /// </summary>
-    public static PriorityWordList ForOptions(TranscriptionOptions options, string? dataDirectory)
+    public static PriorityWordList ForOptions(
+        TranscriptionOptions options,
+        string? dataDirectory
+    ) => Resolve(options, dataDirectory).Words;
+
+    /// <summary>
+    /// <see cref="ForOptions"/>, with where the list came from: its file, or
+    /// <see cref="PriorityWordSource.BuiltInOrigin"/> when there is none, or
+    /// <see cref="PriorityWordSource.SwitchedOffOrigin"/>. This is what each
+    /// composition root hands the engine.
+    /// </summary>
+    public static PriorityWordSource Resolve(TranscriptionOptions options, string? dataDirectory)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return options.PriorityPass
-            ? Read(DataLocations.PriorityWordsPath(dataDirectory, options.PriorityWordsPath))
-            : PriorityWordList.FromLines([]);
+        if (!options.PriorityPass)
+        {
+            return new PriorityWordSource(
+                PriorityWordList.FromLines([]),
+                PriorityWordSource.SwitchedOffOrigin
+            );
+        }
+
+        var path = DataLocations.PriorityWordsPath(dataDirectory, options.PriorityWordsPath);
+        return File.Exists(path)
+            ? new PriorityWordSource(PriorityWordList.FromLines(File.ReadAllLines(path)), path)
+            : new PriorityWordSource(PriorityWordList.Default, PriorityWordSource.BuiltInOrigin);
     }
 }

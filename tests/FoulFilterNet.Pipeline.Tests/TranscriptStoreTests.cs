@@ -208,6 +208,57 @@ public class WhenACachedTranscriptWasWrittenByAnotherSchema : IDisposable
     }
 }
 
+/// <summary>
+/// Every transcript cached before the Priority Word Pass (X02) was written as
+/// version 1 and lacks the priority words that pass adds. Resuming one would
+/// skip the pass for that file for good, so it is a miss: the file is
+/// transcribed again, with the pass, and the new entry replaces it.
+/// </summary>
+public class WhenACachedTranscriptPredatesThePriorityWordPass : IDisposable
+{
+    private readonly TempDirectory _directory = new();
+    private readonly Transcript? _found;
+
+    public WhenACachedTranscriptPredatesThePriorityWordPass()
+    {
+        CacheFixture.Write(
+            _directory.Path,
+            $"{CacheFixture.Digest}_audiobook.json",
+            CacheFixture.Entry(1, CacheFixture.Digest, "damn")
+        );
+
+        _found = new TranscriptStore(_directory.Path)
+            .FindAsync(CacheFixture.Digest)
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    [Fact]
+    public void IsNoLongerTheCurrentSchema() => Transcript.CurrentVersion.ShouldBe(2);
+
+    [Fact]
+    public void TreatsItAsAMissSoTheFileIsTranscribedAgain() => _found.ShouldBeNull();
+
+    [Fact]
+    public async Task IsReplacedByTheNewTranscriptOnceThatIsSaved()
+    {
+        var store = new TranscriptStore(_directory.Path);
+        await store.SaveAsync(
+            new Transcript(Transcript.CurrentVersion, CacheFixture.Digest, [], []),
+            "audiobook",
+            TestContext.Current.CancellationToken
+        );
+
+        CacheFixture.JsonFileNames(_directory.Path).ShouldHaveSingleItem();
+    }
+
+    public void Dispose()
+    {
+        _directory.Dispose();
+        GC.SuppressFinalize(this);
+    }
+}
+
 /// <summary>A poisoned cache entry may cost a re-transcription; it may never fail a job.</summary>
 public class WhenACachedTranscriptIsTruncated : IDisposable
 {

@@ -56,14 +56,22 @@ builder.Services.AddSingleton<IMediaEditor, MediaEditor>();
 // on the first transcription rather than here, so building the host touches
 // no GPU, no native library and no weights file - and a job that resumed a
 // cached transcript releases a model it never loaded without complaint.
-builder.Services.AddSingleton<IWhisperEngine>(provider => new WhisperNetEngine(
-    provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
-    new WhisperModelSource(
-        provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value.ModelDirectory,
-        WhisperModelSource.Download
-    ),
-    provider.GetRequiredService<ILogger<WhisperNetEngine>>()
-));
+// The Priority Word List is read once, here: it is baked into the prompted
+// processor's prompt, so it is not re-read on change the way the Bad Words
+// List is (docs/05-crosstalk-plan.md).
+builder.Services.AddSingleton<IWhisperEngine>(provider =>
+{
+    var transcription = provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value;
+    return new WhisperNetEngine(
+        transcription,
+        new WhisperModelSource(transcription.ModelDirectory, WhisperModelSource.Download),
+        provider.GetRequiredService<ILogger<WhisperNetEngine>>(),
+        PriorityWordFile.Resolve(
+            transcription,
+            provider.GetRequiredService<IOptions<StorageOptions>>().Value.DataDirectory
+        )
+    );
+});
 
 // Conversion, padding, rescan rebasing and temporary-file cleanup sit around the
 // engine rather than inside it, which is what keeps them testable without a GPU.

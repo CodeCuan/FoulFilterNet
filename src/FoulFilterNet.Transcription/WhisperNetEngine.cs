@@ -36,6 +36,7 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     private readonly TranscriptionOptions _options;
     private readonly WhisperModelSource _models;
     private readonly ILogger<WhisperNetEngine> _logger;
+    private readonly PriorityWordSource _priorityWords;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly InferenceLane _lane = new();
 
@@ -52,10 +53,19 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
     /// </summary>
     private static int _nativeLogging;
 
+    /// <param name="options">Model, device and language.</param>
+    /// <param name="models">Where the weights are found.</param>
+    /// <param name="logger">The engine's log.</param>
+    /// <param name="priorityWords">
+    /// The Priority Word List every opened audio re-hears its windows for,
+    /// resolved once by the composition root; none, or an empty list, turns the
+    /// Priority Word Pass off.
+    /// </param>
     public WhisperNetEngine(
         TranscriptionOptions options,
         WhisperModelSource models,
-        ILogger<WhisperNetEngine> logger
+        ILogger<WhisperNetEngine> logger,
+        PriorityWordSource? priorityWords = null
     )
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -65,6 +75,7 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         _options = options;
         _models = models;
         _logger = logger;
+        _priorityWords = priorityWords ?? PriorityWordSource.None;
     }
 
     /// <summary>
@@ -110,12 +121,20 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
                 );
             }
 
+            var words = _priorityWords.Words;
             return new WindowedAudio(
                 wav,
                 _lane,
                 priority,
-                () => new ProcessorListener(BuildProcessor(factory)),
-                CloseAsync
+                () => new ProcessorListener(BuildProcessor(factory, prompt: null)),
+                CloseAsync,
+                words.IsEmpty
+                    ? null
+                    : new PriorityPass(
+                        words,
+                        () => new ProcessorListener(BuildProcessor(factory, words.Prompt))
+                    ),
+                _logger
             );
         }
         catch
@@ -289,19 +308,38 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         _factory = WhisperFactory.FromPath(path, factoryOptions);
         CrashTrace.Write("engine.model.load.end", $"library={RuntimeOptions.LoadedLibrary}");
         LogLoaded(RuntimeOptions.LoadedLibrary);
+        if (_priorityWords.Words.IsEmpty)
+        {
+            LogPriorityPassOff(_priorityWords.Origin);
+        }
+        else
+        {
+            LogPriorityPassOn(_priorityWords.Words.Count, _priorityWords.Origin);
+        }
 
         return _factory;
     }
 
     /// <summary>
-    /// A processor per opened audio. <c>WithTokenTimestamps</c> is the member
-    /// that makes word boundaries available at all - without it every token
-    /// carries its segment's times and <see cref="WhisperWords"/> would emit
-    /// segment-wide words.
+    /// A processor per opened audio - two with the Priority Word Pass on, the
+    /// second built identically but for its <paramref name="prompt"/>.
+    /// <c>WithTokenTimestamps</c> is the member that makes word boundaries
+    /// available at all - without it every token carries its segment's times
+    /// and <see cref="WhisperWords"/> would emit segment-wide words.
     /// </summary>
-    private WhisperProcessor BuildProcessor(WhisperFactory factory)
+    /// <param name="factory">The loaded model.</param>
+    /// <param name="prompt">
+    /// The initial prompt, or null for none. The bare Priority Word List,
+    /// comma-separated, is what raised crosstalk detection from 16 to 29 of 33
+    /// on 5 s windows (docs/05-crosstalk-plan.md).
+    /// </param>
+    private WhisperProcessor BuildProcessor(WhisperFactory factory, string? prompt)
     {
         var builder = factory.CreateBuilder().WithTokenTimestamps();
+        if (prompt is { Length: > 0 })
+        {
+            builder = builder.WithPrompt(prompt);
+        }
 
         // Blank configuration means detect, matching the Python's `or None`.
         builder = _options.Language is { Length: > 0 } language
@@ -312,7 +350,10 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         // means VRAM: a trace that stops between these two lines says the card
         // could not give it any.
         var id = Interlocked.Increment(ref _processors);
-        CrashTrace.Write("engine.processor.build.begin", $"processor={id}");
+        CrashTrace.Write(
+            "engine.processor.build.begin",
+            $"processor={id} prompted={prompt is { Length: > 0 }}"
+        );
         var processor = builder.Build();
         CrashTrace.Write("engine.processor.build.end", $"processor={id}");
 
@@ -430,6 +471,15 @@ public sealed partial class WhisperNetEngine : IWhisperEngine, IDisposable
         Message = "Transcription model ready on the {Runtime} runtime"
     )]
     private partial void LogLoaded(RuntimeLibrary? runtime);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Priority Word Pass on: {Count} word(s) from {Origin}"
+    )]
+    private partial void LogPriorityPassOn(int count, string origin);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Priority Word Pass off: {Origin}")]
+    private partial void LogPriorityPassOff(string origin);
 
     [LoggerMessage(
         Level = LogLevel.Information,

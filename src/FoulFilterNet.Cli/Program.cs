@@ -75,13 +75,20 @@ internal static class Program
         // No acquisition delegate, deliberately: a terminal run fails with the
         // path it wanted rather than quietly pulling 1.6 GB over the network.
         // Web wires the downloader; the CLI does not.
-        builder.Services.AddSingleton<IWhisperEngine>(provider => new WhisperNetEngine(
-            provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value,
-            new WhisperModelSource(
-                provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value.ModelDirectory
-            ),
-            provider.GetRequiredService<ILogger<WhisperNetEngine>>()
-        ));
+        // The Priority Word List is read once, from the data directory Web uses.
+        builder.Services.AddSingleton<IWhisperEngine>(provider =>
+        {
+            var transcription = provider.GetRequiredService<IOptions<TranscriptionOptions>>().Value;
+            return new WhisperNetEngine(
+                transcription,
+                new WhisperModelSource(transcription.ModelDirectory),
+                provider.GetRequiredService<ILogger<WhisperNetEngine>>(),
+                PriorityWordFile.Resolve(
+                    transcription,
+                    builder.Configuration[ConfigurationKeys.DataDirectory]
+                )
+            );
+        });
 
         builder.Services.AddSingleton<WhisperTranscriber>(provider => new WhisperTranscriber(
             provider.GetRequiredService<IWhisperEngine>(),

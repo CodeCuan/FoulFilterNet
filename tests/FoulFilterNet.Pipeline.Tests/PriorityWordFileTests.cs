@@ -103,6 +103,36 @@ public sealed class WhenReadingThePriorityWordFile : IDisposable
             .ForOptions(new TranscriptionOptions { PriorityPass = false }, _directory)
             .IsEmpty.ShouldBeTrue();
 
+    [Fact]
+    public void SaysTheBuiltInListCameFromNoFile() =>
+        PriorityWordFile
+            .Resolve(new TranscriptionOptions(), _directory)
+            .Origin.ShouldBe(PriorityWordSource.BuiltInOrigin);
+
+    [Fact]
+    public void SaysWhichFileTheListCameFrom()
+    {
+        var path = File("priority_words.txt", "shit");
+
+        PriorityWordFile.Resolve(new TranscriptionOptions(), _directory).Origin.ShouldBe(path);
+    }
+
+    [Fact]
+    public void SaysThePassWasSwitchedOff() =>
+        PriorityWordFile
+            .Resolve(new TranscriptionOptions { PriorityPass = false }, _directory)
+            .Origin.ShouldBe(PriorityWordSource.SwitchedOffOrigin);
+
+    [Fact]
+    public void GivesTheResolvedListItsWords()
+    {
+        File("priority_words.txt", "shit", "fuck");
+
+        PriorityWordFile
+            .Resolve(new TranscriptionOptions(), _directory)
+            .Words.Words.ShouldBe(["shit", "fuck"]);
+    }
+
     public void Dispose()
     {
         try

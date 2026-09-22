@@ -44,7 +44,8 @@ public static class EvaluationServices
             return new WhisperNetEngine(
                 options,
                 new WhisperModelSource(options.ModelDirectory),
-                provider.GetRequiredService<ILogger<WhisperNetEngine>>()
+                provider.GetRequiredService<ILogger<WhisperNetEngine>>(),
+                PriorityWordFile.Resolve(options, configuration[ConfigurationKeys.DataDirectory])
             );
         });
 
