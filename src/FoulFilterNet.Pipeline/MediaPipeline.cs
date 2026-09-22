@@ -426,8 +426,11 @@ public sealed partial class MediaPipeline : IMediaPipeline
         LogSmartCutRejections(hits.Count - kept.Count);
 
         // Dropping a window can leave two neighbours that no longer need to be
-        // separate, so the survivors go back through the merger.
-        return _merger.Merge(kept);
+        // separate, so the survivors are rejoined. Rejoined, not merged again:
+        // they are already padded, and padding them a second time would widen
+        // every remaining cut by another pre and post - 0.75 s for a priority
+        // word (X04).
+        return HitMerger.Rejoin(kept);
     }
 
     /// <summary>

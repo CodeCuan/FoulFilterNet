@@ -67,9 +67,28 @@ public sealed class HitMerger
             padded.Add(hit with { Start = Times.Round(start), End = Times.Round(end) });
         }
 
+        return Rejoin(padded);
+    }
+
+    /// <summary>
+    /// Merge windows that have <em>already</em> been padded: drop the ones that
+    /// do not describe a forward window, sort, and merge overlaps exactly as
+    /// <see cref="Merge"/> does - but pad nothing.
+    /// </summary>
+    /// <remarks>
+    /// This is what to call on windows that came out of <see cref="Merge"/> and
+    /// have to be joined again because some were dropped in between (the
+    /// survivors of a Smart Cut rejection). Padding them a second time would
+    /// widen every cut by another pre and post - another 0.75 s for a priority
+    /// word - for no reason anyone asked for.
+    /// </remarks>
+    public static IReadOnlyList<Hit> Rejoin(IReadOnlyList<Hit> windows)
+    {
+        ArgumentNullException.ThrowIfNull(windows);
+
         // OrderBy is a stable sort, matching Python's list.sort, so hits padded
         // to the same start stay in the order they were found.
-        var ordered = padded.OrderBy(h => h.Start).ToList();
+        var ordered = windows.Where(hit => hit.End > hit.Start).OrderBy(h => h.Start).ToList();
 
         var merged = new List<Hit>(ordered.Count);
         foreach (var hit in ordered)

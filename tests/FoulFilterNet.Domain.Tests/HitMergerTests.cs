@@ -266,3 +266,53 @@ public class WhenMergingPriorityHits
     public void UsesTheDefaultCutPaddingWhenGivenAHitPadding() =>
         new HitMerger(HitPadding.Default).CutPadding.Ordinary.ShouldBe(HitPadding.Default);
 }
+
+/// <summary>
+/// Windows that have already been padded - the survivors of a Smart Cut
+/// rejection, say - are only rejoined: padding them a second time would widen
+/// every cut by another pre+post, which for a priority word is another 0.75 s.
+/// </summary>
+public class WhenRejoiningWindowsThatAreAlreadyPadded
+{
+    private readonly IReadOnlyList<Hit> _rejoined;
+
+    public WhenRejoiningWindowsThatAreAlreadyPadded()
+    {
+        _rejoined = HitMerger.Rejoin([
+            new Hit("damn", 0.85, 1.75, 1),
+            new Hit("fuck", 2.372, 4.01, 4),
+            new Hit("damn", 4.0, 4.9, 9),
+        ]);
+
+        _rejoined.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void LeavesAWindowNothingOverlapsExactlyWhereItWas() =>
+        _rejoined[0].ShouldBe(new Hit("damn", 0.85, 1.75, 1));
+
+    [Fact]
+    public void StillMergesWindowsThatOverlap() => _rejoined.Count.ShouldBe(2);
+
+    [Fact]
+    public void JoinsTheirPhrases() => _rejoined[1].Phrase.ShouldBe("fuck+damn");
+
+    [Fact]
+    public void KeepsTheJoinedWindowsOwnEdges() =>
+        (_rejoined[1].Start, _rejoined[1].End).ShouldBe((2.372, 4.9));
+}
+
+public class WhenRejoiningWindowsThatAreOutOfOrderOrEmpty
+{
+    private readonly IReadOnlyList<Hit> _rejoined = HitMerger.Rejoin([
+        new Hit("x", 5.0, 5.5),
+        new Hit("y", 2.0, 2.5),
+        new Hit("z", 3.0, 3.0),
+    ]);
+
+    [Fact]
+    public void SortsThem() => _rejoined.Select(hit => hit.Start).ShouldBeInOrder();
+
+    [Fact]
+    public void DropsTheEmptyOne() => _rejoined.Count.ShouldBe(2);
+}

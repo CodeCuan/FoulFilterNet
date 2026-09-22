@@ -433,8 +433,14 @@ public sealed class WhenSmartCutRejectsAHit : IDisposable
     public void KeepsTheOnesItDidNotReject() =>
         _summary.Hits.ShouldAllBe(hit => hit.Phrase == "damn");
 
+    /// <summary>
+    /// The survivors are rejoined, not padded again: the first one keeps the
+    /// 0.85 s start its one padding gave it. It was 0.70 s until X04 - a second
+    /// 0.15 s of pre-roll nobody asked for, and 0.75 s for a priority word.
+    /// </summary>
     [Fact]
-    public void ReMergesTheSurvivors() => _summary.Hits[0].Start.ShouldBe(0.70, 0.001);
+    public void ReJoinsTheSurvivorsWithoutPaddingThemAgain() =>
+        _summary.Hits[0].Start.ShouldBe(0.85, 0.001);
 
     [Fact]
     public void ReportsOneRefiningCheckpointPerHit() =>
