@@ -10,8 +10,10 @@ FoulFilterNet censors profanity in audio and video. It transcribes with
 Whisper.net (whisper.cpp) on CUDA, matches the transcript against a **Bad Words
 List**, and edits the audio with FFmpeg — for files (audiobooks, podcasts,
 films) and, through a Chrome extension, for a YouTube video as it plays. It is a
-.NET 10 port of a Python tool kept unmodified under [`Legacy/`](Legacy) as the
-behavioural reference.
+.NET 10 port of [FoulFilter](https://github.com/therealmichaelberna/FoulFilter),
+a Python tool that remains the behavioural reference. It is no longer vendored:
+a `Legacy/...` path in a comment or doc names a file in that repository
+(`git fetch upstream` to read it locally).
 
 - [README.md](README.md) — how to run everything, and every configuration key.
 - [CONTEXT.md](CONTEXT.md) — the domain vocabulary. Hit, Candidate, Coverage,

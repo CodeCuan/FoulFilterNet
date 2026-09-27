@@ -4,9 +4,10 @@ FoulFilterNet finds profanity in audio and video files and edits it out
 (silence, bleep, or cut), built for long-form media such as audiobooks; it also
 censors a YouTube video as it plays, through a Chrome extension (see *Web video*
 below). It is a
-.NET 10 port of the Python FoulFilter, which is kept unmodified under
-[`Legacy/`](Legacy) as the behavioural reference; its own vocabulary is in
-[Legacy/CONTEXT.md](Legacy/CONTEXT.md).
+.NET 10 port of the Python
+[FoulFilter](https://github.com/therealmichaelberna/FoulFilter), the
+behavioural reference; its own vocabulary is in
+[its CONTEXT.md](https://github.com/therealmichaelberna/FoulFilter/blob/main/CONTEXT.md).
 
 The port keeps the Python's domain vocabulary on purpose — the types in
 `FoulFilterNet.Domain` carry these names. What changed is the engine underneath
@@ -297,17 +298,17 @@ The port's own decisions are in [`docs/adr/`](docs/adr):
   streams: server-side audio acquisition, client-side Live Censoring
 
 The Python's decisions are frozen history in
-[`Legacy/docs/adr/`](Legacy/docs/adr). They still explain behaviour the port
+[the original's `docs/adr/`](https://github.com/therealmichaelberna/FoulFilter/tree/main/docs/adr). They still explain behaviour the port
 preserves:
 
-- [ADR-0001](Legacy/docs/adr/0001-hybrid-asr.md) — hybrid ASR (superseded by
+- [ADR-0001](https://github.com/therealmichaelberna/FoulFilter/blob/main/docs/adr/0001-hybrid-asr.md) — hybrid ASR (superseded by
   ADR-0006; its all-or-nothing alignment rule survives)
-- [ADR-0002](Legacy/docs/adr/0002-ephemeral-jobs-persistent-transcripts.md) —
+- [ADR-0002](https://github.com/therealmichaelberna/FoulFilter/blob/main/docs/adr/0002-ephemeral-jobs-persistent-transcripts.md) —
   ephemeral jobs, persistent transcripts (still holds)
-- [ADR-0003](Legacy/docs/adr/0003-single-container-consolidation.md) — single
+- [ADR-0003](https://github.com/therealmichaelberna/FoulFilter/blob/main/docs/adr/0003-single-container-consolidation.md) — single
   container (still holds; the port is one process)
-- [ADR-0004](Legacy/docs/adr/0004-smart-cut-widening-scope.md) — Smart Cut
+- [ADR-0004](https://github.com/therealmichaelberna/FoulFilter/blob/main/docs/adr/0004-smart-cut-widening-scope.md) — Smart Cut
   widening scope (still holds)
-- [ADR-0005](Legacy/docs/adr/0005-slim-base-image-vendor-pinned-wheels.md) —
+- [ADR-0005](https://github.com/therealmichaelberna/FoulFilter/blob/main/docs/adr/0005-slim-base-image-vendor-pinned-wheels.md) —
   slim base image with vendor-pinned PyTorch wheels (does not apply: there is
   no PyTorch)

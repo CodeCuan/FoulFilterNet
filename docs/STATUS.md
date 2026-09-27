@@ -153,6 +153,7 @@ running from a worktree.
 | Media fixtures + generator | `6bdeda6` | 7 fixtures, exact ground truth in `manifest.json` |
 | `appsettings.json` with the feature flags | `eaf26ee` | The docs and `.gitignore` both described a file that did not exist; `Storage` deliberately excluded, see the flag block |
 | Root `.gitignore` + `.gitattributes` | `6bdeda6`, `a03fdd8` | |
+| `Legacy/` removed; README credits the original | this commit | The Python lives at https://github.com/therealmichaelberna/FoulFilter (remote `upstream`), same layout. `Legacy/...` paths left in comments and older docs name files there; living docs link to it directly |
 
 ## Container dropped (after T34)
 

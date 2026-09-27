@@ -12,9 +12,13 @@ It transcribes with [Whisper.net](https://github.com/sandrohanea/whisper.net)
 edits the audio with FFmpeg. An optional LLM pass (Smart Cut) can widen a cut to
 a whole idiom or reject a false positive.
 
-This is a .NET 10 port of the Python FoulFilter, which is kept unmodified under
-[`Legacy/`](Legacy) as the behavioural reference. The domain vocabulary is in
-[CONTEXT.md](CONTEXT.md).
+This is a .NET 10 port of
+[FoulFilter](https://github.com/therealmichaelberna/FoulFilter) by
+[@therealmichaelberna](https://github.com/therealmichaelberna), the Python
+original and the behavioural reference; credit for the design and the domain
+it carries over belongs there. Paths such as
+`Legacy/src/pipeline.py` in comments and docs name files in that repository.
+The domain vocabulary is in [CONTEXT.md](CONTEXT.md).
 
 ## Prerequisites
 
@@ -155,8 +159,9 @@ $env:Transcription__ModelDirectory = "$PWD\models"
 Web reads the Bad Words List from `bad_words.txt` in the data directory —
 `%LOCALAPPDATA%\FoulFilterNet` on Windows, `~/.local/share/FoulFilterNet` on
 Linux — unless `Storage:BadWordsPath` says otherwise. Nothing is seeded there;
-[`Legacy/data/bad_words.example.txt`](Legacy/data/bad_words.example.txt) is a
-template. One word or phrase per line, `#` starts a comment, matching is case-
+the original's
+[`data/bad_words.example.txt`](https://github.com/therealmichaelberna/FoulFilter/blob/main/data/bad_words.example.txt)
+is a template. One word or phrase per line, `#` starts a comment, matching is case-
 and punctuation-insensitive, and phrases of up to three words are supported.
 
 The data directory also holds `uploads/`, `outputs/`, `scratch/` and the
@@ -541,8 +546,8 @@ npm test
 - [docs/STATUS.md](docs/STATUS.md) — the live progress ledger, and the most
   detailed record of how each part actually works and why.
 - [docs/adr/](docs/adr) — the port's architecture decisions;
-  [Legacy/docs/adr/](Legacy/docs/adr) — the Python's, still referenced.
+  [the original's docs/adr/](https://github.com/therealmichaelberna/FoulFilter/tree/main/docs/adr) — the Python's, still referenced.
 - [extension/README.md](extension/README.md) — the Chrome extension: its module
   layout, the rules it follows, and its tests.
 - [CONTEXT.md](CONTEXT.md) — domain vocabulary and what the .NET design changed.
-- [Legacy/README.md](Legacy/README.md) — the original Python application.
+- [FoulFilter](https://github.com/therealmichaelberna/FoulFilter/tree/main) — the original Python application.

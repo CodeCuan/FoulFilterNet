@@ -1,7 +1,5 @@
 # ---------------------------------------------------------------------------
 # FoulFilterNet — root ignore rules
-#
-# The Python-era rules live in Legacy/.gitignore and still apply to that tree.
 # ---------------------------------------------------------------------------
 
 # --- .NET build output ---

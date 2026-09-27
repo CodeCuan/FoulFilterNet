@@ -18,11 +18,11 @@ Porting FoulFilter (Python / FastAPI) to .NET 10.
 | [../CONTEXT.md](../CONTEXT.md) | Domain vocabulary, and what the .NET design changed |
 | [../README.md](../README.md) | Building, running, configuring and testing the solution |
 
-The original Python implementation is preserved unmodified under [`/Legacy`](../Legacy)
-and remains the reference for behaviour. Its domain vocabulary
-([Legacy/CONTEXT.md](../Legacy/CONTEXT.md)) is carried forward in
+The original Python implementation is [FoulFilter](https://github.com/therealmichaelberna/FoulFilter)
+remains the reference for behaviour. Its domain vocabulary
+([CONTEXT.md](https://github.com/therealmichaelberna/FoulFilter/blob/main/CONTEXT.md)) is carried forward in
 [CONTEXT.md](../CONTEXT.md), and its architecture decisions
-([Legacy/docs/adr](../Legacy/docs/adr), ADR-0001 to ADR-0005) are frozen
+([docs/adr](https://github.com/therealmichaelberna/FoulFilter/tree/main/docs/adr), ADR-0001 to ADR-0005) are frozen
 history that the port's ADRs build on; ADR-0006 supersedes ADR-0001.
 
 ## Test media
