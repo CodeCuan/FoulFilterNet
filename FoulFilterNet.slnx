@@ -3,6 +3,7 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/FoulFilterNet.Books/FoulFilterNet.Books.csproj" />
     <Project Path="src/FoulFilterNet.Cli/FoulFilterNet.Cli.csproj" />
     <Project Path="src/FoulFilterNet.Domain/FoulFilterNet.Domain.csproj" />
     <Project Path="src/FoulFilterNet.Evaluation/FoulFilterNet.Evaluation.csproj" />
@@ -16,6 +17,7 @@
     <Project Path="src/FoulFilterNet.Web/FoulFilterNet.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/FoulFilterNet.Books.Tests/FoulFilterNet.Books.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Cli.Tests/FoulFilterNet.Cli.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Domain.Tests/FoulFilterNet.Domain.Tests.csproj" />
     <Project Path="tests/FoulFilterNet.Evaluation.Tests/FoulFilterNet.Evaluation.Tests.csproj" />

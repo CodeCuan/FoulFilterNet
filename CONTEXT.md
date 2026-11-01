@@ -138,6 +138,11 @@ punctuation-insensitive over whole tokens (`[a-z0-9']+`), never substrings;
 entries may be multi-word phrases up to three words.
 _Avoid_: blacklist, blocklist, swear list
 
+**Partial Word**:
+A word on the optional list `foulfilter-books` masks wherever it appears inside
+another word, unlike a Bad Words List entry. Books only: a transcript has no use
+for it, and most roots would catch innocent words.
+
 **Legacy variable**:
 One of the Python's environment variable names (`DATA_DIR`, `WHISPER_MODEL`,
 `AI_ENHANCE`, ...), still honoured by mapping it onto a .NET configuration key.

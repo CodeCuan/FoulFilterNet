@@ -35,6 +35,7 @@ a `Legacy/...` path in a comment or doc names a file in that repository
 | `Web` | The ASP.NET host: upload UI, job and watch endpoints, SSE. |
 | `Cli` | `foulfilter`, one file per run. |
 | `Evaluation` | `foulfilter-eval`: scores the pipeline against fixture manifests. |
+| `Books` | `foulfilter-books`: censors the text of a folder of EPUBs. |
 | `extension/` | The Chrome extension (plain ES modules, no dependencies). |
 
 Every `src/X` has a `tests/X.Tests` beside it.

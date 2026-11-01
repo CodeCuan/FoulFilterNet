@@ -422,6 +422,33 @@ foulfilter <file_path> <bad_words_list_path> [options]
   anywhere but the repository root, set `Transcription__ModelDirectory` to an
   absolute path.
 
+## Filtering EPUBs
+
+`foulfilter-books` (`src/FoulFilterNet.Books`) censors the text of every EPUB
+directly inside a folder. It needs no model and no FFmpeg.
+
+```bash
+dotnet run -c Release --project src/FoulFilterNet.Books -- "F:/Books/Some Series"
+```
+
+| Option | Default |
+|---|---|
+| `--output <dir>` | `<folder>/Filtered`; the input folder itself is refused |
+| `--bad-words <file>` | `bad_words.txt` in the data directory |
+| `--partial-words <file>` | `partial_words.txt` in the data directory, if present |
+| `--mask <text>` | `****`, one mask per word or phrase |
+
+- Bad Words List entries match whole words, as they do for audio. A word in
+  `partial_words.txt` (one per line, optional) is masked anywhere inside another
+  word, so that file is for roots no innocent word contains.
+- `near-misses.txt` in the output folder lists words that were kept but contain a
+  listed word: count, word, listed word. It holds innocent words too. The terminal
+  only ever prints counts.
+- Chapters, the table of contents and the package's title, description and
+  subjects are censored. Image text and attributes such as `alt` are not.
+- A file that is not really an EPUB, or whose text is DRM-encrypted, fails with a
+  reason and the other books carry on. The exit code is then 1.
+
 ## Evaluating against the fixtures
 
 `foulfilter-eval` (`src/FoulFilterNet.Evaluation`) runs every fixture in

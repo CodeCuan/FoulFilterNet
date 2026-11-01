@@ -40,6 +40,28 @@ public static partial class Tokenizer
     }
 
     /// <summary>
+    /// Where each token sits in <paramref name="text"/>, for callers that must edit
+    /// the text and not only compare it. Lowercasing is one-to-one under invariant
+    /// casing, so these offsets hold in the original text too.
+    /// </summary>
+    public static IReadOnlyList<(int Start, int Length)> TokenSpans(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return [];
+        }
+
+        var matches = TokenPattern().Matches(Lower(text));
+        var spans = new (int Start, int Length)[matches.Count];
+        for (var i = 0; i < matches.Count; i++)
+        {
+            spans[i] = (matches[i].Index, matches[i].Length);
+        }
+
+        return spans;
+    }
+
+    /// <summary>
     /// The matchable form of a single piece of text: its tokens, space-joined.
     /// Punctuation and case fall away, so an aligned word rendered "Hell," still
     /// matches the entry <c>hell</c>.

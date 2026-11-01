@@ -52,4 +52,13 @@ public static class DataLocations
         string.IsNullOrWhiteSpace(priorityWordsPath)
             ? Path.Combine(DataDirectory(dataDirectory), "priority_words.txt")
             : priorityWordsPath.Trim();
+
+    /// <summary>
+    /// The words a book masks wherever they appear inside another word: an explicit
+    /// path, else <c>partial_words.txt</c> in the data root. The file is optional.
+    /// </summary>
+    public static string PartialWordsPath(string? dataDirectory, string? partialWordsPath) =>
+        string.IsNullOrWhiteSpace(partialWordsPath)
+            ? Path.Combine(DataDirectory(dataDirectory), "partial_words.txt")
+            : partialWordsPath.Trim();
 }
